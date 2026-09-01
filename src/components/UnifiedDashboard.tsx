@@ -47,6 +47,7 @@ import { PortfolioRebalancingNotifier } from "./trading/PortfolioRebalancingNoti
 import { BrokerPnLTrendChartWidget } from "./trading/BrokerPnLTrendChartWidget";
 import { AiTradeHistoryViewer } from "./trading/AiTradeHistoryViewer";
 import { StockPosition } from "../types";
+import { InsufficientFundStocksList } from "./InsufficientFundStocksList";
 import { 
   ResponsiveContainer, 
   AreaChart, 
@@ -232,6 +233,9 @@ export const UnifiedDashboard: React.FC<UnifiedDashboardProps> = ({ onNavigateTo
         <div className="bg-zinc-900/80 border border-zinc-800 p-3 sm:p-4 rounded-2xl backdrop-blur-sm shadow-xl">
           <FloatingSearchBar variant="hero" />
         </div>
+
+        {/* INSUFFICIENT FUNDS SEPARATE CLASSIFICATION LIST */}
+        <InsufficientFundStocksList />
 
         {/* LIVE PORTFOLIO REBALANCING AI NOTIFIER */}
         <PortfolioRebalancingNotifier 

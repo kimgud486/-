@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
+import { AiFutureTrendOverlayChart } from "./AiFutureTrendOverlayChart";
 import { 
   X, 
   TrendingUp, 
@@ -1021,8 +1022,17 @@ export const StockCandleChartModal: React.FC<StockCandleChartModalProps> = ({
           {/* TAB 1: REAL-TIME GRAPH CHART */}
           {activeTab === "CHART" && (
             <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-3 sm:p-4 flex-1 flex flex-col justify-between">
-              
-              <div className="flex items-center justify-between text-xs font-mono text-slate-400 pb-2 border-b border-slate-800 shrink-0">
+              {chartType === "AI_FORECAST" ? (
+                <AiFutureTrendOverlayChart
+                  symbol={symbol}
+                  name={name}
+                  market={market}
+                  livePrice={livePrice}
+                  changeRate={liveChangeRate}
+                />
+              ) : (
+                <>
+                  <div className="flex items-center justify-between text-xs font-mono text-slate-400 pb-2 border-b border-slate-800 shrink-0">
                 <div className="flex flex-wrap items-center gap-3">
                   <span className="font-bold text-white flex items-center gap-1.5 text-sm">
                     <Activity className="h-4 w-4 text-cyan-400 animate-pulse" />
@@ -1237,7 +1247,8 @@ export const StockCandleChartModal: React.FC<StockCandleChartModalProps> = ({
                   </ComposedChart>
                 </ResponsiveContainer>
               </div>
-
+                </>
+              )}
             </div>
           )}
 

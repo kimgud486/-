@@ -30,11 +30,16 @@ import {
   Sparkles,
   PieChart,
   ShieldAlert,
-  Trash2
+  Trash2,
+  Key,
+  Globe2,
+  DollarSign
 } from "lucide-react";
 import { useApp } from "../../context/AppContext";
 import { StockPosition, TradeLog, CashBreakdown } from "../../types";
 import { SmartSafetyGovernanceModal } from "./SmartSafetyGovernanceModal";
+import { BrokerApiConnectModal } from "./BrokerApiConnectModal";
+import { getMarketStatus, getExecutionPhase } from "../../lib/marketHours";
 
 interface RealBrokerDetailedBalanceAndHoldingsProps {
   onSelectAssetForChart?: (symbol: string, name: string, market: "KOREA" | "US" | "BTC") => void;
@@ -62,6 +67,26 @@ export const RealBrokerDetailedBalanceAndHoldings: React.FC<RealBrokerDetailedBa
   // Active Sub-Tab
   const [activeTab, setActiveTab] = useState<"BALANCES" | "HOLDINGS" | "TRADES">("BALANCES");
   const [isGovernanceOpen, setIsGovernanceOpen] = useState(false);
+  const [isApiConnectModalOpen, setIsApiConnectModalOpen] = useState(false);
+
+  // Market hours status for domestic and global stocks
+  const [koreaMarketStatus, setKoreaMarketStatus] = useState(() => getMarketStatus('KOREA'));
+  const [usMarketStatus, setUsMarketStatus] = useState(() => getMarketStatus('US'));
+  const [koreaMarketPhase, setKoreaMarketPhase] = useState(() => getExecutionPhase('KOREA'));
+  const [usMarketPhase, setUsMarketPhase] = useState(() => getExecutionPhase('US'));
+
+  useEffect(() => {
+    const updateMarketTimes = () => {
+      const now = new Date();
+      setKoreaMarketStatus(getMarketStatus('KOREA', now));
+      setUsMarketStatus(getMarketStatus('US', now));
+      setKoreaMarketPhase(getExecutionPhase('KOREA', now));
+      setUsMarketPhase(getExecutionPhase('US', now));
+    };
+    updateMarketTimes();
+    const interval = setInterval(updateMarketTimes, 5000);
+    return () => clearInterval(interval);
+  }, []);
 
   // Holdings View Mode & Filter
   const [holdingsViewMode, setHoldingsViewMode] = useState<"GRID" | "TABLE">("GRID");
@@ -239,16 +264,32 @@ export const RealBrokerDetailedBalanceAndHoldings: React.FC<RealBrokerDetailedBa
     return safeVal.toLocaleString();
   };
 
-  // Helper formatting for price
+  // Helper formatting for price (Dual KRW & USD support)
   const formatPrice = (price: number | undefined | null, market?: string, symbol?: string) => {
     const safeVal = typeof price === 'number' && !isNaN(price) ? price : (Number(price) || 0);
     const isUS = market === "US" || (symbol && /^[A-Z]{1,5}$/.test(symbol) && !["BTC", "ETH", "XRP", "SOL", "DOGE"].includes(symbol));
-    if (isUS) return `$${safeVal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    if (isUS) {
+      const krwEquivalent = Math.round(safeVal * exchangeRateKRW).toLocaleString();
+      return (
+        <span className="inline-flex flex-col items-end">
+          <span className="text-emerald-300 font-black">${safeVal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+          <span className="text-[10px] text-slate-400 font-sans">(≈ ₩{krwEquivalent}원)</span>
+        </span>
+      );
+    }
     return `${Math.round(safeVal).toLocaleString()}원`;
   };
 
-  const formatValuation = (val: number, market?: string) => {
-    if (market === "US") return `$${val.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  const formatValuation = (val: number, market?: string, rawPrice?: number, qty?: number) => {
+    if (market === "US") {
+      const usdVal = (rawPrice && qty) ? rawPrice * qty : val / exchangeRateKRW;
+      return (
+        <div className="inline-flex flex-col items-end">
+          <span className="text-emerald-300 font-black">${usdVal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+          <span className="text-[10px] text-slate-400 font-sans font-normal">≈ ₩{Math.round(val).toLocaleString()}원</span>
+        </div>
+      );
+    }
     return `₩${Math.round(val).toLocaleString()}원`;
   };
 
@@ -371,6 +412,25 @@ export const RealBrokerDetailedBalanceAndHoldings: React.FC<RealBrokerDetailedBa
           </div>
         </div>
 
+        {/* Live USD Exchange Rate Notice Bar */}
+        <div className="mt-3 p-2.5 bg-indigo-950/40 border border-indigo-500/30 rounded-xl flex items-center justify-between flex-wrap gap-2 text-xs">
+          <div className="flex items-center gap-2">
+            <DollarSign className="w-4 h-4 text-emerald-400" />
+            <span className="font-black text-white">
+              🇺🇸 외국 주식 실시간 달러($) 환율 고시:
+            </span>
+            <span className="font-mono font-black text-emerald-400 bg-emerald-950/80 px-2 py-0.5 rounded border border-emerald-500/40">
+              1 USD = ₩{exchangeRateKRW.toLocaleString()}원
+            </span>
+            <span className="text-slate-400 text-[11px]">
+              (외국 주식은 단가 및 평가액이 달러($)로 표기되며 원화 환산액이 동시 병기됩니다)
+            </span>
+          </div>
+          <span className="text-[10px] text-indigo-300 font-mono font-bold bg-indigo-900/50 px-2 py-0.5 rounded">
+            하나은행 매매기준율 연동 LIVE
+          </span>
+        </div>
+
         {/* 2. SUB-NAVIGATION TABS */}
         <div className="flex items-center gap-2 mt-4 pt-3 border-t border-slate-800/80 overflow-x-auto">
           {[
@@ -396,14 +456,54 @@ export const RealBrokerDetailedBalanceAndHoldings: React.FC<RealBrokerDetailedBa
       {/* 3. TAB CONTENT 1: 3-BROKER DETAILED BALANCES */}
       {activeTab === "BALANCES" && (
         <div className="p-4 sm:p-5 space-y-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Building2 className="w-4 h-4 text-amber-400" />
-              <h3 className="text-sm font-bold text-white">증권사 및 거래소별 정밀 잔고 분할 내역</h3>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-slate-800/80">
+            <div className="flex items-center gap-2.5">
+              <div className="p-2 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-400">
+                <Building2 className="w-4 h-4" />
+              </div>
+              <div>
+                <h3 className="text-sm font-black text-white flex items-center gap-2">
+                  <span>증권사 및 거래소별 정밀 잔고 분할 내역</span>
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
+                    실계좌 Live
+                  </span>
+                </h3>
+                <p className="text-[11px] text-slate-400 font-sans">
+                  한국투자증권(국내/해외) • 토스증권 • 업비트 3대 금융사 자산 실시간 집계
+                </p>
+              </div>
             </div>
-            <span className="text-xs text-slate-400">
-              실계좌 Open API 실시간 세션 연동 완료
-            </span>
+
+            {/* API Registration / Real Account Connection Button & Market Clock Indicators */}
+            <div className="flex items-center gap-2 flex-wrap">
+              {/* Market Status Badges: Domestic & Foreign */}
+              <div className="flex items-center gap-1.5 bg-slate-950/80 border border-slate-800 rounded-xl px-2.5 py-1.5 text-[11px] font-mono">
+                <div className="flex items-center gap-1">
+                  <span className={`w-2 h-2 rounded-full ${koreaMarketStatus.isOpen ? "bg-emerald-400 animate-pulse" : "bg-slate-500"}`}></span>
+                  <span className="text-slate-300 font-sans font-bold">국내장:</span>
+                  <span className={`font-bold ${koreaMarketStatus.isOpen ? "text-emerald-400" : "text-slate-400"}`}>
+                    {koreaMarketStatus.isOpen ? "장 진행중" : "장마감"}
+                  </span>
+                </div>
+                <span className="text-slate-700">|</span>
+                <div className="flex items-center gap-1">
+                  <span className={`w-2 h-2 rounded-full ${usMarketStatus.isOpen ? "bg-indigo-400 animate-pulse" : "bg-slate-500"}`}></span>
+                  <span className="text-slate-300 font-sans font-bold">미국장:</span>
+                  <span className={`font-bold ${usMarketStatus.isOpen ? "text-indigo-400" : "text-slate-400"}`}>
+                    {usMarketStatus.isOpen ? "장 진행중" : "장마감"}
+                  </span>
+                </div>
+              </div>
+
+              {/* API Registration / Real Account Connection Button */}
+              <button
+                onClick={() => setIsApiConnectModalOpen(true)}
+                className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 text-xs font-black shadow-lg shadow-amber-500/20 border border-amber-400 transition cursor-pointer flex items-center gap-1.5 whitespace-nowrap active:scale-95"
+              >
+                <Key className="w-3.5 h-3.5" />
+                <span>API 등록 연동 실계좌 등록</span>
+              </button>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
@@ -880,13 +980,13 @@ export const RealBrokerDetailedBalanceAndHoldings: React.FC<RealBrokerDetailedBa
                       <div>
                         <span className="text-slate-500 text-[10px] block">매수 평단가</span>
                         <span className="text-slate-300 font-bold">
-                          {formatPrice(pos.avgPrice, pos.market)}
+                          {formatPrice(pos.avgPrice, pos.market, pos.symbol)}
                         </span>
                       </div>
                       <div className="text-right">
                         <span className="text-slate-500 text-[10px] block">총 평가금액</span>
                         <span className="text-amber-300 font-black">
-                          {formatValuation(totalValuation, pos.market)}
+                          {formatValuation(totalValuation, pos.market, pos.currentPrice, pos.quantity)}
                         </span>
                       </div>
                     </div>
@@ -1033,13 +1133,13 @@ export const RealBrokerDetailedBalanceAndHoldings: React.FC<RealBrokerDetailedBa
                           {formatQty(pos.quantity, pos.market)}
                         </td>
                         <td className="p-3 text-right text-slate-300">
-                          {formatPrice(pos.avgPrice, pos.market)}
+                          {formatPrice(pos.avgPrice, pos.market, pos.symbol)}
                         </td>
                         <td className="p-3 text-right font-bold text-white">
-                          {formatPrice(pos.currentPrice, pos.market)}
+                          {formatPrice(pos.currentPrice, pos.market, pos.symbol)}
                         </td>
                         <td className="p-3 text-right font-black text-amber-300">
-                          {formatValuation(totalValuation, pos.market)}
+                          {formatValuation(totalValuation, pos.market, pos.currentPrice, pos.quantity)}
                         </td>
                         <td className={`p-3 text-right font-bold ${isProfit ? "text-emerald-400" : "text-rose-400"}`}>
                           <div>{isProfit ? "+" : ""}₩{pnlKRW.toLocaleString()}원</div>
@@ -1267,6 +1367,11 @@ export const RealBrokerDetailedBalanceAndHoldings: React.FC<RealBrokerDetailedBa
       <SmartSafetyGovernanceModal
         isOpen={isGovernanceOpen}
         onClose={() => setIsGovernanceOpen(false)}
+      />
+
+      <BrokerApiConnectModal
+        isOpen={isApiConnectModalOpen}
+        onClose={() => setIsApiConnectModalOpen(false)}
       />
     </div>
   );

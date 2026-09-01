@@ -21,6 +21,45 @@ export const Navbar: React.FC<NavbarProps> = ({ onLock }) => {
   const [isAiReportModalOpen, setIsAiReportModalOpen] = useState(false);
   const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
 
+  const { isRealTrade, koreaAppKey, koreaAppSecret, upbitAccessKey, upbitSecretKey } = profile || {};
+  const { brokerErrors } = useApp();
+
+  // Dynamic real trading status calculation
+  const isKoreaMarketOpen = Boolean(marketStatus?.korea?.isOpen);
+  const isUsMarketOpen = Boolean(marketStatus?.us?.isOpen);
+  const isAnyMarketOpen = isKoreaMarketOpen || isUsMarketOpen;
+  const hasBrokerKeys = Boolean((koreaAppKey && koreaAppSecret) || (upbitAccessKey && upbitSecretKey));
+  const hasBrokerError = Boolean(brokerErrors?.korea || brokerErrors?.upbit);
+
+  let statusBadgeBg = "bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30";
+  let statusBadgeText = "🟡 가상 모의투자";
+  let statusDotColor = "bg-amber-500";
+  let statusTooltip = "현재 가상 모의투자 모드로 작동 중입니다.";
+
+  if (isRealTrade) {
+    if (!hasBrokerKeys) {
+      statusBadgeBg = "bg-rose-500/15 text-rose-600 dark:text-rose-400 border-rose-500/40 animate-pulse";
+      statusBadgeText = "🔴 실거래 불가 (API 미연동)";
+      statusDotColor = "bg-rose-500";
+      statusTooltip = "API Key 미등록 상태입니다. [설정] 메뉴에서 한국투자증권/업비트 API Key를 입력하세요.";
+    } else if (hasBrokerError) {
+      statusBadgeBg = "bg-rose-500/15 text-rose-600 dark:text-rose-400 border-rose-500/40 animate-pulse";
+      statusBadgeText = "🔴 실거래 불가 (통신 오류)";
+      statusDotColor = "bg-rose-500";
+      statusTooltip = "증권사 또는 거래소 API 통신 오류가 감지되어 실거래 주문이 차단되었습니다.";
+    } else if (!isAnyMarketOpen) {
+      statusBadgeBg = "bg-rose-500/15 text-rose-600 dark:text-rose-400 border-rose-500/40";
+      statusBadgeText = "🔴 실거래 불가 (장외시간)";
+      statusDotColor = "bg-rose-500";
+      statusTooltip = "현재 정규장 운영 시간이 아니므로 실거래 주문 전송이 자동으로 차단되었습니다.";
+    } else {
+      statusBadgeBg = "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/40";
+      statusBadgeText = "🟢 실거래 LIVE 연결됨";
+      statusDotColor = "bg-emerald-500";
+      statusTooltip = "한국투자증권 / 업비트 실거래 원장 정상 연동 및 주문 가능 상태입니다.";
+    }
+  }
+
   const handleSignOut = async () => {
     try {
       await signOut(auth);
@@ -70,6 +109,23 @@ export const Navbar: React.FC<NavbarProps> = ({ onLock }) => {
             {/* PROMINENT MOCK / REAL MODE TOGGLE SWITCH & CONNECTION HEALTH WIDGET */}
             <div className="hidden lg:flex items-center gap-2 ml-2">
               <ConnectionHealthDashboard />
+
+              {/* DYNAMIC REAL-TIME TRADING STATUS INDICATOR (Instant Color Change: Green / Red / Yellow) */}
+              <div 
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-mono font-bold transition-all shadow-xs cursor-pointer ${statusBadgeBg}`}
+                title={statusTooltip}
+                onClick={() => {
+                  if (isRealTrade && !hasBrokerKeys) {
+                    window.dispatchEvent(new CustomEvent("open-api-connect-modal", { detail: 'korea' }));
+                  }
+                }}
+              >
+                <span className="relative flex h-2 w-2">
+                  <span className={`animate-ping absolute inline-flex h-full w-full rounded-full ${statusDotColor} opacity-75`} />
+                  <span className={`relative inline-flex rounded-full h-2 w-2 ${statusDotColor}`} />
+                </span>
+                <span>{statusBadgeText}</span>
+              </div>
 
               {/* TRADING MODE DEDICATED SEGMENTED SELECTOR */}
               <div className="flex items-center bg-zinc-100 dark:bg-zinc-800/80 p-1 rounded-xl border border-zinc-200 dark:border-zinc-700/60 shadow-xs">

@@ -40,7 +40,7 @@ export const D3PerformanceChart: React.FC = () => {
   const [hoverData, setHoverData] = useState<PerformancePoint | null>(null);
 
   // Calculate live portfolio summary
-  const currentCash = profile?.cashBalance ?? 100000000;
+  const currentCash = profile?.cash ?? profile?.balance ?? 100000000;
   const positionsEval = positions.reduce((acc, p) => acc + p.quantity * p.currentPrice, 0);
   const totalAssets = currentCash + positionsEval;
   const totalBuyAmt = positions.reduce((acc, p) => acc + p.quantity * p.avgPrice, 0);

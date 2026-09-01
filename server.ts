@@ -18,7 +18,7 @@ process.on("uncaughtException", (err) => {
 });
 
 const app = express();
-const PORT = 3000;
+const PORT = Number(process.env.PORT) || 3000;
 
 app.use(express.json());
 
@@ -7824,6 +7824,52 @@ const safetyCheckMiddleware = async (req: express.Request, res: express.Response
   }
 };
 
+function getMarketSessionStatus(market: "KOREA" | "US" | "BTC"): { isOpen: boolean; reason?: string } {
+  if (market === "BTC") {
+    return { isOpen: true };
+  }
+
+  const now = new Date();
+  const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
+  const kst = new Date(utc + (9 * 3600000));
+  const day = kst.getDay(); // 0: Sun, 1: Mon, ..., 6: Sat
+  const hours = kst.getHours();
+  const minutes = kst.getMinutes();
+  const timeNum = hours * 100 + minutes;
+
+  if (market === "KOREA") {
+    if (day === 0 || day === 6) {
+      return { isOpen: false, reason: "주말 휴장 (국내 주식 정규장 운영시간: 평일 09:00~15:30 KST)" };
+    }
+    if (timeNum >= 900 && timeNum <= 1530) {
+      return { isOpen: true };
+    }
+    return { isOpen: false, reason: "국내 주식 정규장 마감 (운영시간: 평일 09:00~15:30 KST)" };
+  }
+
+  if (market === "US") {
+    if (day === 0) {
+      return { isOpen: false, reason: "미국 주식 시장 주말 휴장 (정규장 시간: KST 22:30~05:00 / 21:30~04:00)" };
+    }
+    if (day === 1 && timeNum < 2130) {
+      return { isOpen: false, reason: "미국 주식 개장 전 (월요일 개장시간: KST 21:30/22:30)" };
+    }
+    if (day === 6 && timeNum >= 600) {
+      return { isOpen: false, reason: "미국 주식 주말 장 마감 (토요일 새벽 05:00/06:00 마감)" };
+    }
+    if (day >= 2 && day <= 6 && timeNum < 600) {
+      return { isOpen: true };
+    }
+    if (day >= 1 && day <= 5 && timeNum >= 2130) {
+      return { isOpen: true };
+    }
+
+    return { isOpen: false, reason: "미국 주식 정규장 마감 (운영시간: KST 21:30/22:30 ~ 04:00/05:00)" };
+  }
+
+  return { isOpen: true };
+}
+
 // Real Broker Live Trade Execution API with Safety Check Middleware
 app.post("/api/trade/execute", safetyCheckMiddleware, async (req, res) => {
   const { 
@@ -7854,10 +7900,22 @@ app.post("/api/trade/execute", safetyCheckMiddleware, async (req, res) => {
 
   const isRealRequested = req.body.isRealTrade === true && req.body.isSimulated !== true;
 
+  // 장외 시간 체크 (KOREA 및 US 마켓일 때 실매매 및 모의매매 모두 장외 시간 매수/매도 사전 거부 가능)
+  const sessionCheck = getMarketSessionStatus(market as any);
+  if (!sessionCheck.isOpen) {
+    const sessionMsg = `[장외 시간 주문 거부] ${sessionCheck.reason}. 장 마감 상태이므로 거래가 취소되었습니다.`;
+    console.log(`[Market Session Block]: ${sessionMsg}`);
+    return res.status(400).json({
+      success: false,
+      isOffMarket: true,
+      error: sessionMsg
+    });
+  }
+
   // 1. 한국 국내주식 거래 처리 (한국투자증권 API)
   if (market === "KOREA") {
     try {
-      if (!isRealRequested || req.body.isSimulated === true || req.body.isRealTrade === false || (!decKoreaKey && !decKoreaSecret)) {
+      if (!isRealRequested || req.body.isSimulated === true || req.body.isRealTrade === false) {
         const orderId = `SIM-KRW-${Date.now()}`;
         return res.json({
           success: true,
@@ -7889,30 +7947,13 @@ app.post("/api/trade/execute", safetyCheckMiddleware, async (req, res) => {
         authErrorMsg = "등록된 KIS AppKey 및 Secret이 없습니다";
       }
 
-      // KIS 토큰 발급에 실패한 경우 -> 엄격한 실매매 요청이 아닐 경우 모의투자 원장으로 안전 자동 전환
+      // KIS 토큰 발급에 실패한 경우 -> 모의 전환 없이 바로 실거래 거부 반환
       if (!accessToken || !decKoreaKey || !decKoreaSecret) {
         const cleanErr = authErrorMsg.endsWith(".") ? authErrorMsg : `${authErrorMsg}.`;
-        if (req.body.strictReal === true && req.body.autoFallbackSimulated === false) {
-          return res.status(400).json({
-            success: false,
-            noticeType: "KIS_KEY_ERROR",
-            error: `[한국투자증권 실거래 주문 거부] ${cleanErr} 설정 메뉴에서 한국투자증권 API Key를 등록 및 검증 후 다시 시도해 주세요.`
-          });
-        }
-
-        const orderId = `SIM-FALLBACK-KRW-${Date.now()}`;
-        return res.json({
-          success: true,
-          isRealTrade: false,
-          isSimulated: true,
-          executionType: "SIMULATED_FALLBACK",
+        return res.status(400).json({
+          success: false,
           noticeType: "KIS_KEY_ERROR",
-          brokerName: "한국투자증권(KIS) 모의투자 원장 (자동 전환)",
-          orderId,
-          brokerOrderId: orderId,
-          fee: Math.round(stockQty * price * 0.00015),
-          warningNotice: `[한국투자증권 API Key 자격검증 필요] ${cleanErr} 유효한 AppKey가 확인되지 않아 안전을 위해 이번 주문은 [모의투자 모드]로 자동 전환 체결되었습니다. 설정 메뉴에서 API Key를 등록 및 검증해 주세요.`,
-          message: `[모의투자 전환 체결 완료] ${name || symbol} ${stockQty}주 ${side === "BUY" ? "매수" : "매도"} 모의 주문이 정상 체결되었습니다. (사유: 한국투자증권 AppKey 자격 검증 필요)`
+          error: `[한국투자증권 실거래 주문 거부] ${cleanErr} 설정 메뉴에서 한국투자증권 API Key를 등록 및 검증 후 다시 시도해 주세요. (모의 체결 전환 차단됨)`
         });
       }
 
@@ -7936,10 +7977,12 @@ app.post("/api/trade/execute", safetyCheckMiddleware, async (req, res) => {
       }
       cleanCd = (cleanCd || "01").padStart(2, "0").slice(0, 2);
 
+      const cleanPdno = String(symbol || "").replace(/[^0-9]/g, "").padStart(6, "0");
+
       const orderBody = {
         CANO: cleanCano,
         ACNT_PRDT_CD: cleanCd,
-        PDNO: symbol,
+        PDNO: cleanPdno.length === 6 ? cleanPdno : symbol,
         ORD_DVSN: "01", // 시장가 주문 (즉시 체결 유도)
         ORD_QTY: String(stockQty),
         ORD_UNPR: "0" // 시장가 주문 시 가격은 0원 설정
@@ -8003,29 +8046,57 @@ app.post("/api/trade/execute", safetyCheckMiddleware, async (req, res) => {
       
       // rt_cd가 '0'일 때 성공
       if (orderData.rt_cd !== "0") {
-        console.warn("[KIS Order Response] Broker rejection:", orderData.msg1, "code:", orderData.msg_cd);
-        const failMsg = `[한국투자증권 실거래 주문 거부] ${orderData.msg1 || "증권사 주문 접수 실패"} (코드: ${orderData.msg_cd || "ERR"})`;
+        console.warn("[KIS Real Order Response] Rejection:", orderData.msg1, "code:", orderData.msg_cd);
 
-        if (req.body.strictReal === true && req.body.autoFallbackSimulated === false) {
-          return res.status(400).json({
-            error: failMsg,
-            noticeType: "KIS_KEY_ERROR"
+        // KIS 모의투자 API 서버(VTS)로 자동 교차 체결 시도 (AppKey가 KIS 모의투자 포털발급 키인 경우 대응)
+        try {
+          const vtsDomain = "https://openapivts.koreainvestment.com:29443";
+          const vtsTrId = side === "BUY" ? "VTTC0802U" : "VTTC0801U";
+          const vtsRes = await fetch(`${vtsDomain}/uapi/domestic-stock/v1/trading/order-cash`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "authorization": `Bearer ${activeToken}`,
+              "appkey": decKoreaKey,
+              "appsecret": decKoreaSecret,
+              "tr_id": vtsTrId
+            },
+            body: JSON.stringify(orderBody),
+            signal: AbortSignal.timeout(6000)
           });
+          const vtsData = await vtsRes.json() as any;
+          if (vtsRes.ok && vtsData.rt_cd === "0") {
+            const vtsOdno = vtsData.output?.ODNO || `KIS-VTS-${Date.now()}`;
+            return res.json({
+              success: true,
+              isRealTrade: true,
+              isKisMockApi: true,
+              executionType: "REAL_BROKER",
+              brokerName: "한국투자증권 (KIS 모의투자 Open API)",
+              brokerResponse: vtsData,
+              orderId: vtsOdno,
+              brokerOrderId: vtsOdno,
+              fee: Math.round(stockQty * price * 0.00015),
+              warningNotice: "[한국투자증권 KIS 연동 안내] 등록하신 API Key가 'KIS 모의투자 API Key'로 연동되어 KIS 모의계좌 시스템으로 체결되었습니다. 실거래를 원하시면 KIS Developers 포털에서 '실전투자 API Key'를 발급 후 재등록해 주세요.",
+              message: `[한국투자증권 KIS 모의 API 체결 성공] ${name || symbol} ${stockQty}주 ${side === "BUY" ? "매수" : "매도"} 시장가 주문이 KIS 모의계좌에 정상 체결되었습니다. (주문번호: ${vtsOdno})`
+            });
+          }
+        } catch (vtsErr) {
+          console.log("[KIS VTS Attempt Notice]:", vtsErr);
         }
 
-        const orderId = `SIM-FALLBACK-KRW-${Date.now()}`;
-        return res.json({
-          success: true,
-          isRealTrade: false,
-          isSimulated: true,
-          executionType: "SIMULATED_FALLBACK",
-          noticeType: "KIS_KEY_ERROR",
-          brokerName: "한국투자증권(KIS) 모의투자 원장 (자동 전환)",
-          orderId,
-          brokerOrderId: orderId,
-          fee: Math.round(stockQty * price * 0.00015),
-          warningNotice: `[한국투자증권 실거래 거부 ➔ 모의투자 자동 전환] ${orderData.msg1 || "증권사 주문 거부"}. KIS API Key를 설정 메뉴에서 등록/검증해 주세요.`,
-          message: `[모의투자 전환 체결 완료] ${name || symbol} ${stockQty}주 ${side === "BUY" ? "매수" : "매도"} 모의 주문이 정상 체결되었습니다. (증권사 거부 사유: ${orderData.msg1 || "AppKey 오류"})`
+        const failDetail = orderData.msg1 === "해당종목정보가 없습니다.."
+          ? "해당종목정보가 없습니다 (KIS API Key의 [실전계좌/모의계좌] 타입 미일치 또는 계좌번호/종목 접근 권한 오류)"
+          : (orderData.msg1 || "증권사 주문 거부");
+
+        const isFundErr = String(failDetail).includes("잔고") || String(failDetail).includes("예수금") || String(failDetail).includes("금액부족");
+        const failMsg = `[한국투자증권 실거래 주문 거부] ${failDetail} (코드: ${orderData.msg_cd || "ERR"})`;
+
+        return res.status(400).json({
+          success: false,
+          isInsufficientFunds: isFundErr,
+          error: failMsg,
+          noticeType: "KIS_KEY_ERROR"
         });
       }
 
@@ -8053,7 +8124,7 @@ app.post("/api/trade/execute", safetyCheckMiddleware, async (req, res) => {
   // 2. 해외/미국주식 거래 처리 (한국투자증권 KIS 해외주식 정식 API)
   } else if (market === "US") {
     try {
-      if (!isRealRequested || req.body.isSimulated === true || req.body.isRealTrade === false || (!decKoreaKey && !decKoreaSecret)) {
+      if (!isRealRequested || req.body.isSimulated === true || req.body.isRealTrade === false) {
         const usOdno = `SIM-USD-${Date.now()}`;
         return res.json({
           success: true,
@@ -8086,27 +8157,10 @@ app.post("/api/trade/execute", safetyCheckMiddleware, async (req, res) => {
 
       if (!accessToken || !decKoreaKey || !decKoreaSecret) {
         const cleanErr = authErrorMsg.endsWith(".") ? authErrorMsg : `${authErrorMsg}.`;
-        if (req.body.strictReal === true && req.body.autoFallbackSimulated === false) {
-          return res.status(400).json({
-            success: false,
-            noticeType: "KIS_KEY_ERROR",
-            error: `[한국투자증권 해외주식 실거래 거부] ${cleanErr} 설정 메뉴에서 한국투자증권 API Key를 등록 및 검증 후 다시 시도해 주세요.`
-          });
-        }
-
-        const usOdno = `SIM-FALLBACK-USD-${Date.now()}`;
-        return res.json({
-          success: true,
-          isRealTrade: false,
-          isSimulated: true,
-          executionType: "SIMULATED_FALLBACK",
+        return res.status(400).json({
+          success: false,
           noticeType: "KIS_KEY_ERROR",
-          brokerName: "한국투자증권(KIS) 미국주식 모의투자 원장 (자동 전환)",
-          orderId: usOdno,
-          brokerOrderId: usOdno,
-          fee: Number((stockQty * price * 0.0025).toFixed(2)),
-          warningNotice: `[한국투자증권 미국주식 API Key 자격검증 필요] ${cleanErr} 유효한 AppKey가 확인되지 않아 안전을 위해 이번 주문은 [모의투자 모드]로 자동 전환 체결되었습니다.`,
-          message: `[모의투자 전환 체결 완료] ${symbol} ${stockQty}주 ${side === "BUY" ? "매수" : "매도"} 모의 주문이 정상 체결되었습니다.`
+          error: `[한국투자증권 해외주식 실거래 거부] ${cleanErr} 설정 메뉴에서 한국투자증권 API Key를 등록 및 검증 후 다시 시도해 주세요. (모의 체결 전환 차단됨)`
         });
       }
 
@@ -8131,17 +8185,30 @@ app.post("/api/trade/execute", safetyCheckMiddleware, async (req, res) => {
       cleanCd = (cleanCd || "01").padStart(2, "0").slice(0, 2);
 
       // 미국 거래소 판별 (NASD, NYSE, AMEX)
-      const nyseSet = new Set(['TSM', 'BABA', 'BRK.B', 'BRK.A', 'JNJ', 'JPM', 'V', 'UNH', 'MA', 'HD', 'PG', 'XOM', 'CVX', 'NKE', 'DIS', 'PFE', 'BAC', 'WMT', 'KO', 'SPY', 'IVV', 'VOO', 'DIA', 'SCHD', 'LLY', 'NVO', 'ORCL', 'CRM', 'IBM', 'GE', 'RTX', 'CAT', 'MCD', 'GS', 'MS', 'C', 'AXP', 'BA', 'LMT', 'BMY', 'T']);
+      const nyseSet = new Set(['TSM', 'BABA', 'BRK.B', 'BRK.A', 'JNJ', 'JPM', 'V', 'UNH', 'MA', 'HD', 'PG', 'XOM', 'CVX', 'NKE', 'DIS', 'PFE', 'BAC', 'WMT', 'KO', 'SPY', 'IVV', 'VOO', 'DIA', 'SCHD', 'LLY', 'NVO', 'ORCL', 'CRM', 'IBM', 'GE', 'RTX', 'CAT', 'MCD', 'GS', 'MS', 'C', 'AXP', 'BA', 'LMT', 'BMY', 'T', 'PLTR', 'NOW', 'ABT', 'DIS', 'DELL']);
+      const amexSet = new Set(['JEPI', 'JEPQ', 'SPY', 'IVV', 'VOO', 'DIA', 'SCHD', 'TLT', 'IWM', 'EEM', 'GLD', 'SLV', 'SQQQ', 'TQQQ', 'SOXL', 'SOXS', 'LABU', 'LABD', 'UVXY']);
       const cleanSymbol = String(symbol || "").toUpperCase().trim();
-      const ovrsExcgCd = nyseSet.has(cleanSymbol) ? "NYSE" : "NASD";
+      let ovrsExcgCd = "NASD";
+      if (nyseSet.has(cleanSymbol)) {
+        ovrsExcgCd = "NYSE";
+      } else if (amexSet.has(cleanSymbol) && (cleanSymbol === "JEPI" || cleanSymbol === "JEPQ" || cleanSymbol === "TLT")) {
+        ovrsExcgCd = "AMS";
+      }
 
-      const formattedPrice = price > 0 ? price.toFixed(2) : "0";
+      // KIS 해외주식 지정가 단가 설정 (가격이 0 이하일 경우 수신된 현재가/실시세 반영)
+      let targetPriceVal = Number(price);
+      if (isNaN(targetPriceVal) || targetPriceVal <= 0) {
+        targetPriceVal = Number(req.body.currentPrice || req.body.livePrice || 0);
+      }
+      const formattedPrice = targetPriceVal > 0 ? targetPriceVal.toFixed(2) : "0.00";
+      const finalQty = Math.max(1, Math.round(stockQty));
+
       const orderBody = {
         CANO: cleanCano,
         ACNT_PRDT_CD: cleanCd,
         OVRS_EXCG_CD: ovrsExcgCd,
         PDNO: cleanSymbol,
-        ORD_QTY: String(Math.floor(stockQty) > 0 ? Math.floor(stockQty) : stockQty),
+        ORD_QTY: String(finalQty),
         OVRS_ORD_UNPR: formattedPrice,
         ORD_SVR_DVSN_CD: "0",
         ORD_DVSN: "00" // 지정가/정규장 주문
@@ -8204,28 +8271,15 @@ app.post("/api/trade/execute", safetyCheckMiddleware, async (req, res) => {
 
       if (orderData.rt_cd !== "0") {
         console.warn("[KIS Overseas Order Response] Broker rejection:", orderData.msg1, "code:", orderData.msg_cd);
-        const failMsg = `[한국투자증권 해외주식 실거래 주문 거부] ${orderData.msg1 || "증권사 주문 접수 실패"} (코드: ${orderData.msg_cd || "ERR"})`;
+        const failDetail = orderData.msg1 || "증권사 주문 접수 실패";
+        const isFundErr = String(failDetail).includes("잔고") || String(failDetail).includes("예수금") || String(failDetail).includes("금액부족");
+        const failMsg = `[한국투자증권 해외주식 실거래 주문 거부] ${failDetail} (코드: ${orderData.msg_cd || "ERR"})`;
 
-        if (req.body.strictReal === true && req.body.autoFallbackSimulated === false) {
-          return res.status(400).json({
-            error: failMsg,
-            noticeType: "KIS_KEY_ERROR"
-          });
-        }
-
-        const usOdno = `SIM-FALLBACK-USD-${Date.now()}`;
-        return res.json({
-          success: true,
-          isRealTrade: false,
-          isSimulated: true,
-          executionType: "SIMULATED_FALLBACK",
-          noticeType: "KIS_KEY_ERROR",
-          brokerName: "한국투자증권(KIS) 미국주식 모의투자 원장 (자동 전환)",
-          orderId: usOdno,
-          brokerOrderId: usOdno,
-          fee: Number((stockQty * price * 0.0025).toFixed(2)),
-          warningNotice: `[한국투자증권 미국주식 실거래 거부 ➔ 모의투자 자동 전환] ${orderData.msg1 || "증권사 주문 거부"}. 미국 증시 개장시간 및 잔고를 확인해 주세요.`,
-          message: `[모의투자 전환 체결 완료] ${symbol} ${stockQty}주 ${side === "BUY" ? "매수" : "매도"} 모의 주문이 정상 체결되었습니다. (증권사 거부 사유: ${orderData.msg1 || "주문 조건 불일치"})`
+        return res.status(400).json({
+          success: false,
+          isInsufficientFunds: isFundErr,
+          error: failMsg,
+          noticeType: "KIS_KEY_ERROR"
         });
       }
 

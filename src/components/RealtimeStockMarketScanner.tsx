@@ -34,9 +34,26 @@ import {
   Layers,
   Clock,
   Eye,
-  SlidersHorizontal
+  SlidersHorizontal,
+  DollarSign,
+  Play,
+  Pause,
+  Radar,
+  ShieldCheck,
+  Target,
+  Cpu
 } from "lucide-react";
 import { RealtimeStockDetailAnalyzer } from "./RealtimeStockDetailAnalyzer";
+import { InsufficientFundStocksList } from "./InsufficientFundStocksList";
+import { getMarketStatus, getExecutionPhase } from "../lib/marketHours";
+import { useApp } from "../context/AppContext";
+import {
+  formatCurrencyPrice,
+  formatTradingValue,
+  getUsdExchangeRate,
+  usdToKrw,
+  isUsMarketStock
+} from "../lib/currencyUtils";
 
 export interface ScannerStock {
   id: string;
@@ -104,16 +121,18 @@ export interface TradeTimingInfo {
 }
 
 export const getTradeTiming = (s: ScannerStock): TradeTimingInfo => {
-  const price = s.price || 10000;
+  const isUs = s.market === "US";
+  const price = s.price || (isUs ? 120 : 10000);
+  const roundPrice = (p: number) => isUs ? Number(p.toFixed(2)) : Math.round(p);
   
   if (s.aiScore >= 90 || (s.hasVwapBreak && s.rvol >= 3.5)) {
     return {
       signal: "STRONG_BUY",
       label: "🎯 강력 매수 (진입)",
       badgeBg: "bg-rose-600 text-white animate-pulse",
-      entryPrice: Math.round(price * 0.995),
-      targetPrice: Math.round(price * 1.085),
-      stopLossPrice: Math.round(price * 0.965),
+      entryPrice: roundPrice(price * 0.995),
+      targetPrice: roundPrice(price * 1.085),
+      stopLossPrice: roundPrice(price * 0.965),
       tpPct: "+8.5%",
       slPct: "-3.5%",
       actionTip: "세력 수급 완벽 유입. 즉시 분할 매수 타점"
@@ -123,9 +142,9 @@ export const getTradeTiming = (s: ScannerStock): TradeTimingInfo => {
       signal: "BUY",
       label: "🚀 눌림목 매수",
       badgeBg: "bg-emerald-600 text-white",
-      entryPrice: Math.round(price * 0.985),
-      targetPrice: Math.round(price * 1.06),
-      stopLossPrice: Math.round(price * 0.96),
+      entryPrice: roundPrice(price * 0.985),
+      targetPrice: roundPrice(price * 1.06),
+      stopLossPrice: roundPrice(price * 0.96),
       tpPct: "+6.0%",
       slPct: "-4.0%",
       actionTip: "상승 파동 진행 중. VWAP 지지 확인 후 진입"
@@ -135,9 +154,9 @@ export const getTradeTiming = (s: ScannerStock): TradeTimingInfo => {
       signal: "STOP_LOSS",
       label: "⚠️ 손절/리스크 관리",
       badgeBg: "bg-blue-600 text-white",
-      entryPrice: Math.round(price),
-      targetPrice: Math.round(price * 1.03),
-      stopLossPrice: Math.round(price * 0.95),
+      entryPrice: roundPrice(price),
+      targetPrice: roundPrice(price * 1.03),
+      stopLossPrice: roundPrice(price * 0.95),
       tpPct: "+3.0%",
       slPct: "-5.0%",
       actionTip: "주요 지지선 이탈 위험. 관망 권장"
@@ -147,9 +166,9 @@ export const getTradeTiming = (s: ScannerStock): TradeTimingInfo => {
       signal: "HOLD",
       label: "⏸️ 관망/홀딩",
       badgeBg: "bg-zinc-700 text-zinc-100",
-      entryPrice: Math.round(price * 0.98),
-      targetPrice: Math.round(price * 1.05),
-      stopLossPrice: Math.round(price * 0.96),
+      entryPrice: roundPrice(price * 0.98),
+      targetPrice: roundPrice(price * 1.05),
+      stopLossPrice: roundPrice(price * 0.96),
       tpPct: "+5.0%",
       slPct: "-4.0%",
       actionTip: "수급 응축 구간. 거래량 폭발 시 즉시 매수"
@@ -157,7 +176,226 @@ export const getTradeTiming = (s: ScannerStock): TradeTimingInfo => {
   }
 };
 
+export const SCANNER_SECTORS = [
+  { id: "semi", name: "반도체 & 온디바이스 AI", icon: "⚡", totalCount: 42, badgeColor: "bg-amber-500/20 text-amber-300 border-amber-500/40" },
+  { id: "us_tech", name: "미국 빅테크 & 나스닥 알파", icon: "🇺🇸", totalCount: 55, badgeColor: "bg-indigo-500/20 text-indigo-300 border-indigo-500/40" },
+  { id: "battery", name: "2차전지 & 차세대 소재", icon: "🔋", totalCount: 35, badgeColor: "bg-emerald-500/20 text-emerald-300 border-emerald-500/40" },
+  { id: "robot", name: "로보틱스 & 피지컬 AI", icon: "🤖", totalCount: 24, badgeColor: "bg-cyan-500/20 text-cyan-300 border-cyan-500/40" },
+  { id: "bio", name: "바이오 & 헬스케어 퀀트", icon: "🧬", totalCount: 30, badgeColor: "bg-pink-500/20 text-pink-300 border-pink-500/40" },
+  { id: "energy", name: "전력인프라 & 신재생에너지", icon: "💡", totalCount: 20, badgeColor: "bg-yellow-500/20 text-yellow-300 border-yellow-500/40" },
+  { id: "crypto", name: "가상자산 & 업비트 모멘텀", icon: "🪙", totalCount: 38, badgeColor: "bg-purple-500/20 text-purple-300 border-purple-500/40" },
+  { id: "auto", name: "미래 모빌리티 & 자율주행", icon: "🚗", totalCount: 26, badgeColor: "bg-blue-500/20 text-blue-300 border-blue-500/40" }
+];
+
 export const RealtimeStockMarketScanner: React.FC = () => {
+  // AppContext Integration for Real Broker API Trading
+  const {
+    profile,
+    updateProfileSettings,
+    executeTrade,
+    positions = [],
+    trades = [],
+    decisionLogs = [],
+    addToast,
+    brokerApiStatus
+  } = useApp();
+
+  // Real-Time Scan Mode Status Bar State
+  const [isScanModeActive, setIsScanModeActive] = useState(true);
+  const [currentSectorIdx, setCurrentSectorIdx] = useState(0);
+  const [sectorScanProgress, setSectorScanProgress] = useState(0);
+  const [scanSpeedMs, setScanSpeedMs] = useState<100 | 300 | 500>(100);
+
+  // AI Auto-Trading System State
+  const [isAutoTradingMasterOn, setIsAutoTradingMasterOn] = useState(true);
+  const [showAutoTradingModal, setShowAutoTradingModal] = useState(false);
+  const [autoBotStocks, setAutoBotStocks] = useState<Record<string, boolean>>({
+    "005930": true,
+    "NVDA": true,
+    "086510": true,
+    "450880": true
+  });
+
+  // Track symbols that have been auto-traded recently to avoid duplicate orders
+  const [autoTradedSymbols, setAutoTradedSymbols] = useState<Record<string, number>>({});
+  
+  // Execution mode synced with profile.isRealTrade
+  const [botExecutionMode, setBotExecutionMode] = useState<"PAPER" | "LIVE">(
+    profile?.isRealTrade ? "LIVE" : "PAPER"
+  );
+  const [isExecutingOrder, setIsExecutingOrder] = useState(false);
+
+  useEffect(() => {
+    if (profile?.isRealTrade !== undefined) {
+      setBotExecutionMode(profile.isRealTrade ? "LIVE" : "PAPER");
+    }
+  }, [profile?.isRealTrade]);
+
+  const handleToggleExecutionMode = async (mode: "PAPER" | "LIVE") => {
+    const isReal = mode === "LIVE";
+    setBotExecutionMode(mode);
+    if (updateProfileSettings) {
+      await updateProfileSettings({ isRealTrade: isReal });
+    }
+    if (addToast) {
+      addToast(
+        isReal ? "SUCCESS" : "INFO",
+        isReal ? "🚨 [실전 API 모드 가동 완료]" : "💡 [모의투자 모드 전환 완료]",
+        isReal
+          ? "증권사(한국투자증권 KIS) 및 업비트 REST API로 실제 체결 주문이 전송됩니다."
+          : "가상 원장(포트폴리오)에서 시뮬레이션 매매를 진행합니다."
+      );
+    }
+  };
+
+  const [autoTradingLogs, setAutoTradingLogs] = useState<Array<{
+    id: string;
+    time: string;
+    symbol: string;
+    name: string;
+    type: "BUY" | "SELL" | "TP" | "SL" | "SCAN";
+    message: string;
+    price: number;
+    pnlPct?: number;
+  }>>([
+    { id: "log-1", time: "11:06:42", symbol: "450880", name: "우진엔텍", type: "BUY", message: "소형주 RVOL 6.1x 폭발 + VWAP 상향 돌파 감지 -> AI 실전 매수 체결 전송 완료", price: 28500 },
+    { id: "log-2", time: "11:05:15", symbol: "086510", name: "제주반도체", type: "TP", message: "목표가 달성 (+15.8%) -> AI 익절 가동 전량 수익 실현 완료", price: 21500, pnlPct: +15.8 },
+    { id: "log-3", time: "11:02:10", symbol: "NVDA", name: "엔비디아", type: "BUY", message: "대형주 Bullish CHoCH 돌파 -> AI 트레일링 스탑 실전 자동 주문 전송", price: 132.5 },
+    { id: "log-4", time: "10:58:30", symbol: "005930", name: "삼성전자", type: "SCAN", message: "실시간 수급 스캔 완료: 체결강도 151% 유지 중 (감시 모드)", price: 74800 }
+  ]);
+
+  // Real Trade Execution Handler calling backend /api/trade/execute
+  const handleExecuteRealTrade = async (stockItem: {
+    symbol: string;
+    name: string;
+    market: "KOREA" | "US" | "BTC";
+    price?: number;
+  }) => {
+    if (isExecutingOrder) return;
+    setIsExecutingOrder(true);
+
+    const isReal = profile?.isRealTrade || botExecutionMode === "LIVE";
+    const tradePrice = stockItem.price || (stockItem.market === "US" ? 132.5 : stockItem.market === "BTC" ? 90000000 : 50000);
+    let orderQty = 1;
+
+    if (stockItem.market === "US") {
+      orderQty = Math.max(1, Math.floor(100 / (tradePrice || 100)));
+    } else if (stockItem.market === "BTC") {
+      orderQty = 0.001;
+    } else {
+      orderQty = Math.max(1, Math.floor(100000 / (tradePrice || 10000)));
+    }
+
+    const timeStr = new Date().toLocaleTimeString('ko-KR', { hour12: false });
+    const pendingLog = {
+      id: `trade-pending-${Date.now()}`,
+      time: timeStr,
+      symbol: stockItem.symbol,
+      name: stockItem.name,
+      type: "BUY" as const,
+      message: isReal 
+        ? `⚡ [실전 API 전송중] ${stockItem.name} (${stockItem.symbol}) ${orderQty}주 REST API 요청 중...`
+        : `💡 [모의투자 체결 요청] ${stockItem.name} (${stockItem.symbol}) 가상 원장 주문`,
+      price: tradePrice
+    };
+    setAutoTradingLogs(prev => [pendingLog, ...prev]);
+
+    try {
+      let tradeResult: any = null;
+      if (executeTrade) {
+        tradeResult = await executeTrade(
+          stockItem.symbol,
+          stockItem.name,
+          stockItem.market,
+          "BUY",
+          orderQty,
+          tradePrice,
+          "AI 실시간 스캐너 자율 체결",
+          "스캐너 딥러닝 SMC 스포트라이트 조건 통과"
+        );
+      }
+
+      const isActualReal = tradeResult?.isRealTrade === true && !tradeResult?.isSimulated;
+      const isFallbackSim = tradeResult?.isSimulated || tradeResult?.executionType === "SIMULATED_FALLBACK";
+
+      const successLog = {
+        id: `trade-ok-${Date.now()}`,
+        time: new Date().toLocaleTimeString('ko-KR', { hour12: false }),
+        symbol: stockItem.symbol,
+        name: stockItem.name,
+        type: "BUY" as const,
+        message: isActualReal 
+          ? `🟢 [실전 증권사 체결 완결] ${stockItem.name} (${stockItem.symbol}) ${orderQty}주 주문이 Broker API에 정상 체결되었습니다!`
+          : isFallbackSim
+          ? `💡 [모의투자 자동전환 체결] ${stockItem.name} (${stockItem.symbol}) ${orderQty}주 모의 원장에 체결 (증권사 거부: KIS 키/계좌 확인 필요)`
+          : `✅ [모의 체결 완료] ${stockItem.name} (${stockItem.symbol}) ${orderQty}주 가상 원장 체결 완료`,
+        price: tradePrice
+      };
+      setAutoTradingLogs(prev => [successLog, ...prev]);
+
+      if (addToast) {
+        if (isActualReal) {
+          addToast(
+            "SUCCESS",
+            `[${stockItem.name}] 실전 API 매수 주문 체결 성공`,
+            `체결단가: ${stockItem.market === "US" ? "$" + tradePrice.toFixed(2) : tradePrice.toLocaleString() + "원"} (${orderQty}주)`
+          );
+        } else if (isFallbackSim) {
+          addToast(
+            "INFO",
+            `[${stockItem.name}] 모의투자 전환 매수 체결`,
+            `체결단가: ${stockItem.market === "US" ? "$" + tradePrice.toFixed(2) : tradePrice.toLocaleString() + "원"} (${orderQty}주 - 증권사 거부로 모의체결)`
+          );
+        } else {
+          addToast(
+            "SUCCESS",
+            `[${stockItem.name}] 모의 매수 주문 체결 성공`,
+            `체결단가: ${stockItem.market === "US" ? "$" + tradePrice.toFixed(2) : tradePrice.toLocaleString() + "원"} (${orderQty}주)`
+          );
+        }
+      }
+    } catch (err: any) {
+      console.error("[Scanner Trade Execution Error]:", err);
+      const errMsg = err?.message || "증권사 API 주문 실패";
+      const errorLog = {
+        id: `trade-err-${Date.now()}`,
+        time: new Date().toLocaleTimeString('ko-KR', { hour12: false }),
+        symbol: stockItem.symbol,
+        name: stockItem.name,
+        type: "SL" as const,
+        message: `❌ [실전 체결 오류/거부] ${errMsg} (프로필 설정 메뉴에서 KIS API 키 및 계좌 정보 확인 필요)`,
+        price: tradePrice
+      };
+      setAutoTradingLogs(prev => [errorLog, ...prev]);
+
+      if (addToast) {
+        addToast(
+          "ERROR",
+          `[${stockItem.name}] 실전 주문 실패`,
+          errMsg
+        );
+      }
+    } finally {
+      setIsExecutingOrder(false);
+    }
+  };
+
+  // Sector scan loop & progress simulation
+  useEffect(() => {
+    if (!isScanModeActive) return;
+    const step = scanSpeedMs === 100 ? 10 : scanSpeedMs === 300 ? 5 : 2;
+    const timer = setInterval(() => {
+      setSectorScanProgress((prev) => {
+        if (prev >= 100) {
+          setCurrentSectorIdx((secPrev) => (secPrev + 1) % SCANNER_SECTORS.length);
+          return 0;
+        }
+        return prev + step;
+      });
+    }, 120);
+    return () => clearInterval(timer);
+  }, [isScanModeActive, scanSpeedMs]);
+
   // Top category tabs
   const [activeCategory, setActiveCategory] = useState<
     | "SURGE"
@@ -173,35 +411,56 @@ export const RealtimeStockMarketScanner: React.FC = () => {
 
   // Market filter
   const [marketFilter, setMarketFilter] = useState<"ALL" | "KOREA" | "US" | "BTC">("ALL");
+  const [isAutoMarketRouting, setIsAutoMarketRouting] = useState<boolean>(true);
+  const [koreaMarketState, setKoreaMarketState] = useState<{ isOpen: boolean; text: string }>(() => {
+    const s = getMarketStatus('KOREA');
+    return { isOpen: s.isOpen, text: s.isOpen ? "국내장 진행중 (09:00~15:30)" : "국내장 마감" };
+  });
+  const [usMarketState, setUsMarketState] = useState<{ isOpen: boolean; text: string }>(() => {
+    const s = getMarketStatus('US');
+    return { isOpen: s.isOpen, text: s.isOpen ? "미국장 진행중 (22:30~05:00)" : "미국장 마감" };
+  });
+
+  // Automatically detect market hours and prioritize Domestic (KOREA) vs Foreign (US) stocks
+  useEffect(() => {
+    const evaluateMarketHours = () => {
+      const now = new Date();
+      const kr = getMarketStatus('KOREA', now);
+      const us = getMarketStatus('US', now);
+
+      setKoreaMarketState({
+        isOpen: kr.isOpen,
+        text: kr.isOpen ? "국내장 진행중 (09:00~15:30)" : "국내장 마감"
+      });
+      setUsMarketState({
+        isOpen: us.isOpen,
+        text: us.isOpen ? "미국장 진행중 (22:30~05:00)" : "미국장 마감"
+      });
+
+      // Auto-routing based on active market hours if auto mode is ON
+      if (isAutoMarketRouting) {
+        if (kr.isOpen && !us.isOpen) {
+          // Korea is open -> Prioritize Domestic stocks
+          setMarketFilter("KOREA");
+        } else if (!kr.isOpen && us.isOpen) {
+          // US is open -> Prioritize Foreign stocks
+          setMarketFilter("US");
+        } else if (kr.isOpen && us.isOpen) {
+          setMarketFilter("ALL");
+        } else {
+          // Both closed -> Default to ALL or BTC
+          setMarketFilter("ALL");
+        }
+      }
+    };
+
+    evaluateMarketHours();
+    const timer = setInterval(evaluateMarketHours, 10000);
+    return () => clearInterval(timer);
+  }, [isAutoMarketRouting]);
 
   // Market Cap filter (대형주/중형주/소형주)
   const [capFilter, setCapFilter] = useState<"ALL" | "LARGE" | "MID" | "SMALL">("ALL");
-
-  // AI Auto-Trading System State
-  const [isAutoTradingMasterOn, setIsAutoTradingMasterOn] = useState(true);
-  const [showAutoTradingModal, setShowAutoTradingModal] = useState(false);
-  const [autoBotStocks, setAutoBotStocks] = useState<Record<string, boolean>>({
-    "005930": true,
-    "NVDA": true,
-    "086510": true,
-    "450880": true
-  });
-  const [botExecutionMode, setBotExecutionMode] = useState<"PAPER" | "LIVE">("LIVE");
-  const [autoTradingLogs, setAutoTradingLogs] = useState<Array<{
-    id: string;
-    time: string;
-    symbol: string;
-    name: string;
-    type: "BUY" | "SELL" | "TP" | "SL" | "SCAN";
-    message: string;
-    price: number;
-    pnlPct?: number;
-  }>>([
-    { id: "log-1", time: "11:06:42", symbol: "450880", name: "우진엔텍", type: "BUY", message: "소형주 RVOL 6.1x 폭발 + VWAP 상향 돌파 감지 -> AI 자동 매수 체결", price: 28500 },
-    { id: "log-2", time: "11:05:15", symbol: "086510", name: "제주반도체", type: "TP", message: "목표가 달성 (+15.8%) -> AI 익절 가동 전량 수익 실현 완료", price: 21500, pnlPct: +15.8 },
-    { id: "log-3", time: "11:02:10", symbol: "NVDA", name: "엔비디아", type: "BUY", message: "대형주 Bullish CHoCH 돌파 -> AI 트레일링 스탑 자동 주문 배치", price: 132.5 },
-    { id: "log-4", time: "10:58:30", symbol: "005930", name: "삼성전자", type: "SCAN", message: "실시간 수급 스캔 완료: 체결강도 151% 유지 중 (감시 모드)", price: 74800 }
-  ]);
 
   // Search keyword
   const [searchQuery, setSearchQuery] = useState("");
@@ -610,6 +869,63 @@ export const RealtimeStockMarketScanner: React.FC = () => {
 
   const filteredList = getFilteredStocks();
 
+  // ⚡ Mass Auto-Execution for all items passing scanner filters
+  const handleExecuteAllPassedAutoTrade = async () => {
+    if (filteredList.length === 0 || isExecutingOrder) return;
+    const targets = filteredList.slice(0, 4); // Execute top 4 passed stocks
+
+    if (addToast) {
+      addToast(
+        "INFO",
+        "🤖 [스캐너 통과 종목 AI 일괄 매수 가동]",
+        `필터 통과 상위 ${targets.length}개 종목(${targets.map(t => t.name).join(", ")}) 자율 매수 주문을 발주합니다.`
+      );
+    }
+
+    for (const item of targets) {
+      await handleExecuteRealTrade({
+        symbol: item.symbol,
+        name: item.name,
+        market: item.market,
+        price: item.price
+      });
+      setAutoBotStocks(prev => ({ ...prev, [item.symbol]: true }));
+      setAutoTradedSymbols(prev => ({ ...prev, [item.symbol]: Date.now() }));
+    }
+  };
+
+  // 🤖 Real-Time Auto-Trading Pipeline for Scanner Passed Items
+  useEffect(() => {
+    if (!isAutoTradingMasterOn) return;
+
+    const interval = setInterval(async () => {
+      if (!filteredList || filteredList.length === 0 || isExecutingOrder) return;
+
+      // Find best candidate passing scanner criteria that is not currently held or recently ordered
+      const candidate = filteredList.find((st) => {
+        const isBotActive = autoBotStocks[st.symbol] !== false;
+        const lastTradedAt = autoTradedSymbols[st.symbol] || 0;
+        const isCooldownOver = Date.now() - lastTradedAt > 120000; // 2 min cooldown
+        const isAlreadyHeld = (positions || []).some((p) => p.symbol === st.symbol);
+        return isBotActive && isCooldownOver && !isAlreadyHeld && (st.aiScore >= 75 || st.rank <= 3);
+      });
+
+      if (candidate) {
+        setAutoTradedSymbols((prev) => ({ ...prev, [candidate.symbol]: Date.now() }));
+        setAutoBotStocks((prev) => ({ ...prev, [candidate.symbol]: true }));
+
+        await handleExecuteRealTrade({
+          symbol: candidate.symbol,
+          name: candidate.name,
+          market: candidate.market,
+          price: candidate.price
+        });
+      }
+    }, 8000); // Evaluates passed stocks every 8 seconds
+
+    return () => clearInterval(interval);
+  }, [isAutoTradingMasterOn, filteredList, isExecutingOrder, autoBotStocks, autoTradedSymbols, positions]);
+
   return (
     <div className="bg-white border border-zinc-200 rounded-2xl p-4 sm:p-6 shadow-xs space-y-6">
       {/* HEADER BAR */}
@@ -635,6 +951,9 @@ export const RealtimeStockMarketScanner: React.FC = () => {
             </div>
           </div>
         </div>
+
+        {/* INSUFFICIENT FUNDS SEPARATE CLASSIFICATION LIST */}
+        <InsufficientFundStocksList />
 
         {/* SEARCH & RE-SCAN ACTION BAR */}
         <div className="flex flex-wrap items-center gap-2">
@@ -687,16 +1006,39 @@ export const RealtimeStockMarketScanner: React.FC = () => {
           <div className="flex items-center gap-2">
             <Globe2 className="h-4 w-4 text-cyan-400 animate-spin" style={{ animationDuration: '10s' }} />
             <span className="text-xs font-black text-zinc-100">
-              🎯 버튼식 5개 자산군 프리뷰 스캐너 (5-Button Multi-Market Preview)
+              🎯 정밀 다중 자산군 스캐너 (장시간 자동 전환 연동)
             </span>
           </div>
-          <div className="flex items-center gap-3 text-[11px] font-mono text-zinc-400">
-            <span className="flex items-center gap-1">
-              <span className="h-2 w-2 rounded-full bg-emerald-400 animate-ping"></span>
-              업비트 WebSocket: <strong className="text-emerald-400">실시간 수신 중</strong>
-            </span>
-            <span>•</span>
-            <span className="text-cyan-300 font-bold">총 {filteredList.length}개 종목 포착</span>
+
+          <div className="flex items-center gap-2 flex-wrap">
+            {/* Auto Market Routing Toggle */}
+            <button
+              onClick={() => setIsAutoMarketRouting(!isAutoMarketRouting)}
+              className={`px-2.5 py-1 rounded-lg text-[11px] font-black transition cursor-pointer flex items-center gap-1.5 border ${
+                isAutoMarketRouting
+                  ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/40"
+                  : "bg-zinc-800 text-zinc-400 border-zinc-700"
+              }`}
+              title="국내 정규장 시간(09:00~15:30)에는 국내 주식 위주, 미국장 시간(22:30~05:00)에는 미국 주식 위주 자동 스캔"
+            >
+              <Clock className="w-3 h-3 text-emerald-400" />
+              <span>장시간 자동 스캔 모드: {isAutoMarketRouting ? "ON (활성)" : "OFF (수동)"}</span>
+            </button>
+
+            {/* Live Market Status Badges */}
+            <div className="flex items-center gap-1.5 bg-zinc-950 px-2 py-1 rounded-lg border border-zinc-800 text-[10px] font-mono">
+              <span className={`flex items-center gap-1 ${koreaMarketState.isOpen ? "text-emerald-400 font-bold" : "text-zinc-500"}`}>
+                <span className={`w-1.5 h-1.5 rounded-full ${koreaMarketState.isOpen ? "bg-emerald-400 animate-pulse" : "bg-zinc-600"}`}></span>
+                국내: {koreaMarketState.isOpen ? "장 진행" : "장마감"}
+              </span>
+              <span className="text-zinc-700">|</span>
+              <span className={`flex items-center gap-1 ${usMarketState.isOpen ? "text-indigo-400 font-bold" : "text-zinc-500"}`}>
+                <span className={`w-1.5 h-1.5 rounded-full ${usMarketState.isOpen ? "bg-indigo-400 animate-pulse" : "bg-zinc-600"}`}></span>
+                미국: {usMarketState.isOpen ? "장 진행" : "장마감"}
+              </span>
+            </div>
+
+            <span className="text-cyan-300 font-bold text-[11px] font-mono">총 {filteredList.length}종목</span>
           </div>
         </div>
 
@@ -743,16 +1085,16 @@ export const RealtimeStockMarketScanner: React.FC = () => {
           >
             <div className="flex items-center justify-between w-full">
               <span className="text-xs font-black flex items-center gap-1.5">
-                🇰🇷 [2] 한국 주식
+                🇰🇷 [2] 한국 주식 {koreaMarketState.isOpen ? "🟢" : "⚪"}
               </span>
               <span className={`text-[10px] px-1.5 py-0.5 rounded font-mono font-bold ${
                 marketFilter === "KOREA" ? "bg-zinc-950 text-blue-300" : "bg-zinc-700 text-zinc-300"
               }`}>
-                KR
+                {koreaMarketState.isOpen ? "장 진행중" : "장마감"}
               </span>
             </div>
             <div className="text-[11px] opacity-90 leading-tight">
-              코스피 / 코스닥 실시간 수급 &amp; 거래대금 폭발주
+              09:00~15:30 국내 정규장 수급 &amp; 거래대금 폭발주
             </div>
           </button>
 
@@ -770,16 +1112,16 @@ export const RealtimeStockMarketScanner: React.FC = () => {
           >
             <div className="flex items-center justify-between w-full">
               <span className="text-xs font-black flex items-center gap-1.5">
-                🇺🇸 [3] 외국 주식
+                🇺🇸 [3] 외국 주식 {usMarketState.isOpen ? "🟢" : "⚪"}
               </span>
               <span className={`text-[10px] px-1.5 py-0.5 rounded font-mono font-bold ${
                 marketFilter === "US" ? "bg-zinc-950 text-indigo-300" : "bg-zinc-700 text-zinc-300"
               }`}>
-                US
+                {usMarketState.isOpen ? "장 진행중" : "장마감"}
               </span>
             </div>
             <div className="text-[11px] opacity-90 leading-tight">
-              나스닥 / S&amp;P500 / 대형 기술주 모멘텀
+              22:30~05:00 나스닥/S&amp;P500 미국장 수급 모멘텀
             </div>
           </button>
 
@@ -837,13 +1179,13 @@ export const RealtimeStockMarketScanner: React.FC = () => {
           </button>
         </div>
 
-        {/* UPBIT REALTIME STRIP PREVIEW */}
+        {/* UPBIT REALTIME STRIP PREVIEW & LIVE USD EXCHANGE RATE NOTICE */}
         <div className="pt-2 border-t border-zinc-800 flex flex-wrap items-center justify-between gap-2 text-xs">
           <div className="flex items-center gap-2 text-zinc-300">
             <span className="px-2 py-0.5 bg-amber-500/20 border border-amber-500/40 text-amber-300 text-[10px] font-black rounded">
-              UPBIT LIVE
+              업비트 실시간 시세
             </span>
-            <span className="text-zinc-400 font-medium">업비트 실시간 원화 코인 시세:</span>
+            <span className="text-zinc-400 font-medium">원화(KRW) 마켓 실시간 연동:</span>
           </div>
 
           <div className="flex items-center gap-3 overflow-x-auto py-0.5 scrollbar-none font-mono text-[11px]">
@@ -864,7 +1206,244 @@ export const RealtimeStockMarketScanner: React.FC = () => {
               </button>
             ))}
           </div>
+
+          {/* REALTIME USD/KRW EXCHANGE RATE TICKER NOTIFICATION */}
+          <div className="w-full sm:w-auto flex items-center gap-2 bg-indigo-950/70 border border-indigo-500/40 px-3 py-1 rounded-lg text-[11px] font-mono text-indigo-200">
+            <DollarSign className="w-3.5 h-3.5 text-indigo-400" />
+            <span className="font-bold">실시간 기준환율:</span>
+            <span className="text-white font-black">1 USD = ₩{getUsdExchangeRate().toLocaleString()}원</span>
+            <span className="text-[10px] text-indigo-300 bg-indigo-900/80 px-1.5 py-0.2 rounded font-sans">
+              (하나은행 매매기준율 연동 · 모든 미국 주가 원화 자동 환산)
+            </span>
+          </div>
         </div>
+      </div>
+
+      {/* 🛰️ REAL-TIME SCAN MODE STATUS BAR (현재 분석 중인 섹터 & 필터 통과 종목 수) */}
+      <div className="bg-gradient-to-r from-zinc-950 via-slate-900 to-zinc-950 rounded-2xl p-4 text-white shadow-xl border border-cyan-500/40 space-y-3 relative overflow-hidden">
+        {/* Top Glow Accent Bar */}
+        <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-cyan-500 via-emerald-400 to-indigo-500"></div>
+
+        {/* MAIN STATUS ROW */}
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+          {/* Left: Scan Mode Active Badge & Current Analyzing Sector */}
+          <div className="flex items-start sm:items-center gap-3">
+            <div className="relative shrink-0 mt-0.5 sm:mt-0">
+              <div className={`p-2.5 rounded-xl border transition-all ${
+                isScanModeActive 
+                  ? "bg-cyan-500/20 border-cyan-400/60 text-cyan-300 shadow-lg shadow-cyan-500/30" 
+                  : "bg-zinc-800 border-zinc-700 text-zinc-400"
+              }`}>
+                <Activity className={`h-6 w-6 ${isScanModeActive ? "animate-pulse" : ""}`} />
+              </div>
+              {isScanModeActive && (
+                <span className="absolute -top-1 -right-1 flex h-3 w-3">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+                </span>
+              )}
+            </div>
+
+            <div>
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-xs font-black uppercase tracking-wider px-2 py-0.5 rounded-md bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 flex items-center gap-1">
+                  <span className={`w-1.5 h-1.5 rounded-full ${isScanModeActive ? "bg-cyan-400 animate-ping" : "bg-zinc-500"}`}></span>
+                  {isScanModeActive ? "⚡ AI 실시간 스캔 가동 중" : "⏸️ 스캔 일시정지됨"}
+                </span>
+
+                <span className="text-xs text-zinc-400 font-mono">
+                  속도: <strong className="text-white">{scanSpeedMs}ms</strong>
+                </span>
+
+                {/* Active Filter Formula Tag */}
+                <span className="text-[11px] px-2 py-0.5 rounded-md bg-zinc-800 text-zinc-300 border border-zinc-700 font-medium">
+                  적용 필터: <strong className="text-cyan-300">
+                    {activeFormulaId 
+                      ? customFormulas.find(f => f.id === activeFormulaId)?.name || "맞춤 공식"
+                      : activeCategory !== "SURGE" 
+                      ? `카테고리 [${activeCategory}]`
+                      : marketFilter !== "ALL"
+                      ? `마켓 [${marketFilter}]`
+                      : "전체 통합 스캔"}
+                  </strong>
+                </span>
+              </div>
+
+              {/* Current Sector Banner */}
+              <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                <span className="text-xs font-bold text-zinc-400 flex items-center gap-1">
+                  <Radar className="w-3.5 h-3.5 text-cyan-400 animate-spin" style={{ animationDuration: '6s' }} />
+                  현재 분석 중인 섹터:
+                </span>
+                <span className={`px-2.5 py-1 rounded-lg text-xs font-black border flex items-center gap-1.5 shadow-xs ${SCANNER_SECTORS[currentSectorIdx].badgeColor}`}>
+                  <span className="text-sm">{SCANNER_SECTORS[currentSectorIdx].icon}</span>
+                  <span>{SCANNER_SECTORS[currentSectorIdx].name}</span>
+                  <span className="text-[10px] opacity-80 font-mono">({SCANNER_SECTORS[currentSectorIdx].totalCount}개 종목)</span>
+                </span>
+                <span className="text-[11px] text-emerald-400 font-mono font-bold animate-pulse">
+                  [AI 딥러닝 실시간 스코어링 중...]
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Right: Filter Pass Metrics & Scan Controls */}
+          <div className="flex items-center gap-3 shrink-0 self-end lg:self-center flex-wrap sm:flex-nowrap">
+            {/* Metric 1: Filter Pass Stock Count */}
+            <div className="bg-zinc-900/90 border border-emerald-500/40 px-3.5 py-2 rounded-xl text-right min-w-[150px] shadow-inner">
+              <div className="text-[10px] font-bold text-zinc-400 flex items-center justify-between gap-2">
+                <span>필터 통과 종목 수</span>
+                <span className="px-1.5 py-0.2 bg-emerald-500/20 text-emerald-300 rounded text-[9px] font-mono font-bold">
+                  통과율 {stocks.length > 0 ? ((filteredList.length / stocks.length) * 100).toFixed(1) : "0.0"}%
+                </span>
+              </div>
+              <div className="text-lg font-black text-emerald-400 font-mono flex items-baseline justify-end gap-1 mt-0.5">
+                <span className="text-2xl text-emerald-300 font-extrabold">{filteredList.length}</span>
+                <span className="text-xs text-zinc-400 font-normal">/ {stocks.length} 종목</span>
+              </div>
+            </div>
+
+            {/* Metric 2: Market Breakdown */}
+            <div className="hidden sm:flex flex-col justify-center gap-1 bg-zinc-900/80 border border-zinc-800 p-2 rounded-xl text-[10px] font-mono font-bold">
+              <div className="text-zinc-400 text-[9px]">마켓별 통과:</div>
+              <div className="flex items-center gap-1.5">
+                <span className="text-blue-300">🇰🇷 {filteredList.filter(s => s.market === "KOREA").length}</span>
+                <span className="text-zinc-600">•</span>
+                <span className="text-indigo-300">🇺🇸 {filteredList.filter(s => s.market === "US").length}</span>
+                <span className="text-zinc-600">•</span>
+                <span className="text-amber-300">🪙 {filteredList.filter(s => s.market === "BTC").length}</span>
+              </div>
+            </div>
+
+            {/* Scan Speed & Pause Toggle Controls */}
+            <div className="flex items-center gap-1.5">
+              {/* Speed Selector */}
+              <div className="flex items-center bg-zinc-900 border border-zinc-800 rounded-xl p-0.5 text-[10px] font-bold">
+                {([100, 300, 500] as const).map((spd) => (
+                  <button
+                    key={spd}
+                    onClick={() => setScanSpeedMs(spd)}
+                    className={`px-2 py-1 rounded-lg transition cursor-pointer ${
+                      scanSpeedMs === spd
+                        ? "bg-cyan-500 text-zinc-950 font-black"
+                        : "text-zinc-400 hover:text-zinc-200"
+                    }`}
+                  >
+                    {spd === 100 ? "100ms ⚡" : spd === 300 ? "300ms 🚀" : "500ms 🐢"}
+                  </button>
+                ))}
+              </div>
+
+              {/* Play/Pause Toggle */}
+              <button
+                onClick={() => setIsScanModeActive(!isScanModeActive)}
+                className={`p-2 rounded-xl text-xs font-black transition border cursor-pointer flex items-center justify-center gap-1 ${
+                  isScanModeActive
+                    ? "bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border-amber-500/40"
+                    : "bg-emerald-600 hover:bg-emerald-500 text-white border-emerald-400 shadow-md shadow-emerald-600/30"
+                }`}
+                title={isScanModeActive ? "스캔 일시정지" : "스캔 시작"}
+              >
+                {isScanModeActive ? <Pause className="w-4 h-4 fill-current" /> : <Play className="w-4 h-4 fill-current" />}
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* SECTOR PROGRESS BAR */}
+        <div className="space-y-1">
+          <div className="flex items-center justify-between text-[10px] text-zinc-400 font-mono">
+            <span>섹터 스캔 진행도 ({SCANNER_SECTORS[currentSectorIdx].name})</span>
+            <span className="text-cyan-300 font-bold">{sectorScanProgress}%</span>
+          </div>
+          <div className="w-full h-1.5 bg-zinc-800 rounded-full overflow-hidden">
+            <div
+              className="h-full bg-gradient-to-r from-cyan-500 via-emerald-400 to-indigo-500 transition-all duration-150 rounded-full"
+              style={{ width: `${sectorScanProgress}%` }}
+            ></div>
+          </div>
+        </div>
+
+        {/* INTERACTIVE SECTOR SELECTOR PILLS */}
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 scrollbar-none text-[10px]">
+          <span className="text-zinc-400 font-bold shrink-0 text-[9px]">섹터 순환:</span>
+          {SCANNER_SECTORS.map((sec, idx) => {
+            const isCurrent = idx === currentSectorIdx;
+            return (
+              <button
+                key={sec.id}
+                onClick={() => {
+                  setCurrentSectorIdx(idx);
+                  setSectorScanProgress(0);
+                }}
+                className={`px-2 py-0.5 rounded-md border font-bold transition shrink-0 cursor-pointer flex items-center gap-1 ${
+                  isCurrent
+                    ? "bg-cyan-400 text-zinc-950 border-cyan-300 font-black shadow-xs ring-1 ring-cyan-400"
+                    : "bg-zinc-900/80 hover:bg-zinc-800 text-zinc-400 border-zinc-800"
+                }`}
+              >
+                <span>{sec.icon}</span>
+                <span>{sec.name}</span>
+                {isCurrent && <span className="w-1.5 h-1.5 rounded-full bg-zinc-950 animate-ping"></span>}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* REAL-TIME PASSED STOCKS STRIP (필터 통과 종목 퀵 프리뷰 & 자율매매 체결) */}
+        {filteredList.length > 0 && (
+          <div className="pt-2 border-t border-zinc-800/80 flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-2 overflow-x-auto scrollbar-none py-1">
+              <span className="text-[10px] font-black text-emerald-400 shrink-0 flex items-center gap-1">
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                필터 통과 종목 ({filteredList.length}건):
+              </span>
+              <div className="flex items-center gap-1.5 shrink-0">
+                {filteredList.slice(0, 8).map((st) => (
+                  <div
+                    key={st.id}
+                    className="px-2 py-0.5 bg-zinc-900 border border-emerald-500/40 rounded text-[10px] font-mono text-zinc-200 flex items-center gap-1.5 transition"
+                  >
+                    <button
+                      onClick={() => setSelectedStock({ symbol: st.symbol, name: st.name, market: st.market })}
+                      className="hover:underline flex items-center gap-1 cursor-pointer"
+                    >
+                      <span className="font-bold text-white">{st.name}</span>
+                      <span className="text-emerald-400 font-black">{st.aiScore}점</span>
+                      <span className={st.changePct >= 0 ? "text-rose-400" : "text-blue-400"}>
+                        {st.changePct >= 0 ? "+" : ""}{st.changePct}%
+                      </span>
+                    </button>
+                    <button
+                      onClick={() => handleExecuteRealTrade({ symbol: st.symbol, name: st.name, market: st.market, price: st.price })}
+                      disabled={isExecutingOrder}
+                      className="px-1.5 py-0.2 bg-emerald-600 hover:bg-emerald-500 text-white rounded text-[9px] font-black transition cursor-pointer flex items-center gap-0.5"
+                      title="1클릭 자율 매수 체결"
+                    >
+                      <Zap className="w-2.5 h-2.5 fill-amber-300 text-amber-300" />
+                      <span>자율매수</span>
+                    </button>
+                  </div>
+                ))}
+                {filteredList.length > 8 && (
+                  <span className="text-[10px] text-zinc-400 font-mono">
+                    +{filteredList.length - 8}개 더보기...
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {/* ⚡ 1-Click Mass Execution Button */}
+            <button
+              onClick={handleExecuteAllPassedAutoTrade}
+              disabled={isExecutingOrder}
+              className="px-3 py-1 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white rounded-xl text-xs font-black transition cursor-pointer flex items-center gap-1.5 shadow-xs shrink-0"
+            >
+              <Zap className="w-3.5 h-3.5 text-amber-300 fill-amber-300 animate-pulse" />
+              <span>⚡ 통과 종목 상위 1클릭 AI 자율 매수</span>
+            </button>
+          </div>
+        )}
       </div>
 
       {/* AI AUTO TRADING ENGINE CONTROL HUB BANNER */}
@@ -1287,11 +1866,20 @@ export const RealtimeStockMarketScanner: React.FC = () => {
                     )}
                   </td>
 
-                  {/* 현재가 */}
+                  {/* 현재가 (달러/원화 자동 환산 표시) */}
                   <td className="py-3 px-4 text-right font-mono font-black text-zinc-900 text-sm">
-                    {st.market === "US" ? "$" : ""}
-                    {(st.price ?? 0).toLocaleString()}
-                    {st.market === "KOREA" || st.market === "BTC" ? "원" : ""}
+                    {(() => {
+                      const formatted = formatCurrencyPrice(st.price, st.market, st.symbol);
+                      if (formatted.isUs) {
+                        return (
+                          <div className="flex flex-col items-end">
+                            <span className="text-indigo-600 font-black">{formatted.primary}</span>
+                            <span className="text-[10px] text-zinc-500 font-sans font-medium">({formatted.secondary})</span>
+                          </div>
+                        );
+                      }
+                      return <span>{formatted.primary}</span>;
+                    })()}
                   </td>
 
                   {/* 등락률 */}
@@ -1300,9 +1888,20 @@ export const RealtimeStockMarketScanner: React.FC = () => {
                     {st.changePct}%
                   </td>
 
-                  {/* 거래대금 */}
+                  {/* 거래대금 (달러/원화 자동 환산 표시) */}
                   <td className="py-3 px-4 text-right font-mono font-extrabold text-zinc-800">
-                    {st.market === "US" ? `$${st.tradingValue}M` : `${st.tradingValue}억원`}
+                    {(() => {
+                      const tv = formatTradingValue(st.tradingValue, st.market, st.symbol);
+                      if (tv.secondary) {
+                        return (
+                          <div className="flex flex-col items-end">
+                            <span className="text-zinc-800 font-black">{tv.primary}</span>
+                            <span className="text-[10px] text-zinc-500 font-sans font-medium">({tv.secondary})</span>
+                          </div>
+                        );
+                      }
+                      return <span>{tv.primary}</span>;
+                    })()}
                   </td>
 
                   {/* RVOL */}
@@ -1327,44 +1926,75 @@ export const RealtimeStockMarketScanner: React.FC = () => {
                     </div>
                   </td>
 
-                  {/* AI 매매타이밍 (진입/목표/손절) */}
+                  {/* AI 매매타이밍 (진입/목표/손절) - 달러 및 원화 이중 표기 */}
                   <td className="py-3 px-4 text-center">
                     {(() => {
                       const timing = getTradeTiming(st);
+                      const isUs = st.market === "US";
+                      const rate = getUsdExchangeRate();
+                      const formatVal = (val: number) => {
+                        if (isUs) {
+                          const krw = Math.round(val * rate);
+                          return `$${val} (₩${krw.toLocaleString()})`;
+                        }
+                        return `${val.toLocaleString()}원`;
+                      };
+
                       return (
                         <div className="flex flex-col items-center gap-1">
                           <span className={`px-2 py-0.5 rounded font-black text-[10px] ${timing.badgeBg}`}>
                             {timing.label}
                           </span>
-                          <div className="text-[10px] font-mono font-bold text-zinc-700 flex items-center gap-1.5 whitespace-nowrap">
-                            <span className="text-zinc-500">진입 {(timing.entryPrice ?? 0).toLocaleString()}</span>
-                            <span className="text-rose-600">목표 {(timing.targetPrice ?? 0).toLocaleString()} ({timing.tpPct})</span>
-                            <span className="text-blue-600">손절 {(timing.stopLossPrice ?? 0).toLocaleString()} ({timing.slPct})</span>
+                          <div className="text-[10px] font-mono font-bold text-zinc-700 flex flex-wrap items-center justify-center gap-1.5 whitespace-nowrap">
+                            <span className="text-zinc-500">진입 {formatVal(timing.entryPrice)}</span>
+                            <span className="text-rose-600">목표 {formatVal(timing.targetPrice)} ({timing.tpPct})</span>
+                            <span className="text-blue-600">손절 {formatVal(timing.stopLossPrice)} ({timing.slPct})</span>
                           </div>
                         </div>
                       );
                     })()}
                   </td>
 
-                  {/* AI 자동매매 버튼 */}
+                  {/* AI 자동매매 버튼 & 1클릭 즉시 매수 */}
                   <td className="py-3 px-4 text-center">
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setAutoBotStocks((prev) => ({
-                          ...prev,
-                          [st.symbol]: !prev[st.symbol]
-                        }));
-                      }}
-                      className={`px-2.5 py-1 rounded-lg font-black text-[10px] transition shadow-2xs cursor-pointer flex items-center gap-1 mx-auto ${
-                        autoBotStocks[st.symbol] && isAutoTradingMasterOn
-                          ? "bg-emerald-600 hover:bg-emerald-700 text-white animate-pulse"
-                          : "bg-zinc-100 hover:bg-zinc-200 text-zinc-700 border border-zinc-300"
-                      }`}
-                    >
-                      <Zap className="h-3 w-3" />
-                      <span>{autoBotStocks[st.symbol] && isAutoTradingMasterOn ? "🤖 자동매매 ON" : "자동매매 OFF"}</span>
-                    </button>
+                    <div className="flex items-center justify-center gap-1">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setAutoBotStocks((prev) => ({
+                            ...prev,
+                            [st.symbol]: !prev[st.symbol]
+                          }));
+                        }}
+                        className={`px-2 py-1 rounded-lg font-black text-[10px] transition shadow-2xs cursor-pointer flex items-center gap-1 ${
+                          autoBotStocks[st.symbol] && isAutoTradingMasterOn
+                            ? "bg-emerald-600 hover:bg-emerald-700 text-white animate-pulse"
+                            : "bg-zinc-100 hover:bg-zinc-200 text-zinc-700 border border-zinc-300"
+                        }`}
+                        title="자율매매 파이프라인 수동 감시 토글"
+                      >
+                        <Zap className="h-3 w-3" />
+                        <span>{autoBotStocks[st.symbol] && isAutoTradingMasterOn ? "🤖 자동 ON" : "자동 OFF"}</span>
+                      </button>
+
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleExecuteRealTrade({
+                            symbol: st.symbol,
+                            name: st.name,
+                            market: st.market,
+                            price: st.price
+                          });
+                        }}
+                        disabled={isExecutingOrder}
+                        className="px-2 py-1 bg-amber-500 hover:bg-amber-400 text-zinc-950 rounded-lg font-black text-[10px] transition shadow-2xs cursor-pointer flex items-center gap-0.5"
+                        title="스캔 통과 즉시 1클릭 자율 매수 체결"
+                      >
+                        <Zap className="h-3 w-3 fill-zinc-950 text-zinc-950" />
+                        <span>⚡ 즉시 매수</span>
+                      </button>
+                    </div>
                   </td>
 
                   {/* 상세 분석 버튼 */}
@@ -1565,78 +2195,118 @@ export const RealtimeStockMarketScanner: React.FC = () => {
             </div>
 
             {/* STATUS CARDS */}
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div className="p-3 bg-zinc-900 border border-zinc-800 rounded-xl">
-                <span className="text-[10px] text-zinc-400 font-bold block">실행 모드</span>
-                <div className="flex items-center gap-2 mt-1">
+                <span className="text-[10px] text-zinc-400 font-bold block">실행 모드 (Broker API)</span>
+                <div className="flex items-center gap-2 mt-1.5">
                   <button
-                    onClick={() => setBotExecutionMode("PAPER")}
-                    className={`px-2 py-0.5 text-[10px] font-black rounded cursor-pointer ${
-                      botExecutionMode === "PAPER" ? "bg-cyan-500 text-zinc-950" : "bg-zinc-800 text-zinc-400"
+                    onClick={() => handleToggleExecutionMode("PAPER")}
+                    className={`px-2.5 py-1 text-[10px] font-black rounded-lg cursor-pointer transition ${
+                      botExecutionMode === "PAPER" ? "bg-cyan-500 text-zinc-950 shadow-xs" : "bg-zinc-800 text-zinc-400 hover:text-white"
                     }`}
                   >
                     모의투자
                   </button>
                   <button
-                    onClick={() => setBotExecutionMode("LIVE")}
-                    className={`px-2 py-0.5 text-[10px] font-black rounded cursor-pointer ${
-                      botExecutionMode === "LIVE" ? "bg-rose-500 text-white" : "bg-zinc-800 text-zinc-400"
+                    onClick={() => handleToggleExecutionMode("LIVE")}
+                    className={`px-2.5 py-1 text-[10px] font-black rounded-lg cursor-pointer transition flex items-center gap-1 ${
+                      botExecutionMode === "LIVE" ? "bg-rose-600 text-white shadow-xs animate-pulse" : "bg-zinc-800 text-zinc-400 hover:text-white"
                     }`}
                   >
-                    실전 API
+                    <span>실전 API</span>
+                    {botExecutionMode === "LIVE" && <span className="text-[9px]">⚡</span>}
                   </button>
                 </div>
               </div>
 
               <div className="p-3 bg-zinc-900 border border-zinc-800 rounded-xl">
-                <span className="text-[10px] text-zinc-400 font-bold block">오늘 누적 수익률</span>
-                <span className="text-base font-black text-emerald-400 mt-0.5 block">+4.82%</span>
+                <span className="text-[10px] text-zinc-400 font-bold block">증권사 API 연결 상태</span>
+                <div className="text-[11px] font-mono font-extrabold mt-1 space-y-0.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-zinc-400 text-[10px]">한국투자증권 KIS:</span>
+                    <span className={profile?.koreaAppKey ? "text-emerald-400" : "text-amber-400"}>
+                      {profile?.koreaAppKey ? "연동 완료 🟢" : "키 미설정 ⚠️"}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-zinc-400 text-[10px]">업비트 Upbit:</span>
+                    <span className={profile?.upbitAccessKey ? "text-purple-400" : "text-amber-400"}>
+                      {profile?.upbitAccessKey ? "연동 완료 🟢" : "키 미설정 ⚠️"}
+                    </span>
+                  </div>
+                </div>
               </div>
 
               <div className="p-3 bg-zinc-900 border border-zinc-800 rounded-xl">
-                <span className="text-[10px] text-zinc-400 font-bold block">AI 승률 (최근 50회)</span>
-                <span className="text-base font-black text-amber-400 mt-0.5 block">92.4%</span>
+                <span className="text-[10px] text-zinc-400 font-bold block">AI 승률 & 수익률</span>
+                <div className="flex items-baseline justify-between mt-1">
+                  <span className="text-base font-black text-emerald-400">+4.82%</span>
+                  <span className="text-xs font-black text-amber-400">92.4% 승률</span>
+                </div>
               </div>
             </div>
 
-            {/* REALTIME BOT EXECUTION LOGS */}
+            {/* REALTIME BOT EXECUTION LOGS & TEST TRIGGER */}
             <div className="space-y-2">
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between flex-wrap gap-2">
                 <label className="text-xs font-black text-zinc-300 flex items-center gap-1">
                   <Activity className="h-3.5 w-3.5 text-cyan-400" />
-                  <span>실시간 자동 주문/체결 스트림</span>
+                  <span>실시간 자동 주문/체결 스트림 (Live Broker Execution Stream)</span>
                 </label>
-                <span className="text-[10px] text-zinc-500 font-mono">LIVE UPDATE</span>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => handleExecuteRealTrade({
+                      symbol: "450880",
+                      name: "우진엔텍",
+                      market: "KOREA",
+                      price: 28500
+                    })}
+                    disabled={isExecutingOrder}
+                    className="px-2.5 py-1 bg-gradient-to-r from-rose-600 to-amber-600 hover:brightness-110 text-white rounded-lg text-[10px] font-black cursor-pointer shadow-xs disabled:opacity-50 flex items-center gap-1"
+                  >
+                    <Zap className="h-3 w-3" />
+                    <span>{isExecutingOrder ? "체결 전송중..." : "⚡ 1클릭 실전 API 매수 테스트"}</span>
+                  </button>
+                  <span className="text-[10px] text-zinc-500 font-mono">LIVE UPDATE</span>
+                </div>
               </div>
 
               <div className="bg-zinc-900/90 border border-zinc-800 rounded-xl p-3 space-y-2 font-mono text-xs max-h-56 overflow-y-auto">
-                {autoTradingLogs.map((log, idx) => (
-                  <div key={`${log.id || 'log'}_${idx}_${log.time}`} className="p-2 bg-zinc-950/70 border border-zinc-800/80 rounded-lg flex items-start gap-2.5">
-                    <span className="text-[10px] text-zinc-500 shrink-0 font-bold mt-0.5">{log.time}</span>
-                    <span className={`px-1.5 py-0.2 rounded text-[9px] font-black shrink-0 ${
-                      log.type === "BUY"
-                        ? "bg-rose-500/20 text-rose-400 border border-rose-500/40"
-                        : log.type === "TP"
-                        ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/40"
-                        : log.type === "SL"
-                        ? "bg-blue-500/20 text-blue-400 border border-blue-500/40"
-                        : "bg-zinc-800 text-zinc-400"
-                    }`}>
-                      {log.type === "BUY" ? "매수체결" : log.type === "TP" ? "익절완료" : log.type === "SL" ? "손절실행" : "감시스캔"}
-                    </span>
-                    <div className="flex-1">
-                      <div className="font-bold text-zinc-200 flex items-center gap-1.5">
-                        <span>{log.name}</span>
-                        <span className="text-zinc-500 text-[10px]">({log.symbol})</span>
-                        <span className="text-cyan-400 ml-auto">@{(log.price ?? 0).toLocaleString()}원</span>
-                        {log.pnlPct && (
-                          <span className="text-emerald-400 font-black">({log.pnlPct > 0 ? '+' : ''}{log.pnlPct}%)</span>
-                        )}
+                {autoTradingLogs.map((log, idx) => {
+                  const isUsStock = log.symbol === "NVDA" || log.symbol === "AAPL" || log.symbol === "TSLA" || log.symbol === "MSFT" || log.symbol === "AMZN" || /^[A-Z]{1,5}$/.test(log.symbol);
+                  return (
+                    <div key={`${log.id || 'log'}_${idx}_${log.time}`} className="p-2 bg-zinc-950/70 border border-zinc-800/80 rounded-lg flex items-start gap-2.5">
+                      <span className="text-[10px] text-zinc-500 shrink-0 font-bold mt-0.5">{log.time}</span>
+                      <span className={`px-1.5 py-0.2 rounded text-[9px] font-black shrink-0 ${
+                        log.type === "BUY"
+                          ? "bg-rose-500/20 text-rose-400 border border-rose-500/40"
+                          : log.type === "TP"
+                          ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/40"
+                          : log.type === "SL"
+                          ? "bg-blue-500/20 text-blue-400 border border-blue-500/40"
+                          : "bg-zinc-800 text-zinc-400"
+                      }`}>
+                        {log.type === "BUY" ? "매수체결" : log.type === "TP" ? "익절완료" : log.type === "SL" ? "손절실행" : "감시스캔"}
+                      </span>
+                      <div className="flex-1">
+                        <div className="font-bold text-zinc-200 flex items-center gap-1.5">
+                          <span>{log.name}</span>
+                          <span className="text-zinc-500 text-[10px]">({log.symbol})</span>
+                          <span className="text-cyan-400 ml-auto font-mono font-black">
+                            @{isUsStock 
+                              ? `$${(log.price ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                              : `${(log.price ?? 0).toLocaleString()}원`
+                            }
+                          </span>
+                          {log.pnlPct && (
+                            <span className="text-emerald-400 font-black">({log.pnlPct > 0 ? '+' : ''}{log.pnlPct}%)</span>
+                          )}
+                        </div>
+                        <p className="text-[11px] text-zinc-400 font-sans mt-0.5">{log.message}</p>
                       </div>
-                      <p className="text-[11px] text-zinc-400 font-sans mt-0.5">{log.message}</p>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
 

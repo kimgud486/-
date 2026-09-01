@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { AiFutureTrendOverlayChart } from "./AiFutureTrendOverlayChart";
 import {
   X,
   Sparkles,
@@ -23,7 +24,8 @@ import {
   Minimize2,
   Eye,
   Star,
-  Info
+  Info,
+  CandlestickChart
 } from "lucide-react";
 import {
   ResponsiveContainer,
@@ -38,6 +40,13 @@ import {
   Area,
   ReferenceLine
 } from "recharts";
+import {
+  getUsdExchangeRate,
+  formatCurrencyPrice,
+  formatTradingValue,
+  usdToKrw
+} from "../lib/currencyUtils";
+import { Ai30DayPriceForecastChart } from "./Ai30DayPriceForecastChart";
 
 export interface StockDetailProps {
   symbol: string;
@@ -68,8 +77,9 @@ export const RealtimeStockDetailAnalyzer: React.FC<StockDetailProps> = ({
   executionPower: initialExecutionPower,
   onClose
 }) => {
-  // Timeframe state
+  // Timeframe & Chart SubTab state
   const [timeframe, setTimeframe] = useState<"1m" | "3m" | "5m" | "15m" | "30m" | "60m" | "1D">("5m");
+  const [chartSubTab, setChartSubTab] = useState<"CANDLE" | "AI_OVERLAY" | "PREDICT_30D">("CANDLE");
 
   const defaultPrice = initialPrice || (market === "US" ? 132.50 : market === "BTC" ? 90200000 : 50000);
   const defaultChange = initialChangePct !== undefined ? initialChangePct : 2.5;
@@ -276,11 +286,16 @@ export const RealtimeStockDetailAnalyzer: React.FC<StockDetailProps> = ({
                 <h2 className="text-lg sm:text-xl font-black text-white">{name}</h2>
                 <span className="font-mono text-sm text-zinc-400">({symbol})</span>
                 <span className="px-2 py-0.5 bg-cyan-500/20 text-cyan-300 border border-cyan-400/40 text-[10px] font-black rounded-full">
-                  REAL-TIME SMC ANALYZER
+                  실시간 SMC 퀀트 분석기
                 </span>
+                {market === "US" && (
+                  <span className="px-2 py-0.5 bg-indigo-500/20 text-indigo-300 border border-indigo-400/40 text-[10px] font-bold rounded-full">
+                    기준환율 ₩{getUsdExchangeRate().toLocaleString()}원/USD
+                  </span>
+                )}
               </div>
               <p className="text-xs text-zinc-400">
-                실시간 현재가·체결강도·SMC 차트 및 AI Score 급상승 분석 모듈
+                실시간 현재가·체결강도·SMC 차트 및 AI Score 급상승 분석 모듈 (달러·원화 자동 환산)
               </p>
             </div>
           </div>
@@ -307,10 +322,17 @@ export const RealtimeStockDetailAnalyzer: React.FC<StockDetailProps> = ({
           >
             <div>
               <span className="text-[11px] text-zinc-400 block font-semibold">실시간 현재가</span>
-              <div className="text-lg font-black font-mono text-white flex items-baseline gap-1">
-                {market === "US" ? "$" : ""}
-                {(liveData.price ?? 0).toLocaleString()}
-                {market === "KOREA" || market === "BTC" ? "원" : ""}
+              <div className="text-lg font-black font-mono text-white flex flex-col items-start leading-tight">
+                <span>
+                  {market === "US" ? "$" : ""}
+                  {(liveData.price ?? 0).toLocaleString()}
+                  {market === "KOREA" || market === "BTC" ? "원" : ""}
+                </span>
+                {market === "US" && (
+                  <span className="text-[11px] text-zinc-400 font-sans font-normal">
+                    (≈ ₩{Math.round((liveData.price ?? 0) * getUsdExchangeRate()).toLocaleString()}원)
+                  </span>
+                )}
               </div>
               <span className={`text-xs font-bold font-mono ${liveData.changePct >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
                 {liveData.changePct >= 0 ? "+" : ""}{liveData.changePct}%
@@ -320,10 +342,10 @@ export const RealtimeStockDetailAnalyzer: React.FC<StockDetailProps> = ({
             <div>
               <span className="text-[11px] text-zinc-400 block font-semibold">당일 고가 / 저가</span>
               <div className="text-xs font-mono text-zinc-200 mt-1">
-                고가: <span className="text-emerald-400 font-bold">{(liveData.high ?? 0).toLocaleString()}</span>
+                고가: <span className="text-emerald-400 font-bold">{market === "US" ? `$${(liveData.high ?? 0).toLocaleString()}` : `${(liveData.high ?? 0).toLocaleString()}원`}</span>
               </div>
               <div className="text-xs font-mono text-zinc-200">
-                저가: <span className="text-rose-400 font-bold">{(liveData.low ?? 0).toLocaleString()}</span>
+                저가: <span className="text-rose-400 font-bold">{market === "US" ? `$${(liveData.low ?? 0).toLocaleString()}` : `${(liveData.low ?? 0).toLocaleString()}원`}</span>
               </div>
             </div>
 
@@ -331,7 +353,7 @@ export const RealtimeStockDetailAnalyzer: React.FC<StockDetailProps> = ({
               <span className="text-[11px] text-zinc-400 block font-semibold">거래대금 / RVOL</span>
               <div className="text-sm font-black font-mono text-amber-400">{liveData.tradingValue}</div>
               <span className="text-xs font-bold text-amber-300 font-mono flex items-center gap-0.5">
-                <Flame className="h-3 w-3 fill-amber-400" /> RVOL {liveData.rvol}x
+                <Flame className="h-3 w-3 fill-amber-400" /> RVOL {liveData.rvol}배
               </span>
             </div>
 
@@ -346,7 +368,7 @@ export const RealtimeStockDetailAnalyzer: React.FC<StockDetailProps> = ({
             <div>
               <span className="text-[11px] text-zinc-400 block font-semibold">당일 VWAP</span>
               <div className="text-sm font-black font-mono text-indigo-300">
-                {(liveData.vwap ?? 0).toLocaleString()}
+                {market === "US" ? `$${(liveData.vwap ?? 0).toLocaleString()}` : `${(liveData.vwap ?? 0).toLocaleString()}원`}
               </div>
               <span className="text-[10px] text-emerald-400 font-bold">VWAP 상단 안착✓</span>
             </div>
@@ -358,64 +380,190 @@ export const RealtimeStockDetailAnalyzer: React.FC<StockDetailProps> = ({
             </div>
           </div>
 
-          {/* 2. REALTIME SMC CANDLE CHART WITH TIMEFRAME SWITCHER */}
+          {/* 2. REALTIME SMC CANDLE CHART & AI FUTURE PREDICTION WITH SUB-TABS */}
           <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 space-y-3">
             <div className="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-800 pb-3">
               <div className="flex items-center gap-2">
-                <BarChart3 className="h-5 w-5 text-cyan-400" />
-                <h3 className="text-sm font-black text-white">실시간 SMC 구조 캔들 차트 (BOS · CHoCH · FVG · VWAP)</h3>
+                <CandlestickChart className="h-5 w-5 text-rose-400" />
+                <h3 className="text-sm font-black text-white">실시간 주식 봉차트(양봉/음봉) & AI 미래 가격 예측</h3>
               </div>
 
-              {/* Timeframe Switcher */}
-              <div className="flex items-center gap-1 p-1 bg-zinc-950 border border-zinc-800 rounded-xl">
-                {(["1m", "3m", "5m", "15m", "30m", "60m", "1D"] as const).map((tf) => (
+              {/* Main SubTab Switcher & Timeframe */}
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="flex items-center gap-1 p-1 bg-zinc-950 border border-zinc-800 rounded-xl">
                   <button
-                    key={tf}
-                    onClick={() => setTimeframe(tf)}
-                    className={`px-2.5 py-1 text-xs font-bold rounded-lg transition cursor-pointer ${
-                      timeframe === tf
-                        ? "bg-cyan-500 text-white shadow-xs"
+                    onClick={() => setChartSubTab("CANDLE")}
+                    className={`flex items-center gap-1.5 px-3 py-1 text-xs font-bold rounded-lg transition cursor-pointer ${
+                      chartSubTab === "CANDLE"
+                        ? "bg-rose-500 text-white shadow-xs"
                         : "text-zinc-400 hover:text-zinc-200"
                     }`}
                   >
-                    {tf.toUpperCase()}
+                    <CandlestickChart className="h-3.5 w-3.5" />
+                    <span>양봉/음봉 SMC 캔들</span>
                   </button>
-                ))}
+
+                  <button
+                    onClick={() => setChartSubTab("AI_OVERLAY")}
+                    className={`flex items-center gap-1.5 px-3 py-1 text-xs font-bold rounded-lg transition cursor-pointer ${
+                      chartSubTab === "AI_OVERLAY"
+                        ? "bg-purple-600 text-white shadow-xs"
+                        : "text-zinc-400 hover:text-zinc-200"
+                    }`}
+                  >
+                    <Sparkles className="h-3.5 w-3.5 text-amber-300 animate-pulse" />
+                    <span>🔮 AI 미래 추세 오버레이</span>
+                  </button>
+
+                  <button
+                    onClick={() => setChartSubTab("PREDICT_30D")}
+                    className={`flex items-center gap-1.5 px-3 py-1 text-xs font-bold rounded-lg transition cursor-pointer ${
+                      chartSubTab === "PREDICT_30D"
+                        ? "bg-indigo-600 text-white shadow-xs"
+                        : "text-zinc-400 hover:text-zinc-200"
+                    }`}
+                  >
+                    <TrendingUp className="h-3.5 w-3.5 text-cyan-300" />
+                    <span>30일 미래 가격 예측</span>
+                  </button>
+                </div>
+
+                {chartSubTab === "CANDLE" && (
+                  <div className="flex items-center gap-1 p-1 bg-zinc-950 border border-zinc-800 rounded-xl">
+                    {(["1m", "3m", "5m", "15m", "30m", "60m", "1D"] as const).map((tf) => (
+                      <button
+                        key={tf}
+                        onClick={() => setTimeframe(tf)}
+                        className={`px-2 py-0.5 text-[11px] font-bold rounded-md transition cursor-pointer ${
+                          timeframe === tf
+                            ? "bg-cyan-500 text-white shadow-xs"
+                            : "text-zinc-400 hover:text-zinc-200"
+                        }`}
+                      >
+                        {tf.toUpperCase()}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
 
             {/* Chart Container */}
-            <div className="h-[280px] w-full pt-2">
-              <ResponsiveContainer width="100%" height="100%">
-                <ComposedChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
-                  <XAxis dataKey="time" stroke="#71717a" fontSize={11} />
-                  <YAxis domain={["auto", "auto"]} stroke="#71717a" fontSize={11} />
-                  <Tooltip
-                    contentStyle={{ backgroundColor: "#09090b", borderColor: "#27272a", color: "#ffffff", borderRadius: "10px" }}
-                  />
+            {chartSubTab === "CANDLE" ? (
+              <div className="space-y-2">
+                <div className="h-[280px] w-full pt-2">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <ComposedChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
+                      <XAxis dataKey="time" stroke="#71717a" fontSize={11} />
+                      <YAxis domain={["auto", "auto"]} stroke="#71717a" fontSize={11} />
+                      <Tooltip
+                        contentStyle={{ backgroundColor: "#09090b", borderColor: "#27272a", color: "#ffffff", borderRadius: "10px" }}
+                        formatter={(val: any, nameKey: any) => [typeof val === 'number' ? val.toLocaleString() : val, nameKey]}
+                      />
 
-                  {/* VWAP Line */}
-                  <Line type="monotone" dataKey="vwap" name="VWAP" stroke="#818cf8" strokeWidth={2} dot={false} />
-                  {/* EMA 9 */}
-                  <Line type="monotone" dataKey="ema9" name="EMA 9" stroke="#38bdf8" strokeWidth={1.5} dot={false} />
-                  {/* EMA 20 */}
-                  <Line type="monotone" dataKey="ema20" name="EMA 20" stroke="#f43f5e" strokeWidth={1.5} dot={false} />
+                      {/* VWAP Line */}
+                      <Line type="monotone" dataKey="vwap" name="VWAP" stroke="#818cf8" strokeWidth={2} dot={false} />
+                      {/* EMA 9 */}
+                      <Line type="monotone" dataKey="ema9" name="EMA 9" stroke="#38bdf8" strokeWidth={1.5} dot={false} />
+                      {/* EMA 20 */}
+                      <Line type="monotone" dataKey="ema20" name="EMA 20" stroke="#c084fc" strokeWidth={1.5} dot={false} />
 
-                  {/* Candle Range Bar Simulation */}
-                  <Bar dataKey="close" name="종가" fill="#10b981" radius={[4, 4, 0, 0]} />
-                </ComposedChart>
-              </ResponsiveContainer>
-            </div>
+                      {/* Authentic Candlestick Shape (양봉 🔴 Red, 음봉 🔵 Blue with High-Low Wicks) */}
+                      <Bar
+                        dataKey="close"
+                        name="주가 (캔들)"
+                        shape={(props: any) => {
+                          const { x, y, width, height, payload } = props;
+                          if (!payload) return <g />;
+                          const { open, close, high, low } = payload;
+                          const isUp = (close || 0) >= (open || 0);
+                          const candleColor = isUp ? "#f43f5e" : "#3b82f6"; // Red for Bullish (양봉), Blue for Bearish (음봉)
 
-            <div className="flex flex-wrap items-center gap-4 text-xs font-mono text-zinc-400 pt-2 border-t border-zinc-800/60">
-              <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-indigo-400"></span> 거래량가중평균(VWAP)</span>
-              <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-cyan-400"></span> 9일 이평(EMA 9)</span>
-              <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-rose-500"></span> 20일 이평(EMA 20)</span>
-              <span className="text-emerald-400 font-bold">🟢 추세 반전(CHoCH) 확인</span>
-              <span className="text-cyan-400 font-bold">🔵 5분봉 구조 파괴(BOS) 형성</span>
-              <span className="text-amber-400 font-bold">🟡 유동성 헌팅(SSL Sweep) 완결</span>
-            </div>
+                          const safeX = Number.isFinite(x) ? x : 0;
+                          const safeY = Number.isFinite(y) ? y : 0;
+                          const safeWidth = Number.isFinite(width) ? width : 0;
+                          const safeHeight = Number.isFinite(height) ? height : 0;
+
+                          const yAxis = props.yAxis;
+                          if (!yAxis || typeof yAxis.scale !== "function") {
+                            return <rect x={safeX} y={safeY} width={safeWidth} height={safeHeight} fill={candleColor} />;
+                          }
+
+                          const openY = yAxis.scale(open);
+                          const closeY = yAxis.scale(close);
+                          const highY = yAxis.scale(high);
+                          const lowY = yAxis.scale(low);
+
+                          if (!Number.isFinite(openY) || !Number.isFinite(closeY) || !Number.isFinite(highY) || !Number.isFinite(lowY)) {
+                            return <rect x={safeX} y={safeY} width={safeWidth} height={safeHeight} fill={candleColor} />;
+                          }
+
+                          const candleTop = Math.min(openY, closeY);
+                          const candleBodyHeight = Math.max(Math.abs(openY - closeY), 3);
+                          const candleWidth = Math.max(8, Math.min(18, safeWidth * 0.7));
+                          const centerX = safeX + safeWidth / 2;
+
+                          return (
+                            <g key={`candle-${payload.time || safeX}`}>
+                              {/* Wick Line */}
+                              <line
+                                x1={centerX}
+                                y1={highY}
+                                x2={centerX}
+                                y2={lowY}
+                                stroke={candleColor}
+                                strokeWidth={1.5}
+                              />
+                              {/* Candle Body */}
+                              <rect
+                                x={centerX - candleWidth / 2}
+                                y={candleTop}
+                                width={candleWidth}
+                                height={candleBodyHeight}
+                                fill={candleColor}
+                                rx={1.5}
+                                stroke={candleColor}
+                                strokeWidth={1}
+                              />
+                            </g>
+                          );
+                        }}
+                      />
+                    </ComposedChart>
+                  </ResponsiveContainer>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-4 text-xs font-mono text-zinc-400 pt-2 border-t border-zinc-800/60">
+                  <span className="flex items-center gap-1 font-bold text-rose-400"><span className="h-2 w-2 rounded-full bg-rose-500"></span> 🔴 양봉 (매수세 우세)</span>
+                  <span className="flex items-center gap-1 font-bold text-blue-400"><span className="h-2 w-2 rounded-full bg-blue-500"></span> 🔵 음봉 (매도세 우세)</span>
+                  <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-indigo-400"></span> VWAP</span>
+                  <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-cyan-400"></span> EMA9</span>
+                  <span className="text-emerald-400 font-bold">🟢 추세 반전(CHoCH) 확인</span>
+                  <span className="text-amber-400 font-bold">🟡 유동성 헌팅(SSL Sweep)</span>
+                </div>
+              </div>
+            ) : chartSubTab === "AI_OVERLAY" ? (
+              <div className="pt-1">
+                <AiFutureTrendOverlayChart
+                  symbol={symbol}
+                  name={name}
+                  market={market}
+                  livePrice={liveData.price}
+                  changeRate={liveData.changePct}
+                />
+              </div>
+            ) : (
+              <div className="pt-2">
+                <Ai30DayPriceForecastChart
+                  symbol={symbol}
+                  name={name}
+                  market={market}
+                  currentPrice={liveData.price}
+                  changeRate={liveData.changePct}
+                />
+              </div>
+            )}
           </div>
 
           {/* 3. AI REALTIME METRICS BREAKDOWN & 🔥 SCORE SURGE TIMELINE */}

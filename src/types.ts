@@ -1,3 +1,18 @@
+export type { StockItem } from "./data/stockUniverse";
+
+export interface InsufficientFundItem {
+  id: string;
+  symbol: string;
+  name: string;
+  market: 'KOREA' | 'US' | 'BTC';
+  side: 'BUY' | 'SELL';
+  price: number;
+  qty: number;
+  cost: number;
+  reason: string;
+  timestamp: string;
+}
+
 export interface BrokerErrorDetails {
   brokerName: string;
   errorCode: string;

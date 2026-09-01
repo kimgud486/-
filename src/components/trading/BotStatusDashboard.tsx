@@ -23,12 +23,17 @@ import {
   Wallet,
   Server,
   Radio,
-  Brain
+  Brain,
+  Key,
+  Link,
+  Shield,
+  Unplug
 } from "lucide-react";
 import { botErrorLogger, BotErrorLogItem } from "../../lib/botErrorLogger";
 import { useApp } from "../../context/AppContext";
 import { AiAutoBotEnhancementModal } from "./AiAutoBotEnhancementModal";
 import { AiBotStrategyImprovementModal } from "./AiBotStrategyImprovementModal";
+import { BrokerApiConnectModal } from "./BrokerApiConnectModal";
 
 export interface ActiveBotStatus {
   id: string;
@@ -103,6 +108,7 @@ export const BotStatusDashboard: React.FC = () => {
     positions,
     trades,
     profile,
+    updateProfileSettings,
     cashBreakdown,
     brokerApiStatus,
     kisPingLatency,
@@ -116,7 +122,60 @@ export const BotStatusDashboard: React.FC = () => {
   const [isSyncing, setIsSyncing] = useState<boolean>(false);
   const [isAutoEnhanceModalOpen, setIsAutoEnhanceModalOpen] = useState<boolean>(false);
   const [isStrategyImproveModalOpen, setIsStrategyImproveModalOpen] = useState<boolean>(false);
+  const [isBrokerModalOpen, setIsBrokerModalOpen] = useState<boolean>(false);
   const [focusedSymbol, setFocusedSymbol] = useState<string | null>(null);
+
+  // Real Account Credentials & Mode Detection
+  const hasKoreaKey = Boolean(profile?.koreaAppKey && (profile?.koreaAppSecret || profile?.koreaAccountNo));
+  const hasUpbitKey = Boolean(profile?.upbitAccessKey && profile?.upbitSecretKey);
+  const isRealMode = Boolean(profile?.isRealTrade);
+  const isFullyLinked = (hasKoreaKey || hasUpbitKey) && isRealMode;
+
+  useEffect(() => {
+    if (profile?.isRealTrade && (profile?.koreaAppKey || profile?.upbitAccessKey)) {
+      syncRealAccountBalance("all", true).catch(() => {});
+    }
+  }, [profile?.isRealTrade, profile?.koreaAppKey, profile?.upbitAccessKey, syncRealAccountBalance]);
+
+  const handleToggleRealTradingMode = async (enableReal: boolean) => {
+    if (enableReal && !hasKoreaKey && !hasUpbitKey) {
+      if (addToast) {
+        addToast({
+          type: "WARNING",
+          title: "실계좌 API 키 미등록",
+          message: "한국투자증권(KIS) 또는 업비트 API 키 등록이 필요합니다. 연동 설정 창을 엽니다."
+        });
+      }
+      setIsBrokerModalOpen(true);
+      return;
+    }
+
+    try {
+      if (updateProfileSettings) {
+        await updateProfileSettings({ isRealTrade: enableReal });
+      }
+      if (addToast) {
+        addToast({
+          type: enableReal ? "SUCCESS" : "INFO",
+          title: enableReal ? "🚨 실전 API 매매 모드 가동" : "💡 모의투자 시뮬레이션 모드 전환",
+          message: enableReal
+            ? "실계좌(증권사/업비트 REST API)로 실제 주문이 전송됩니다."
+            : "가상 원장으로 안전하게 매매를 진행합니다."
+        });
+      }
+      if (enableReal) {
+        await syncRealAccountBalance("all", false);
+      }
+    } catch (err: any) {
+      if (addToast) {
+        addToast({
+          type: "ERROR",
+          title: "설정 변경 실패",
+          message: err.message || "프로필 변경 중 오류가 발생했습니다."
+        });
+      }
+    }
+  };
 
   useEffect(() => {
     const handleOpenModal = (e: Event) => {
@@ -184,21 +243,33 @@ export const BotStatusDashboard: React.FC = () => {
   // Real Positions Evaluation
   const totalPositionValuation = useMemo(() => {
     if (!positions || positions.length === 0) return 0;
-    return positions.reduce((acc, pos) => acc + (pos.currentPrice || pos.avgBuyPrice || 0) * (pos.qty || 0), 0);
+    return positions.reduce((acc, pos) => acc + (pos.currentPrice || pos.avgPrice || (pos as any).avgBuyPrice || 0) * (pos.quantity || (pos as any).qty || 0), 0);
   }, [positions]);
 
   const totalUnrealizedPnl = useMemo(() => {
     if (!positions || positions.length === 0) return 0;
     return positions.reduce((acc, pos) => {
-      const current = pos.currentPrice || pos.avgBuyPrice || 0;
-      const cost = (pos.avgBuyPrice || 0) * (pos.qty || 0);
-      const val = current * (pos.qty || 0);
+      const current = pos.currentPrice || pos.avgPrice || (pos as any).avgBuyPrice || 0;
+      const qty = pos.quantity || (pos as any).qty || 0;
+      const avg = pos.avgPrice || (pos as any).avgBuyPrice || 0;
+      const cost = avg * qty;
+      const val = current * qty;
       return acc + (val - cost);
     }, 0);
   }, [positions]);
 
-  const availableCash = cashBreakdown?.krw || profile?.cashBalance || 0;
-  const totalAccountValue = availableCash + totalPositionValuation;
+  const koreaCash = cashBreakdown?.koreaCash ?? 0;
+  const upbitCash = cashBreakdown?.upbitCash ?? 0;
+  const usCash = cashBreakdown?.usCash ?? 0;
+  const totalCashFromBreakdown = cashBreakdown?.totalCash ?? (koreaCash + upbitCash + usCash);
+
+  const availableCash = totalCashFromBreakdown > 0 
+    ? totalCashFromBreakdown 
+    : (profile?.cash ?? profile?.balance ?? 0);
+
+  const totalAccountValue = (cashBreakdown?.grandTotalAssets && cashBreakdown.grandTotalAssets > 0)
+    ? cashBreakdown.grandTotalAssets
+    : (availableCash + totalPositionValuation);
 
   const toggleBotStatus = (botId: string) => {
     setBots(prev => prev.map(bot => {
@@ -248,27 +319,60 @@ export const BotStatusDashboard: React.FC = () => {
           <div>
             <div className="flex items-center gap-2 flex-wrap">
               <h3 className="text-sm font-black text-white tracking-tight">AI 봇 상태 및 매매 성과 대시보드</h3>
-              <span className="text-[10px] px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-bold flex items-center gap-1">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
-                실거래 실전 계좌 전용 (LIVE PRODUCTION)
+              <span className={`text-[10px] px-2.5 py-0.5 rounded-full border font-bold flex items-center gap-1 ${
+                isRealMode 
+                  ? "bg-rose-500/20 text-rose-300 border-rose-500/40" 
+                  : "bg-cyan-500/20 text-cyan-300 border-cyan-500/40"
+              }`}>
+                <span className={`w-1.5 h-1.5 rounded-full ${isRealMode ? "bg-rose-400 animate-ping" : "bg-cyan-400"}`} />
+                {isRealMode ? "실전 API 직결 (LIVE)" : "가상 시뮬레이션 (PAPER)"}
               </span>
               <span className="text-[10px] px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-300 border border-blue-500/30 font-mono font-bold">
                 가동 중 {activeBotCount} / {bots.length}
               </span>
             </div>
             <p className="text-[11px] text-slate-400 mt-0.5">
-              증권사(KIS)/업비트 실전 API 직결 · 모의데이터 전면 배제 · 실계좌 잔고 및 실제 체결 내역 100% 실시간 연동
+              증권사(KIS)/업비트 실전 API 직결 · 실계좌 잔고 및 실제 체결 내역 실시간 동기화
             </p>
           </div>
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
+          {/* Real vs Paper Mode Switcher */}
+          <div className="flex items-center bg-slate-950 p-1 rounded-xl border border-slate-800 text-xs">
+            <button
+              onClick={() => handleToggleRealTradingMode(false)}
+              className={`px-2.5 py-1 rounded-lg text-xs font-black transition cursor-pointer ${
+                !isRealMode ? "bg-cyan-500 text-slate-950 shadow-xs" : "text-slate-400 hover:text-white"
+              }`}
+            >
+              💡 모의투자
+            </button>
+            <button
+              onClick={() => handleToggleRealTradingMode(true)}
+              className={`px-2.5 py-1 rounded-lg text-xs font-black transition cursor-pointer flex items-center gap-1 ${
+                isRealMode ? "bg-rose-600 text-white shadow-xs animate-pulse" : "text-slate-400 hover:text-white"
+              }`}
+            >
+              <span>🚨 실전 API</span>
+              {isRealMode && <span className="text-[9px]">⚡</span>}
+            </button>
+          </div>
+
+          <button
+            onClick={() => setIsBrokerModalOpen(true)}
+            className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-amber-300 border border-amber-500/30 text-xs font-black transition flex items-center gap-1.5 cursor-pointer active:scale-95"
+          >
+            <Key className="w-3.5 h-3.5 text-amber-400" />
+            <span>실계좌 API 연동 설정</span>
+          </button>
+
           <button
             onClick={() => setIsStrategyImproveModalOpen(true)}
             className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-rose-600 via-purple-600 to-indigo-600 hover:from-rose-500 hover:to-indigo-500 text-white font-black text-xs shadow-lg transition flex items-center gap-1.5 cursor-pointer border border-rose-400/40 active:scale-95"
           >
             <Brain className="w-3.5 h-3.5 text-amber-300 animate-pulse" />
-            <span>💡 AI 봇 전략 개선 제안</span>
+            <span>💡 AI 봇 전략 개선</span>
           </button>
 
           <button
@@ -276,7 +380,7 @@ export const BotStatusDashboard: React.FC = () => {
             className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-amber-500 via-orange-600 to-purple-600 hover:from-amber-400 hover:to-purple-500 text-white font-black text-xs shadow-lg transition flex items-center gap-1.5 cursor-pointer border border-amber-300/40 active:scale-95"
           >
             <Zap className="w-3.5 h-3.5 text-amber-200 animate-bounce" />
-            <span>🤖 AI로 자동 봇강화</span>
+            <span>🤖 AI 자동 봇강화</span>
           </button>
 
           <button
@@ -285,10 +389,105 @@ export const BotStatusDashboard: React.FC = () => {
             className="px-3 py-1.5 rounded-xl bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/40 text-xs font-bold transition flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
           >
             <RefreshCw className={`w-3.5 h-3.5 text-emerald-400 ${isSyncing ? "animate-spin" : ""}`} />
-            <span>실계좌 실시간 동기화</span>
+            <span>실계좌 동기화</span>
           </button>
         </div>
       </div>
+
+      {/* Real Account Connection Status & Banner */}
+      {!hasKoreaKey && !hasUpbitKey ? (
+        <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-amber-200 text-xs">
+          <div className="flex items-center gap-2.5">
+            <div className="p-2 rounded-lg bg-amber-500/20 text-amber-400 shrink-0">
+              <AlertTriangle className="w-5 h-5 animate-pulse" />
+            </div>
+            <div>
+              <div className="font-black text-amber-300 flex items-center gap-1.5">
+                <span>⚠️ 실계좌 API 미연동 상태 (증권사/업비트 계좌 미등록)</span>
+              </div>
+              <p className="text-[11px] text-amber-400/80 mt-0.5">
+                한국투자증권(KIS) 또는 업비트 API 키가 연결되어 있지 않습니다. API 키를 등록하면 실제 체결 및 잔고가 100% 직결됩니다.
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 shrink-0 w-full sm:w-auto">
+            <button
+              onClick={() => setIsBrokerModalOpen(true)}
+              className="w-full sm:w-auto px-3.5 py-1.5 rounded-lg bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 text-slate-950 font-black text-xs shadow-md transition flex items-center justify-center gap-1.5 cursor-pointer active:scale-95"
+            >
+              <Zap className="w-3.5 h-3.5" />
+              <span>⚡ 실계좌 API 1초 연동 및 계좌 등록</span>
+            </button>
+          </div>
+        </div>
+      ) : !isRealMode ? (
+        <div className="bg-cyan-500/10 border border-cyan-500/30 rounded-xl p-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-cyan-200 text-xs">
+          <div className="flex items-center gap-2.5">
+            <div className="p-2 rounded-lg bg-cyan-500/20 text-cyan-400 shrink-0">
+              <ShieldCheck className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="font-black text-cyan-300 flex items-center gap-1.5">
+                <span>💡 실계좌 API 키 연동 완료 (현재: 모의투자 시뮬레이션 모드)</span>
+                <span className="text-[10px] px-1.5 py-0.2 rounded bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 font-mono font-bold">
+                  KIS: {hasKoreaKey ? "연동 완료 🟢" : "미등록"} | Upbit: {hasUpbitKey ? "연동 완료 🟢" : "미등록"}
+                </span>
+              </div>
+              <p className="text-[11px] text-cyan-400/80 mt-0.5">
+                증권사 API 키가 성공적으로 등록되어 있습니다. 실거래 주문 전송을 시작하려면 [실전 API 모드]로 전환해 주세요.
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 shrink-0 w-full sm:w-auto">
+            <button
+              onClick={() => handleToggleRealTradingMode(true)}
+              className="w-full sm:w-auto px-3.5 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-500 text-white font-black text-xs shadow-md transition flex items-center justify-center gap-1.5 cursor-pointer active:scale-95"
+            >
+              <Zap className="w-3.5 h-3.5" />
+              <span>🚨 실전 API 모드 가동</span>
+            </button>
+            <button
+              onClick={() => setIsBrokerModalOpen(true)}
+              className="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs transition border border-slate-700 cursor-pointer"
+            >
+              API 관리
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-xl p-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-emerald-200 text-xs">
+          <div className="flex items-center gap-2.5">
+            <div className="p-2 rounded-lg bg-emerald-500/20 text-emerald-400 shrink-0">
+              <CheckCircle2 className="w-5 h-5 animate-pulse" />
+            </div>
+            <div>
+              <div className="font-black text-emerald-300 flex items-center gap-1.5">
+                <span>🟢 실계좌 API 직결 가동 중 (LIVE PRODUCTION)</span>
+                <span className="text-[10px] px-2 py-0.2 rounded-full bg-emerald-500/30 text-emerald-200 font-mono font-bold">
+                  {profile?.koreaAccountNo ? `계좌: ${profile.koreaAccountNo}` : "API 연결 완료"}
+                </span>
+              </div>
+              <p className="text-[11px] text-emerald-400/80 mt-0.5">
+                한국투자증권(KIS) 및 업비트 REST API 서버와 직결되어 실제 체결과 예수금 잔고가 100% 실시간 동기화되고 있습니다.
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 shrink-0 w-full sm:w-auto">
+            <button
+              onClick={() => handleToggleRealTradingMode(false)}
+              className="w-full sm:w-auto px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs border border-slate-700 transition flex items-center justify-center gap-1 cursor-pointer"
+            >
+              <span>모의투자로 전환</span>
+            </button>
+            <button
+              onClick={() => setIsBrokerModalOpen(true)}
+              className="px-2.5 py-1.5 rounded-lg bg-emerald-950/80 hover:bg-emerald-900 text-emerald-300 font-bold text-xs border border-emerald-500/40 transition cursor-pointer"
+            >
+              API 키 설정
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Real Account Summary KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
@@ -298,9 +497,14 @@ export const BotStatusDashboard: React.FC = () => {
             <div className="text-base font-black text-white font-mono mt-0.5">
               {availableCash.toLocaleString()} <span className="text-xs text-slate-400 font-normal">원</span>
             </div>
-            <span className="text-[10px] text-emerald-400 font-mono">
-              총평가: {totalAccountValue.toLocaleString()}원
-            </span>
+            <div className="text-[10px] text-emerald-400 font-mono flex items-center gap-1.5 flex-wrap">
+              <span>총평가: {totalAccountValue.toLocaleString()}원</span>
+              {(koreaCash > 0 || upbitCash > 0) && (
+                <span className="text-slate-400 font-sans">
+                  (KIS: {koreaCash.toLocaleString()}원 | Upbit: {upbitCash.toLocaleString()}원)
+                </span>
+              )}
+            </div>
           </div>
           <div className="p-2 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
             <Wallet className="w-5 h-5" />
@@ -340,15 +544,29 @@ export const BotStatusDashboard: React.FC = () => {
         <div className="bg-slate-950/80 border border-slate-800 rounded-xl p-3 flex items-center justify-between">
           <div>
             <span className="text-[11px] text-slate-400 font-bold block">증권사 API 연결 상태</span>
-            <div className="text-xs font-bold text-white font-mono mt-1 flex items-center gap-1.5">
-              <span className={`w-2 h-2 rounded-full ${brokerApiStatus?.korea === "CONNECTED" ? "bg-emerald-400" : "bg-emerald-400"}`} />
-              KIS: 정상 (9443)
+            <div className="text-xs font-bold text-white font-mono mt-1 space-y-0.5">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-slate-400 text-[10px]">KIS:</span>
+                <span className={hasKoreaKey ? "text-emerald-400 font-extrabold" : "text-amber-400"}>
+                  {hasKoreaKey ? "연동 완료 🟢" : "키 미설정 ⚠️"}
+                </span>
+              </div>
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-slate-400 text-[10px]">Upbit:</span>
+                <span className={hasUpbitKey ? "text-purple-400 font-extrabold" : "text-amber-400"}>
+                  {hasUpbitKey ? "연동 완료 🟢" : "키 미설정 ⚠️"}
+                </span>
+              </div>
             </div>
-            <span className="text-[10px] text-slate-400 font-mono">
-              응답속도: {kisPingLatency > 0 ? `${kisPingLatency}ms` : "18ms"}
+            <span className="text-[10px] text-slate-400 font-mono block mt-1">
+              매매모드: {isRealMode ? "실전 REST API (LIVE)" : "가상 시뮬레이션 (PAPER)"}
             </span>
           </div>
-          <div className="p-2 rounded-xl bg-blue-500/10 text-blue-400 border border-blue-500/20">
+          <div 
+            onClick={() => setIsBrokerModalOpen(true)}
+            className="p-2 rounded-xl bg-blue-500/10 text-blue-400 border border-blue-500/20 cursor-pointer hover:bg-blue-500/20 transition"
+            title="실계좌 API 연동 및 계좌 설정 열기"
+          >
             <Server className="w-5 h-5" />
           </div>
         </div>
@@ -610,6 +828,12 @@ export const BotStatusDashboard: React.FC = () => {
         isOpen={isStrategyImproveModalOpen}
         onClose={() => setIsStrategyImproveModalOpen(false)}
         selectedSymbol={focusedSymbol}
+      />
+
+      {/* Real Broker API Key Connect Modal */}
+      <BrokerApiConnectModal
+        isOpen={isBrokerModalOpen}
+        onClose={() => setIsBrokerModalOpen(false)}
       />
     </div>
   );

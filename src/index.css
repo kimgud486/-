@@ -30,13 +30,14 @@
 /* Mobile responsive layout tweaks */
 html, body {
   overflow-x: hidden;
+  overflow-y: auto;
+  min-height: 100%;
   width: 100%;
   -webkit-tap-highlight-color: transparent;
-  touch-action: manipulation;
   word-break: keep-all;
-  user-select: none;
-  -webkit-user-select: none;
+  touch-action: auto;
 }
+
 
 /* Enable text selection inside input fields and text areas */
 input, textarea, [contenteditable="true"] {

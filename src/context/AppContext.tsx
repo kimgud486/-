@@ -15,7 +15,8 @@ import {
   WatchlistItem,
   CashBreakdown,
   BlockedSymbolDetail,
-  KillSwitchMode
+  KillSwitchMode,
+  InsufficientFundItem
 } from "../types";
 import { 
   auth, 
@@ -183,6 +184,10 @@ interface AppContextType {
   addBlockedSymbol: (symbol: string, reason?: string, details?: Partial<BlockedSymbolDetail>) => void;
   removeBlockedSymbol: (symbol: string) => void;
   clearBlockedSymbols: () => void;
+  insufficientFundStocks: InsufficientFundItem[];
+  addInsufficientFundStock: (item: { symbol: string; name: string; market: 'KOREA' | 'US' | 'BTC'; side: 'BUY' | 'SELL'; price: number; qty: number; cost: number; reason: string }) => void;
+  removeInsufficientFundStock: (symbol: string) => void;
+  clearInsufficientFundStocks: () => void;
   purgeAllMockData: () => Promise<void>;
   rechargeMockBalance: (amount: number) => Promise<void>;
   resetMockPortfolio: (initialCapital?: number) => Promise<void>;
@@ -1092,6 +1097,41 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setBlockedSymbolDetails([]);
   }, []);
 
+  const [insufficientFundStocks, setInsufficientFundStocks] = useState<InsufficientFundItem[]>(() => {
+    try {
+      return JSON.parse(localStorage.getItem("aistock_insufficient_fund_stocks") || "[]");
+    } catch {
+      return [];
+    }
+  });
+
+  const addInsufficientFundStock = useCallback((item: { symbol: string; name: string; market: 'KOREA' | 'US' | 'BTC'; side: 'BUY' | 'SELL'; price: number; qty: number; cost: number; reason: string }) => {
+    const newItem: InsufficientFundItem = {
+      id: `insuf_${item.symbol}_${Date.now()}`,
+      ...item,
+      timestamp: new Date().toISOString()
+    };
+    setInsufficientFundStocks(prev => {
+      const filtered = prev.filter(p => p.symbol.toUpperCase() !== item.symbol.toUpperCase());
+      const next = [newItem, ...filtered];
+      try { localStorage.setItem("aistock_insufficient_fund_stocks", JSON.stringify(next)); } catch (e) {}
+      return next;
+    });
+  }, []);
+
+  const removeInsufficientFundStock = useCallback((symbol: string) => {
+    setInsufficientFundStocks(prev => {
+      const next = prev.filter(p => p.symbol.toUpperCase() !== symbol.toUpperCase());
+      try { localStorage.setItem("aistock_insufficient_fund_stocks", JSON.stringify(next)); } catch (e) {}
+      return next;
+    });
+  }, []);
+
+  const clearInsufficientFundStocks = useCallback(() => {
+    setInsufficientFundStocks([]);
+    try { localStorage.removeItem("aistock_insufficient_fund_stocks"); } catch (e) {}
+  }, []);
+
   // ---------------------------------------------------------
   // Real Account API Response History Log Console State & Integrity Checker
   // ---------------------------------------------------------
@@ -1411,6 +1451,24 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         if (user.uid === "guest_local_user") {
           // Local Storage Fallback Mode
           const localProfileStr = localStorage.getItem("aistock_profile");
+          let savedCreds: Record<string, string> = {};
+          try {
+            const sc = localStorage.getItem("aistock_saved_api_credentials");
+            if (sc) savedCreds = JSON.parse(sc);
+          } catch (e) {}
+
+          // Also fetch backend server disk credentials
+          let serverCreds: Record<string, any> = {};
+          try {
+            const sRes = await fetch("/api/broker/credentials");
+            if (sRes.ok) {
+              const sData = await sRes.json();
+              if (sData.hasCredentials && sData.credentials) {
+                serverCreds = sData.credentials;
+              }
+            }
+          } catch (e) {}
+
           if (!localProfileStr) {
             // Seed initial local profile
             const newProfile: UserProfile = {
@@ -1424,6 +1482,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               autoTradingEnabled: false,
               isDemoMode: false,
               tradingMode: "approval",
+              koreaAppKey: serverCreds.koreaAppKey || savedCreds.koreaAppKey || "",
+              koreaAppSecret: serverCreds.koreaAppSecret || savedCreds.koreaAppSecret || "",
+              koreaAccountNo: serverCreds.koreaAccountNo || savedCreds.koreaAccountNo || "",
+              koreaAccountCode: serverCreds.koreaAccountCode || savedCreds.koreaAccountCode || "01",
+              upbitAccessKey: serverCreds.upbitAccessKey || savedCreds.upbitAccessKey || "",
+              upbitSecretKey: serverCreds.upbitSecretKey || savedCreds.upbitSecretKey || "",
+              geminiApiKey: serverCreds.geminiApiKey || savedCreds.geminiApiKey || "",
               createdAt: new Date().toISOString()
             };
             const seedStrats: TradingStrategy[] = [
@@ -1484,6 +1549,28 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               loaded.maxPositionWeight = 100;
               updated = true;
             }
+            // Ensure permanent saved keys are merged into profile
+            if (!loaded.koreaAppKey && (serverCreds.koreaAppKey || savedCreds.koreaAppKey)) {
+              loaded.koreaAppKey = serverCreds.koreaAppKey || savedCreds.koreaAppKey;
+              updated = true;
+            }
+            if (!loaded.koreaAppSecret && (serverCreds.koreaAppSecret || savedCreds.koreaAppSecret)) {
+              loaded.koreaAppSecret = serverCreds.koreaAppSecret || savedCreds.koreaAppSecret;
+              updated = true;
+            }
+            if (!loaded.koreaAccountNo && (serverCreds.koreaAccountNo || savedCreds.koreaAccountNo)) {
+              loaded.koreaAccountNo = serverCreds.koreaAccountNo || savedCreds.koreaAccountNo;
+              updated = true;
+            }
+            if (!loaded.upbitAccessKey && (serverCreds.upbitAccessKey || savedCreds.upbitAccessKey)) {
+              loaded.upbitAccessKey = serverCreds.upbitAccessKey || savedCreds.upbitAccessKey;
+              updated = true;
+            }
+            if (!loaded.upbitSecretKey && (serverCreds.upbitSecretKey || savedCreds.upbitSecretKey)) {
+              loaded.upbitSecretKey = serverCreds.upbitSecretKey || savedCreds.upbitSecretKey;
+              updated = true;
+            }
+
             if (updated) {
               localStorage.setItem("aistock_profile", JSON.stringify(loaded));
             }
@@ -1831,6 +1918,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         if (localStr) localProfile = JSON.parse(localStr);
       } catch (e) {}
 
+      let savedCreds: Record<string, string> = {};
+      try {
+        const sc = localStorage.getItem("aistock_saved_api_credentials");
+        if (sc) savedCreds = JSON.parse(sc);
+      } catch (e) {}
+
       const currentBase = profileRef.current || profile || localProfile;
 
       const effectiveTargetMarket = 
@@ -1838,6 +1931,41 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         || currentBase?.autoTradingTargetMarket 
         || localProfile?.autoTradingTargetMarket 
         || "KOREA";
+
+      // If settings contains new credentials, update savedCreds
+      const updatedCreds = { ...savedCreds };
+      if (settings.koreaAppKey !== undefined) {
+        if (settings.koreaAppKey) updatedCreds.koreaAppKey = settings.koreaAppKey;
+        else delete updatedCreds.koreaAppKey;
+      }
+      if (settings.koreaAppSecret !== undefined) {
+        if (settings.koreaAppSecret) updatedCreds.koreaAppSecret = settings.koreaAppSecret;
+        else delete updatedCreds.koreaAppSecret;
+      }
+      if (settings.koreaAccountNo !== undefined) {
+        if (settings.koreaAccountNo) updatedCreds.koreaAccountNo = settings.koreaAccountNo;
+        else delete updatedCreds.koreaAccountNo;
+      }
+      if (settings.koreaAccountCode !== undefined) {
+        if (settings.koreaAccountCode) updatedCreds.koreaAccountCode = settings.koreaAccountCode;
+        else delete updatedCreds.koreaAccountCode;
+      }
+      if (settings.upbitAccessKey !== undefined) {
+        if (settings.upbitAccessKey) updatedCreds.upbitAccessKey = settings.upbitAccessKey;
+        else delete updatedCreds.upbitAccessKey;
+      }
+      if (settings.upbitSecretKey !== undefined) {
+        if (settings.upbitSecretKey) updatedCreds.upbitSecretKey = settings.upbitSecretKey;
+        else delete updatedCreds.upbitSecretKey;
+      }
+      if (settings.geminiApiKey !== undefined) {
+        if (settings.geminiApiKey) updatedCreds.geminiApiKey = settings.geminiApiKey;
+        else delete updatedCreds.geminiApiKey;
+      }
+
+      try {
+        localStorage.setItem("aistock_saved_api_credentials", JSON.stringify(updatedCreds));
+      } catch (e) {}
 
       const currentProfile: UserProfile = {
         uid: user?.uid || "guest_local_user",
@@ -1851,6 +1979,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         autoTradingEnabled: true,
         isDemoMode: false,
         tradingMode: "approval" as const,
+        koreaAppKey: updatedCreds.koreaAppKey || currentBase?.koreaAppKey || localProfile?.koreaAppKey || "",
+        koreaAppSecret: updatedCreds.koreaAppSecret || currentBase?.koreaAppSecret || localProfile?.koreaAppSecret || "",
+        koreaAccountNo: updatedCreds.koreaAccountNo || currentBase?.koreaAccountNo || localProfile?.koreaAccountNo || "",
+        koreaAccountCode: updatedCreds.koreaAccountCode || currentBase?.koreaAccountCode || localProfile?.koreaAccountCode || "01",
+        upbitAccessKey: updatedCreds.upbitAccessKey || currentBase?.upbitAccessKey || localProfile?.upbitAccessKey || "",
+        upbitSecretKey: updatedCreds.upbitSecretKey || currentBase?.upbitSecretKey || localProfile?.upbitSecretKey || "",
+        geminiApiKey: updatedCreds.geminiApiKey || currentBase?.geminiApiKey || localProfile?.geminiApiKey || "",
         ...localProfile,
         ...currentBase,
         ...settings,
@@ -2071,6 +2206,39 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
       
       // -------------------------------------------------------------
+      // 0. 잔고 부족 종목 필터 검증 (이전 체결 거부 이력 종목 자동 차단)
+      // -------------------------------------------------------------
+      if (tradeSide === 'BUY' && insufficientFundStocks.some(item => item.symbol === symbol)) {
+        const isInsufficientFilteredMsg = `🚫 [잔고 부족 종목 필터] ${name || symbol}은 가용 예수금/잔고 부족으로 차단 목록에 트래킹된 종목입니다. 대시보드에서 잔고 충전 후 [재시도]를 누르시거나 차단 해제 후 시도해 주세요.`;
+        console.warn(isInsufficientFilteredMsg);
+        
+        addToast({
+          type: 'WARNING',
+          title: '잔고 부족 종목 자동 구매 차단',
+          message: `[잔고 부족 종목 필터] ${name || symbol}은 예수금 부족으로 등록되어 다음 매수 시도에서 자동으로 제외되었습니다.`
+        });
+
+        const filterRejectLog: AIDecisionLog = {
+          id: generateUniqueId("dec_insufficient_filter"),
+          timestamp: new Date().toISOString(),
+          symbol,
+          name,
+          market,
+          action: "SAFETY_REJECT",
+          message: isInsufficientFilteredMsg,
+          confidence: 100,
+          safetyStatus: {
+            holdingsLimit: "PASS",
+            dailyLossLimit: "PASS",
+            marketRisk: "PASS",
+            brokerAuth: "PASS"
+          }
+        };
+        setDecisionLogs(prev => [filterRejectLog, ...prev.slice(0, 49)]);
+        return { success: false, isInsufficientFundFiltered: true, error: "잔고 부족 종목 필터 차단" };
+      }
+
+      // -------------------------------------------------------------
       // 1. API Key 존재 여부 사전 검증 (실거래 모드 활성화 시에만 엄격 적용)
       // -------------------------------------------------------------
       const isRealModeRequested = Boolean(profile?.isRealTrade === true);
@@ -2078,10 +2246,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
       const hasBrokerKeys = market === 'KOREA' || market === 'US'
         ? Boolean(profile?.koreaAppKey && profile?.koreaAppSecret)
-        : Boolean(profile?.koreaAppKey && profile?.koreaAppSecret);
+        : Boolean((profile?.upbitAccessKey && profile?.upbitSecretKey) || (profile as any)?.upbitAccessKey2);
 
       let brokerName = "한국투자증권(KIS)";
       if (market === "US") brokerName = "한국투자증권(KIS) 해외주식";
+      if (market === "BTC") brokerName = "업비트(Upbit)";
 
       if (isRealForThisMarket && !hasBrokerKeys) {
         const targetBrokerKey = market === 'BTC' ? 'upbit' : 'korea';
@@ -2263,7 +2432,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
           if (bypassGuard) {
             console.log(`[Auto-Trading Scanner Active] Upbit KRW cash (₩${displayBalance.toLocaleString()}) < ₩5,000. Autonomous buy skipped, scanner active.`);
-            return;
+            return { success: false, isInsufficientFunds: true, error: upbitFundMsg, isRealTrade: false, isSimulated: false };
           }
 
           addToast({
@@ -2271,7 +2440,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             title: '업비트 가용 원화 부족',
             message: upbitFundMsg
           });
-          return;
+          return { success: false, isInsufficientFunds: true, error: upbitFundMsg, isRealTrade: false, isSimulated: false };
         }
 
         if (effectiveLiveBalance <= 0 || effectiveLiveBalance < totalCost) {
@@ -2293,12 +2462,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           };
           setDecisionLogs(prev => [rejectLog, ...prev.slice(0, 49)]);
 
+          const errText = `[계좌 예수금 부족] [${name} (${symbol})] ${qtyFormatted}${unitLabel} 매수 주문 금액(${unit}${displayCost.toLocaleString()})이 ${isRealModeRequested ? brokerLabel : '모의투자'} 가용 예수금(${unit}${displayBalance.toLocaleString()})을 초과합니다. (주문 미체결)`;
+
           if (bypassGuard) {
             console.log(`[Auto-Trading Scanner Active] ${name} (${symbol}) cost ${unit}${displayCost} exceeds balance ${unit}${displayBalance}. Trading skipped, scanner running.`);
-            return;
+            return { success: false, isInsufficientFunds: true, error: errText, isRealTrade: false, isSimulated: false };
           }
-
-          const errText = `[계좌 예수금 부족] [${name} (${symbol})] ${qtyFormatted}${unitLabel} 매수 주문 금액(${unit}${displayCost.toLocaleString()})이 ${isRealModeRequested ? brokerLabel : '모의투자'} 가용 예수금(${unit}${displayBalance.toLocaleString()})을 초과합니다. (주문 미체결)`;
 
           addToast({
             type: 'ERROR',
@@ -2306,7 +2475,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             message: errText
           });
 
-          return;
+          return { success: false, isInsufficientFunds: true, error: errText, isRealTrade: false, isSimulated: false };
         }
       }
 
@@ -2314,6 +2483,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const isDemo = !isRealModeRequested;
 
       let brokerMessage = "";
+      let resData: any = null;
       {
         console.log(`[Broker Trade] Sending trade request to backend for ${symbol} (hasKeys: ${hasBrokerKeys}, isReal: ${isRealModeRequested})`);
         const effectiveBalance = currentLiveBalance;
@@ -2329,7 +2499,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         const isRealMode = Boolean(isRealForThisMarket && hasBrokerKeys);
         
         let response: Response | null = null;
-        let resData: any = null;
 
         const tradePayload = {
           symbol,
@@ -2366,7 +2535,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
         const performTradeFetch = async (attempt = 1): Promise<{ resp: Response | null; data: any }> => {
           const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 25000);
+          const timeoutId = setTimeout(() => controller.abort(), 30000);
           try {
             const resp = await fetch("/api/trade/execute", {
               method: "POST",
@@ -2388,9 +2557,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             return { resp, data };
           } catch (err: any) {
             clearTimeout(timeoutId);
-            if (attempt < 2) {
-              console.warn(`[Trade Fetch Retry] Attempt ${attempt} failed (${err.message}). Retrying in 400ms...`);
-              await new Promise(r => setTimeout(r, 400));
+            if (attempt < 3) {
+              console.warn(`[Trade Fetch Retry] Attempt ${attempt} failed (${err.message}). Retrying in ${attempt * 500}ms...`);
+              await new Promise(r => setTimeout(r, attempt * 500));
               return performTradeFetch(attempt + 1);
             }
             throw err;
@@ -2405,19 +2574,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           console.warn("[Broker Trade Fetch Error]:", fetchErr);
           const isAbort = fetchErr?.name === 'AbortError';
 
-          if (!isRealMode) {
-            console.log("[Paper Trade Fallback] Server fetch failed for paper trade, processing locally:", fetchErr);
+          if (!isRealMode && !bypassGuard) {
+            console.log("[Paper Trade Fallback] Server fetch failed, processing fallback simulated execution locally:", fetchErr);
             resData = {
               success: true,
               isRealTrade: false,
               isSimulated: true,
-              executionType: "SIMULATED",
-              message: `[모의투자 체결 완료] ${name || symbol} ${tradeQty} ${tradeSide === "BUY" ? "매수" : "매도"} 모의 주문이 가상 원장에 정상 체결되었습니다.`
+              executionType: "SIMULATED_FALLBACK",
+              warningNotice: "💡 [서버 통신 지연 ➔ 모의 원장 자동 체결] 주문 처리 서버 통신 원활치 않음으로 인해 포트폴리오 모의 원장에 즉시 체결 반영되었습니다.",
+              message: `[모의투자 체결 완료] ${name || symbol} ${tradeQty} ${tradeSide === "BUY" ? "매수" : "매도"} 주문이 모의 원장에 체결 완료되었습니다. (서버 통신 재시도 실패)`
             };
             response = new Response(JSON.stringify(resData), { status: 200, headers: { "Content-Type": "application/json" } });
           } else {
             const detailMsg = isAbort 
-              ? "증권사/업비트 주문 서버 통신 응답 대기 시간이 초과되어 주문이 지연되었습니다. 네트워크 연결 상태를 확인해 주세요."
+              ? "증권사/업비트 주문 서버 통신 응답 대기 시간이 초과되었습니다. 네트워크 상태를 확인 후 다시 시도해 주세요."
               : (fetchErr?.message === 'Failed to fetch' || !fetchErr?.message
                   ? "주문 처리 서버와의 통신이 일시적으로 원활하지 않습니다. 잠시 후 다시 시도해 주세요."
                   : fetchErr.message);
@@ -2480,7 +2650,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             name,
             market,
             action: "SAFETY_REJECT",
-            message: `⚠️ [거래 전 안전관리 거부] ${name} (${symbol}) 주문이 비토(Veto)되었습니다: ${resData.error || "자격 증명 미확인 또는 한도 제한."}`,
+            message: `⚠️ [거래 거부/실패] ${name} (${symbol}): ${resData.error || "자격 증명 미확인, 잔고 부족, 또는 장외 시간."}`,
             confidence: 99,
             safetyStatus: {
               holdingsLimit: resData.error?.includes("Holdings") ? "FAIL" : "PASS",
@@ -2493,19 +2663,46 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
           const errText = resData.error || "";
           const noticeType = resData.noticeType || "";
+          const isFundErr = resData.isInsufficientFunds || errText.includes("업비트 원화 잔고 부족") || errText.includes("가용 원화 잔고") || errText.includes("계좌 잔고 부족") || errText.includes("잔고") || errText.includes("예수금") || errText.includes("금액부족");
 
-          // 업비트/증권사 잔고 부족 시의 안전한 처리
-          if (resData.isInsufficientFunds || errText.includes("업비트 원화 잔고 부족") || errText.includes("가용 원화 잔고") || errText.includes("계좌 잔고 부족")) {
+          // 업비트/증권사 잔고 부족 시의 처리 및 잔고 부족 종목 목록 등록
+          if (isFundErr) {
+            const estCost = Math.round(tradeQty * tradePrice);
+            addInsufficientFundStock({
+              symbol,
+              name: name || symbol,
+              market,
+              side: tradeSide,
+              price: tradePrice,
+              qty: tradeQty,
+              cost: estCost,
+              reason: errText || "예수금/잔고 부족"
+            });
+
             if (bypassGuard) {
-              console.log(`[Auto-Trading Scanner Active] Insufficient funds detected (${errText}). Order skipped, continuing scanner.`);
-              return;
+              console.log(`[Auto-Trading Scanner Active] Insufficient funds detected (${errText}). Order skipped and stock classified into insufficient fund list.`);
+              return resData || { success: false, isInsufficientFunds: true, error: errText, isRealTrade: false, isSimulated: false };
             }
             addToast({
               type: 'WARNING',
               title: '가용 예수금 부족 안내',
-              message: errText
+              message: `${errText} (해당 종목이 [잔고 부족 종목]으로 분류되었습니다)`
             });
-            return;
+            return resData || { success: false, isInsufficientFunds: true, error: errText, isRealTrade: false, isSimulated: false };
+          }
+
+          // 장외 시간 거부 처리
+          const isOffMarketErr = resData.isOffMarket || errText.includes("장외 시간") || errText.includes("개장시간") || errText.includes("장 마감");
+          if (isOffMarketErr) {
+            if (bypassGuard) {
+              console.log(`[Auto-Trading Scanner Active] Off-market time detected (${errText}). Trading stopped for market.`);
+            }
+            addToast({
+              type: 'WARNING',
+              title: '시장 운영 시간 외 거래 불가',
+              message: `[시장 운영 시간 외 거래 불가] ${name || symbol}: 정규장 운영 시간이 아니므로 주문이 차단되었습니다. (${errText})`
+            });
+            return resData || { success: false, isOffMarket: true, error: errText };
           }
 
           if (noticeType === "KIS_KEY_ERROR" || errText.includes("한국투자증권") || errText.includes("AppKey") || errText.includes("AppSecret") || errText.includes("KIS")) {
@@ -2604,7 +2801,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         brokerMessage = resData?.message || `[실시간 주문 체결] ${name} (${symbol}) ${formattedQtyText} ${tradeSide === "BUY" ? "매수" : "매도"} 체결이 반영되었습니다.`;
         
         // Log successful trade
-        const isRealTradeFlag = Boolean(isRealModeRequested && hasBrokerKeys);
+        const isRealTradeFlag = Boolean(isRealModeRequested && hasBrokerKeys && resData?.isRealTrade === true && !resData?.isSimulated);
         const execType: 'REAL_BROKER' | 'PAPER_SIMULATION' = isRealTradeFlag ? 'REAL_BROKER' : 'PAPER_SIMULATION';
 
         const tradeLog: AIDecisionLog = {
@@ -2694,7 +2891,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         localStorage.setItem("aistock_positions", JSON.stringify(updatedPositions));
 
         // Record trade log
-        const isRealTradeFlag = Boolean(isRealModeRequested && hasBrokerKeys);
+        const isRealTradeFlag = Boolean(isRealModeRequested && hasBrokerKeys && resData?.isRealTrade === true && !resData?.isSimulated);
         const execType: 'REAL_BROKER' | 'PAPER_SIMULATION' = isRealTradeFlag ? 'REAL_BROKER' : 'PAPER_SIMULATION';
 
         const matchingPos = positions.find(p => p.symbol === symbol);
@@ -2915,6 +3112,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const targetBroker = market === 'KOREA' ? 'korea' : market === 'BTC' ? 'upbit' : 'us';
       syncRealAccountBalance(targetBroker).catch(() => {});
 
+      const finalIsReal = resData?.isRealTrade === true && !resData?.isSimulated;
+      return resData || { success: true, isRealTrade: finalIsReal, isSimulated: !finalIsReal };
+
     } catch (e: any) {
       console.error("Trade execution failed:", e?.message || e);
 
@@ -2953,7 +3153,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             status: 'FAILED'
           }
         });
-        return;
+        return { success: false, error: e.message || "한국투자증권 AppKey 자격 검증 실패", noticeType: "KIS_KEY_ERROR", isRealTrade: false, isSimulated: false };
       }
 
       addToast({
@@ -3000,6 +3200,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           timestamp: new Date().toISOString()
         });
       }
+
+      return { success: false, error: e.message || "주문 체결 처리 중 오류가 발생했습니다.", isRealTrade: false, isSimulated: false };
     }
   };
 
@@ -4806,6 +5008,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       addBlockedSymbol,
       removeBlockedSymbol,
       clearBlockedSymbols,
+      insufficientFundStocks,
+      addInsufficientFundStock,
+      removeInsufficientFundStock,
+      clearInsufficientFundStocks,
       purgeAllMockData,
       rechargeMockBalance,
       resetMockPortfolio,

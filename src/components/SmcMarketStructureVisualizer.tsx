@@ -1,5 +1,8 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
+import { searchStocksFromIndex } from "../lib/stockDictionary";
 import { PriceActionStructuresGuide } from "./PriceActionStructuresGuide";
+import { useApp } from "../context/AppContext";
+import { BrokerApiConnectModal } from "./trading/BrokerApiConnectModal";
 import { 
   TrendingUp, 
   TrendingDown, 
@@ -163,8 +166,18 @@ export interface SmcAnalysisResult {
     riskRewardLevels: { r1: number; r2: number; r3: number };
   };
   candles: CandleData[];
-  aiSignal: "STRONG LONG" | "LONG" | "WAIT" | "SHORT" | "STRONG SHORT";
+  aiSignal: "STRONG LONG" | "LONG" | "WAIT" | "SHORT" | "STRONG SHORT" | "🟢 강력 상승 매수 (상승 파동)" | "🔴 매도 / 관망 (하강 파동)" | string;
   rationale: string;
+}
+
+export interface SmcMarketStructureVisualizerProps {
+  stock?: {
+    symbol: string;
+    name: string;
+    price?: number;
+    market?: "KOREA" | "US" | "BTC" | string;
+  };
+  onOpenBrokerApiModal?: () => void;
 }
 
 const INITIAL_PRESET_SYMBOLS = [
@@ -176,12 +189,99 @@ const INITIAL_PRESET_SYMBOLS = [
   { symbol: "TSLA", name: "테슬라", price: 218.4, market: "US" }
 ];
 
-export const SmcMarketStructureVisualizer: React.FC = () => {
+const POPULAR_HOT_STOCKS = [
+  { symbol: "005930", name: "삼성전자", market: "KOREA", price: 240000, sectorTag: "반도체 대장" },
+  { symbol: "000660", name: "SK하이닉스", market: "KOREA", price: 185000, sectorTag: "HBM 메모리" },
+  { symbol: "005380", name: "현대차", market: "KOREA", price: 245000, sectorTag: "자동차/로봇" },
+  { symbol: "035720", name: "카카오", market: "KOREA", price: 42500, sectorTag: "IT 플랫폼" },
+  { symbol: "NVDA", name: "NVIDIA", market: "US", price: 128.5, sectorTag: "AI 반도체" },
+  { symbol: "TSLA", name: "테슬라", market: "US", price: 218.4, sectorTag: "자율주행/EV" },
+  { symbol: "TSM", name: "TSMC", market: "US", price: 172.4, sectorTag: "파운드리 1위" },
+  { symbol: "BTC", name: "비트코인", market: "BTC", price: 98500000, sectorTag: "가상자산 대장" },
+  { symbol: "005490", name: "POSCO홀딩스", market: "KOREA", price: 375000, sectorTag: "2차전지/철강" },
+  { symbol: "068270", name: "셀트리온", market: "KOREA", price: 198000, sectorTag: "바이오시밀러" }
+];
+
+export const SmcMarketStructureVisualizer: React.FC<SmcMarketStructureVisualizerProps> = ({ stock, onOpenBrokerApiModal }) => {
+  const { setSelectedSymbol: setGlobalSymbol, addToast } = (useApp?.() || {}) as any;
   const [symbolsList, setSymbolsList] = useState(INITIAL_PRESET_SYMBOLS);
   const [selectedSymbol, setSelectedSymbol] = useState("005930");
   const [selectedTimeframe, setSelectedTimeframe] = useState("15m");
   const [customPriceInput, setCustomPriceInput] = useState<number | "">("");
   const [isLoading, setIsLoading] = useState(false);
+
+  // Real-time stock search states
+  const [searchQuery, setSearchQuery] = useState("");
+  const [modalSearchQuery, setModalSearchQuery] = useState("");
+  const [isSearchDropdownOpen, setIsSearchDropdownOpen] = useState(false);
+  const [isManualInputOpen, setIsManualInputOpen] = useState(false);
+
+  // Sync incoming stock prop if passed from parent
+  useEffect(() => {
+    if (stock && stock.symbol) {
+      const cleanSym = stock.symbol.toUpperCase().replace(/^KRW-/, "");
+      const cleanMarket = stock.market === "US" ? "US" : stock.market === "BTC" || stock.market === "UPBIT" ? "BTC" : "KOREA";
+      const realPrice = stock.price && stock.price > 0 ? stock.price : (cleanMarket === "US" ? 150 : cleanMarket === "BTC" ? 95000000 : 50000);
+      
+      const newStockItem = { symbol: cleanSym, name: stock.name || cleanSym, price: realPrice, market: cleanMarket as "KOREA" | "US" | "BTC" };
+
+      setSymbolsList(prev => {
+        if (prev.some(s => s.symbol === cleanSym)) return prev;
+        return [newStockItem, ...prev];
+      });
+      setSelectedSymbol(cleanSym);
+    }
+  }, [stock]);
+
+  // Live real-time search autocomplete results
+  const liveToolbarSearchResults = useMemo(() => {
+    if (!searchQuery.trim()) return [];
+    return searchStocksFromIndex(searchQuery.trim(), 8);
+  }, [searchQuery]);
+
+  const liveModalSearchResults = useMemo(() => {
+    if (!modalSearchQuery.trim()) return [];
+    return searchStocksFromIndex(modalSearchQuery.trim(), 20);
+  }, [modalSearchQuery]);
+
+  // Direct 1-Click Real Stock Selection & SMC Integration Handler
+  const handleSelectRealStock = (item: { symbol: string; name: string; price?: number; market?: string }) => {
+    const cleanSym = item.symbol.toUpperCase().replace(/^KRW-/, "");
+    const cleanMarket = item.market === "US" ? "US" : (item.market === "BTC" || item.market === "UPBIT" ? "BTC" : "KOREA");
+    const realPrice = item.price && item.price > 0 
+      ? item.price 
+      : (cleanMarket === "US" ? 150 : cleanMarket === "BTC" ? 95000000 : 50000);
+
+    const newStockItem = {
+      symbol: cleanSym,
+      name: item.name || cleanSym,
+      price: realPrice,
+      market: cleanMarket as "KOREA" | "US" | "BTC"
+    };
+
+    setSymbolsList(prev => {
+      if (prev.some(s => s.symbol === cleanSym)) {
+        return prev.map(s => s.symbol === cleanSym ? { ...s, name: item.name || cleanSym, price: realPrice, market: cleanMarket as any } : s);
+      }
+      return [newStockItem, ...prev];
+    });
+
+    setSelectedSymbol(cleanSym);
+    if (setGlobalSymbol) {
+      setGlobalSymbol(cleanSym);
+    }
+    setCustomPriceInput("");
+    setSearchQuery("");
+    setModalSearchQuery("");
+    setIsSearchDropdownOpen(false);
+    setIsRegisterModalOpen(false);
+
+    if (addToast) {
+      addToast(`🎯 [SMC 분석 연동] ${item.name || cleanSym} (${cleanSym}) 종목으로 1클릭 전환되었습니다!`, "success");
+    }
+
+    runSmcAnalysis(cleanSym, selectedTimeframe);
+  };
 
   // Hover Tooltip State for On-Chart Targets
   const [hoveredTarget, setHoveredTarget] = useState<{
@@ -501,22 +601,22 @@ export const SmcMarketStructureVisualizer: React.FC = () => {
           stopLoss: slPrice,
           tp1: {
             price: tp1Val,
-            label: "TP1 (구조적 직전 고점/저항)",
-            rationale: "가장 가까운 1차 구조적 저항선 및 Buy-Side Liquidity 1차 진입 구간"
+            label: "🎯 1차 안전 목표가 (단기 저항선)",
+            rationale: "가장 가까운 1차 구조적 주가 언덕(저항선) 및 스마트머니 매수 물량 1차 수익 실현 구간"
           },
           tp2: {
             price: tp2Val,
-            label: "TP2 (패턴 측정 목표가)",
-            rationale: `Double Bottom & Ascending Triangle 측정 높이 (+${patternHeightVal.toLocaleString()}) 대입 목표`
+            label: "🎯 2차 패턴 목표가 (차트 목표)",
+            rationale: `이중 바닥(W자) & 상승 삼각형 패턴의 상승 높이 (+${patternHeightVal.toLocaleString()}원/달러) 대입 목표가`
           },
           tp3: {
             price: tp3Val,
-            label: "TP3 (상위 시간봉 Major Unswept BSL)",
-            rationale: "일봉/주봉 미소진 유동성 풀(Unswept Liquidity Pool) 최종 돌파 타깃"
+            label: "🎯 3차 대세 목표가 (최고점 저항)",
+            rationale: "일봉 및 주봉 상위 차트의 미소진 매수 물량(Unswept BSL) 최종 파워 돌파 타깃"
           },
           patternMeasuredTarget: {
             price: tp2Val,
-            patternName: isLong ? "W-Double Bottom / Ascending Triangle" : "M-Double Top / Head & Shoulders",
+            patternName: isLong ? "W자 이중 바닥 / 상승 삼각수렴 패턴" : "M자 이중 천장 / 헤드앤숄더 패턴",
             height: patternHeightVal
           },
           riskRewardRatio: 2.85,
@@ -527,8 +627,8 @@ export const SmcMarketStructureVisualizer: React.FC = () => {
           }
         },
         candles: candlesList,
-        aiSignal: isLong ? "STRONG LONG" : "SHORT",
-        rationale: `[SMC & BOS 알고리즘 분석] 하방 Sell-Side Liquidity(SSL) Sweep 후 캔들 종가가 SSL 상단으로 자급 재진입하며 Bullish CHoCH(추세반전) 발생. 이후 15m 차트에서 이전 Swing High를 강력한 종가 몸통(Close Break)으로 뚫어내며 Bullish BOS가 92점 강도로 최종 확정되었습니다. AI Signal Reliability Score는 93점(S+ 등급)으로 가짜 돌파 위험도가 3.8%에 불과한 기관급 고승률 타점입니다.`
+        aiSignal: isLong ? "🟢 강력 상승 매수 (상승 파동)" : "🔴 매도 / 관망 (하강 파동)",
+        rationale: `[스마트머니 SMC & BOS 알고리즘 분석] 하방 매도 유동성(SSL 개미 털기) 완료 후, 캔들 종가가 저점 위로 급격히 재진입하며 상승 추세 전환 신호(CHoCH)가 발생했습니다. 이후 15분 차트에서 이전 언덕 전고점을 강력한 캔들 실몸통으로 뚫어내며 주가 구조 돌파(BOS)가 92점 강도로 최종 확정되었습니다. AI 신호 정밀 신뢰도는 93점(S+ 극상 등급)으로 가짜 돌파 위험이 3.8%에 불과한 고승률 명품 매수 자리입니다.`
       };
 
       setData(calculatedData);
@@ -550,13 +650,13 @@ export const SmcMarketStructureVisualizer: React.FC = () => {
           </div>
           <div>
             <h3 className="text-base sm:text-lg font-black text-white flex items-center gap-2">
-              <span>기관급 SMC & BOS 마켓스트럭처 AI 분석 엔진</span>
-              <span className="text-[10px] font-mono font-bold bg-cyan-950 text-cyan-400 border border-cyan-800 px-2 py-0.5 rounded-full">
-                Smart Money Concepts v4.2
+              <span>스마트머니(SMC) 차트 구조 & 수급 돌파 AI 분석 엔진</span>
+              <span className="text-[10px] bg-cyan-950 text-cyan-400 border border-cyan-800 px-2 py-0.5 rounded-full font-bold">
+                정밀 시각화 분석기
               </span>
             </h3>
             <p className="text-xs text-zinc-400">
-              스윙 구조 탐지 → 캔들 종가(Close) BOS 확정 → SSL/BSL Liquidity Sweep → 신뢰도 점수(0~100) & 다중 목표가 산출
+              파동 구조 탐지 → 캔들 종가 확정 돌파(BOS) → 세력 개미 털기(Sweep) 탐지 → AI 신뢰도 점수 및 3단계 목표가 산출
             </p>
           </div>
         </div>
@@ -568,22 +668,95 @@ export const SmcMarketStructureVisualizer: React.FC = () => {
           className="px-4 py-2 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-black text-xs rounded-xl shadow-lg transition flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
         >
           <RefreshCw className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
-          <span>SMC 스트럭처 재분석</span>
+          <span>SMC 구조 분석 새로고침</span>
         </button>
       </div>
 
-      {/* SELECTOR BAR (Symbols, Stock Registration & Timeframes) */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 bg-zinc-900/80 p-3 rounded-2xl border border-zinc-800">
+      {/* SELECTOR BAR (Symbols, Live Stock Search & Timeframes) */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-3 bg-zinc-900/80 p-3.5 rounded-2xl border border-zinc-800">
+        {/* Real-time Live Stock Search Input */}
+        <div className="relative">
+          <label className="text-[10px] font-bold text-cyan-400 block mb-1 flex items-center justify-between">
+            <span className="flex items-center gap-1">
+              <Search className="h-3 w-3" />
+              <span>실종목 검색 즉시 연동</span>
+            </span>
+            <span className="text-[9px] text-zinc-500 font-mono">초성 지원(ㅅㅅㅈㅈ)</span>
+          </label>
+          <div className="relative">
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                setIsSearchDropdownOpen(true);
+              }}
+              onFocus={() => setIsSearchDropdownOpen(true)}
+              placeholder="삼성전자, NVDA, ㅅㅅㅈㅈ, 005930..."
+              className="w-full bg-zinc-950 border border-cyan-500/50 rounded-xl pl-8 pr-3 py-1.5 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-cyan-400 font-mono shadow-xs"
+            />
+            <Search className="h-3.5 w-3.5 text-cyan-400 absolute left-2.5 top-2.5" />
+          </div>
+
+          {/* Autocomplete Dropdown */}
+          {isSearchDropdownOpen && searchQuery.trim().length > 0 && (
+            <div className="absolute top-full left-0 right-0 mt-1 z-30 bg-zinc-900 border border-cyan-500/40 rounded-xl shadow-2xl max-h-60 overflow-y-auto p-1.5 space-y-1">
+              {liveToolbarSearchResults.length > 0 ? (
+                liveToolbarSearchResults.map((item) => (
+                  <button
+                    key={`${item.market}-${item.symbol}`}
+                    onClick={() => handleSelectRealStock(item)}
+                    className="w-full text-left p-2 hover:bg-cyan-950/60 rounded-lg transition flex items-center justify-between group cursor-pointer border border-transparent hover:border-cyan-800/50"
+                  >
+                    <div className="flex items-center space-x-2">
+                      <span className={`px-1.5 py-0.5 text-[9px] font-mono font-bold rounded ${
+                        item.market === 'KOREA' ? 'bg-blue-900/50 text-blue-300 border border-blue-700/50' :
+                        item.market === 'US' ? 'bg-purple-900/50 text-purple-300 border border-purple-700/50' :
+                        'bg-amber-900/50 text-amber-300 border border-amber-700/50'
+                      }`}>
+                        {item.market}
+                      </span>
+                      <span className="font-bold text-xs text-zinc-100 group-hover:text-cyan-300">
+                        {item.name}
+                      </span>
+                      <span className="text-[10px] font-mono text-zinc-400">
+                        ({item.symbol})
+                      </span>
+                    </div>
+                    {item.sectorTag && (
+                      <span className="text-[9px] text-zinc-500 font-mono">
+                        {item.sectorTag}
+                      </span>
+                    )}
+                  </button>
+                ))
+              ) : (
+                <div className="p-3 text-center text-xs text-zinc-400">
+                  '<span className="text-white font-bold">{searchQuery}</span>' 검색 결과 없음.
+                  <button 
+                    onClick={() => {
+                      handleSelectRealStock({ symbol: searchQuery.toUpperCase().trim(), name: searchQuery.trim(), market: "KOREA" });
+                    }}
+                    className="mt-1 text-cyan-400 hover:underline block mx-auto text-[11px] font-bold"
+                  >
+                    + '{searchQuery}' 커스텀 종목으로 연동하기
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
         {/* Symbol Select & Stock Registration */}
-        <div>
+        <div className="md:col-span-2">
           <div className="flex items-center justify-between mb-1">
-            <label className="text-[10px] font-bold text-zinc-400 block">분석 대상 종목 선택</label>
+            <label className="text-[10px] font-bold text-zinc-400 block">등록 및 분석 대상 종목 ({symbolsList.length})</label>
             <button
               onClick={() => setIsRegisterModalOpen(true)}
-              className="text-[10px] font-bold text-cyan-400 hover:text-cyan-300 flex items-center gap-1 cursor-pointer bg-cyan-950/60 border border-cyan-800/60 px-2 py-0.5 rounded-md transition"
+              className="text-[10px] font-bold text-cyan-400 hover:text-cyan-300 flex items-center gap-1 cursor-pointer bg-cyan-950/60 border border-cyan-800/60 px-2.5 py-0.5 rounded-md transition"
             >
-              <PlusCircle className="h-3 w-3" />
-              <span>종목 검색 및 등록</span>
+              <Search className="h-3 w-3 text-cyan-400" />
+              <span>실종목 상세 검색 & 인기 주도주 모달</span>
             </button>
           </div>
           <div className="flex flex-wrap gap-1 max-h-24 overflow-y-auto pr-1">
@@ -605,7 +778,7 @@ export const SmcMarketStructureVisualizer: React.FC = () => {
 
         {/* Timeframe Select */}
         <div>
-          <label className="text-[10px] font-bold text-zinc-400 block mb-1">타임프레임 (Multi-Timeframe)</label>
+          <label className="text-[10px] font-bold text-zinc-400 block mb-1">타임프레임 (Multi-TF)</label>
           <div className="flex items-center space-x-1">
             {["1m", "5m", "15m", "1h", "4h", "1d"].map((tf) => (
               <button
@@ -622,18 +795,6 @@ export const SmcMarketStructureVisualizer: React.FC = () => {
             ))}
           </div>
         </div>
-
-        {/* Custom Price Overwrite */}
-        <div>
-          <label className="text-[10px] font-bold text-zinc-400 block mb-1">현재가 직접 입력 (선택)</label>
-          <input
-            type="number"
-            value={customPriceInput}
-            onChange={(e) => setCustomPriceInput(e.target.value ? Number(e.target.value) : "")}
-            placeholder="예: 245000 (입력 시 단가 적용)"
-            className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-1 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-cyan-500 font-mono"
-          />
-        </div>
       </div>
 
       {isLoading ? (
@@ -649,44 +810,44 @@ export const SmcMarketStructureVisualizer: React.FC = () => {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
             {/* AI SIGNAL BADGE */}
             <div className={`p-4 rounded-2xl border ${
-              data.aiSignal.includes("LONG")
+              data.aiSignal.includes("강력 상승") || data.aiSignal.includes("LONG")
                 ? "bg-emerald-950/40 border-emerald-500/40"
                 : "bg-rose-950/40 border-rose-500/40"
             } space-y-1`}>
-              <span className="text-[10px] font-mono font-bold text-zinc-400 uppercase">AI SMC SIGNAL</span>
+              <span className="text-[10px] font-bold text-zinc-400">🤖 AI 스마트머니 매매 신호</span>
               <div className="flex items-center justify-between">
-                <span className={`text-lg font-black ${
-                  data.aiSignal.includes("LONG") ? "text-emerald-400" : "text-rose-400"
+                <span className={`text-base sm:text-lg font-black ${
+                  data.aiSignal.includes("강력 상승") || data.aiSignal.includes("LONG") ? "text-emerald-400" : "text-rose-400"
                 }`}>
                   {data.aiSignal}
                 </span>
                 <Zap className="h-5 w-5 text-amber-400 animate-pulse" />
               </div>
               <p className="text-[11px] text-zinc-300 font-mono">
-                현재가: {data.price.toLocaleString()} {data.symbol === "NVDA" || data.symbol === "TSLA" ? "USD" : "KRW"}
+                현재가: {data.price.toLocaleString()} {data.symbol === "NVDA" || data.symbol === "TSLA" ? "USD" : "원(KRW)"}
               </p>
             </div>
 
             {/* MARKET STRUCTURE TREND */}
             <div className="p-4 bg-zinc-900/90 rounded-2xl border border-zinc-800 space-y-1">
-              <span className="text-[10px] font-mono font-bold text-zinc-400 uppercase">MARKET STRUCTURE</span>
-              <div className="text-base font-black text-cyan-400 flex items-center gap-1.5">
+              <span className="text-[10px] font-bold text-zinc-400">📊 차트 파동 및 주가 추세 구조</span>
+              <div className="text-sm sm:text-base font-black text-cyan-400 flex items-center gap-1.5">
                 <TrendingUp className="h-4 w-4" />
                 <span>{data.marketStructure.trend}</span>
               </div>
               <p className="text-[11px] text-zinc-400 font-mono">
-                Pivot HH: {data.marketStructure.hhPrice.toLocaleString()} / HL: {data.marketStructure.hlPrice.toLocaleString()}
+                전고점: {data.marketStructure.hhPrice.toLocaleString()} / 눌림저점: {data.marketStructure.hlPrice.toLocaleString()}
               </p>
             </div>
 
             {/* AI SIGNAL RELIABILITY SCORE */}
             <div className="p-4 bg-zinc-900/90 rounded-2xl border border-cyan-500/40 space-y-1 bg-gradient-to-br from-cyan-950/20 to-zinc-900">
-              <span className="text-[10px] font-mono font-bold text-cyan-400 uppercase flex items-center gap-1">
+              <span className="text-[10px] font-bold text-cyan-400 flex items-center gap-1">
                 <Award className="h-3.5 w-3.5 text-cyan-400" />
-                RELIABILITY SCORE
+                🏆 AI 신호 정밀 신뢰도 점수
               </span>
               <div className="flex items-center justify-between">
-                <span className="text-lg font-black text-white font-mono">{data.reliabilityScore.totalScore} / 100</span>
+                <span className="text-lg font-black text-white font-mono">{data.reliabilityScore.totalScore}점 / 100점</span>
                 <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-800">
                   {data.reliabilityScore.grade}
                 </span>
@@ -698,83 +859,139 @@ export const SmcMarketStructureVisualizer: React.FC = () => {
 
             {/* RISK / REWARD RATIO */}
             <div className="p-4 bg-zinc-900/90 rounded-2xl border border-zinc-800 space-y-1">
-              <span className="text-[10px] font-mono font-bold text-zinc-400 uppercase">EXPECTED R:R RATIO</span>
+              <span className="text-[10px] font-bold text-zinc-400">⚖️ 예상 손익비 (수익 대 손실 비율)</span>
               <div className="text-lg font-black text-amber-400 font-mono">
-                {data.targets.riskRewardRatio} R
+                1 : {data.targets.riskRewardRatio} (손실 1원 대비 수익 {data.targets.riskRewardRatio}배)
               </div>
               <p className="text-[11px] text-zinc-400 font-mono">
-                Stop Loss: {data.targets.stopLoss.toLocaleString()}
+                손절 가격선: {data.targets.stopLoss.toLocaleString()}원
               </p>
             </div>
           </div>
 
-          {/* INTERACTIVE SMC GRAPHIC DIAGRAM WITH BSL/SSL ZONES & HOVERABLE TP/SL LINES */}
-          <div className="bg-zinc-900/90 border border-zinc-800 rounded-2xl p-4 sm:p-5 space-y-3">
-            <div className="flex flex-wrap items-center justify-between border-b border-zinc-800 pb-2.5 gap-2">
+          {/* 초등학생 눈높이 쉬운 설명 카드 (EASY EXPLANATION CARDS) */}
+          <div className="bg-gradient-to-r from-cyan-950/50 via-blue-950/40 to-zinc-900 border-2 border-cyan-500/50 rounded-2xl p-4 sm:p-5 space-y-3.5 shadow-2xl">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-cyan-500/30 pb-3">
               <div className="flex items-center gap-2">
-                <Crosshair className="h-4 w-4 text-cyan-400" />
-                <h4 className="text-xs sm:text-sm font-black text-white">
-                  SMC Candlestick & BSL / SSL / TP / SL Visual Map
-                </h4>
-                <span className="text-[10px] text-zinc-400 bg-zinc-800 px-2 py-0.5 rounded-md">
-                  💡 목표가(TP) / 손절가(SL) 수평선에 마우스를 올리면 산출 근거 툴팁이 나타납니다
+                <span className="p-2 bg-cyan-500/20 text-cyan-300 rounded-xl">
+                  <Sparkles className="h-5 w-5 text-cyan-400 animate-bounce" />
                 </span>
-              </div>
-              
-              {/* Liquidity Sweep Status Header Badge */}
-              {data.liquidityMap.sweepEvent.occurred && (
-                <div className="flex items-center gap-1.5 bg-amber-950/80 text-amber-300 border border-amber-500/60 px-2.5 py-1 rounded-full text-xs font-bold animate-pulse">
-                  <BellRing className="h-3.5 w-3.5 text-amber-400" />
-                  <span>⚡ LIQUIDITY SWEEP DETECTED</span>
+                <div>
+                  <h3 className="text-sm sm:text-base font-black text-white flex items-center gap-2">
+                    <span>💡 초등학생도 10초 만에 이해하는 스마트머니 차트 지능 해설</span>
+                    <span className="text-[10px] bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 px-2.5 py-0.5 rounded-full font-bold">
+                      쉬운 차트 동화책
+                    </span>
+                  </h3>
+                  <p className="text-xs text-zinc-400">
+                    세력(기관)이 언제 주가를 털고, 어디서 사서, 어디서 파는지 그림으로 쉽게 알아보세요!
+                  </p>
                 </div>
-              )}
+              </div>
             </div>
 
-            {/* SVG Diagram Canvas with Interactive Lines & Tooltips */}
-            <div className="relative bg-zinc-950 p-4 rounded-xl border border-zinc-800/80 overflow-x-auto">
+            {/* 3 Simple Explanatory Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs leading-relaxed">
+              {/* 1. 수급 및 유동성 털기 */}
+              <div className="bg-zinc-950/90 p-4 rounded-xl border border-amber-500/40 space-y-1.5 shadow-md">
+                <div className="flex items-center gap-2 font-black text-amber-400 text-sm">
+                  <span className="w-6 h-6 rounded-full bg-amber-500/20 text-amber-300 flex items-center justify-center text-xs font-black border border-amber-500/40">1</span>
+                  <span>개미 털기 (유동성 흡수/Sweep)</span>
+                </div>
+                <p className="text-zinc-200 text-xs leading-normal">
+                  큰손 세력(기관)이 진짜 주가를 올리기 직전에, 개인 투자자(개미)들의 물량을 빼앗으려고 저점을 살짝 깨뜨렸다 바로 솟구치게 만드는 현상이에요. 
+                  차트 바닥에 <strong className="text-amber-300">노란색 1번 화살표(Sweep)</strong>가 나타나면 아주 강력한 반등 신호랍니다!
+                </p>
+              </div>
+
+              {/* 2. 구조 돌파 (BOS) */}
+              <div className="bg-zinc-950/90 p-4 rounded-xl border border-cyan-500/40 space-y-1.5 shadow-md">
+                <div className="flex items-center gap-2 font-black text-cyan-400 text-sm">
+                  <span className="w-6 h-6 rounded-full bg-cyan-500/20 text-cyan-300 flex items-center justify-center text-xs font-black border border-cyan-500/40">2</span>
+                  <span>전고점 파워 돌파 (BOS선)</span>
+                </div>
+                <p className="text-zinc-200 text-xs leading-normal">
+                  주가가 이전 언덕(전고점)을 캔들의 긴 꼬리가 아닌 <strong className="text-cyan-300">꽉 찬 캔들 실몸통으로 뚫어내는 순간</strong>이에요.
+                  <strong className="text-cyan-400"> 파란색 3번 BOS 수평선</strong>을 실몸통으로 수직 돌파하면 주가가 크게 솟구치는 상승 추세가 확정돼요!
+                </p>
+              </div>
+
+              {/* 3. 목표가와 손절가 */}
+              <div className="bg-zinc-950/90 p-4 rounded-xl border border-emerald-500/40 space-y-1.5 shadow-md">
+                <div className="flex items-center gap-2 font-black text-emerald-400 text-sm">
+                  <span className="w-6 h-6 rounded-full bg-emerald-500/20 text-emerald-300 flex items-center justify-center text-xs font-black border border-emerald-500/40">3</span>
+                  <span>목표가(TP) & 손절가(SL) 보호막</span>
+                </div>
+                <p className="text-zinc-200 text-xs leading-normal">
+                  <strong className="text-emerald-300">🎯 1차·2차·3차 목표가(TP)</strong>는 주가가 올라갈 때 조금씩 팔아서 내 주머니에 진짜 돈을 챙기는 장소예요. 
+                  <strong className="text-rose-400"> 🛑 빨간색 손절가(SL)</strong>는 만약의 위험에 대비해 내 보물(자산)을 보호해 주는 든든한 방패랍니다!
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* ENLARGED INTERACTIVE SMC GRAPHIC DIAGRAM WITH BSL/SSL ZONES & HOVERABLE TP/SL LINES */}
+          <div className="bg-zinc-900/90 border-2 border-cyan-500/40 rounded-2xl p-4 sm:p-6 space-y-4 shadow-2xl">
+            <div className="flex flex-wrap items-center justify-between border-b border-zinc-800 pb-3 gap-2">
+              <div className="flex items-center gap-2">
+                <Crosshair className="h-5 w-5 text-cyan-400" />
+                <h4 className="text-sm sm:text-base font-black text-white">
+                  🎨 스마트머니(SMC) 캔들 차트 & 매수·매도 물량·목표가·손절가 시각화 지도
+                </h4>
+              </div>
+              
+              <div className="text-xs text-cyan-300 font-bold bg-cyan-950 border border-cyan-800 px-3 py-1 rounded-full flex items-center gap-1.5">
+                <Sparkles className="h-3.5 w-3.5 text-cyan-400" />
+                <span>💡 목표가·손절가 선에 마우스를 올리면 쉬운 AI 산출 근거 툴팁이 보여요!</span>
+              </div>
+            </div>
+
+            {/* SVG Diagram Canvas with Interactive Lines & Tooltips (Enlarged Height: 380px) */}
+            <div className="relative bg-zinc-950 p-4 sm:p-6 rounded-2xl border border-zinc-800/80 overflow-x-auto shadow-inner">
               {/* Dynamic On-Canvas Floating Tooltip Card when hovering TP / SL / FVG lines */}
               {hoveredTarget && (
-                <div className="absolute top-3 left-1/2 transform -translate-x-1/2 z-20 bg-zinc-900/95 border border-cyan-500/80 p-3 rounded-xl shadow-2xl backdrop-blur-md max-w-md w-11/12 animate-fade-in pointer-events-none">
-                  <div className="flex items-center justify-between border-b border-zinc-800 pb-1.5 mb-1.5">
-                    <span className={`text-xs font-black ${hoveredTarget.color} flex items-center gap-1.5`}>
-                      <Target className="h-4 w-4" />
+                <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-30 bg-zinc-900/95 border-2 border-cyan-400 p-4 rounded-2xl shadow-2xl backdrop-blur-md max-w-lg w-11/12 animate-fade-in pointer-events-none">
+                  <div className="flex items-center justify-between border-b border-zinc-800 pb-2 mb-2">
+                    <span className={`text-sm font-black ${hoveredTarget.color} flex items-center gap-2`}>
+                      <Target className="h-5 w-5" />
                       <span>{hoveredTarget.label}</span>
                     </span>
-                    <span className="text-xs font-mono font-black text-white bg-zinc-950 px-2 py-0.5 rounded border border-zinc-800">
-                      {hoveredTarget.price.toLocaleString()} KRW/USD
+                    <span className="text-sm font-mono font-black text-white bg-zinc-950 px-2.5 py-1 rounded-lg border border-zinc-800">
+                      {hoveredTarget.price.toLocaleString()} 원/USD
                     </span>
                   </div>
                   <p className="text-xs text-zinc-200 leading-relaxed">
-                    <strong className="text-cyan-400 font-bold">AI 산출 근거 (구조, 패턴, 유동성): </strong>
+                    <strong className="text-cyan-400 font-bold block mb-1">💡 AI 산출 근거 및 초등학생 눈높이 해설: </strong>
                     {hoveredTarget.rationale}
                   </p>
                 </div>
               )}
 
-              <svg className="w-full h-[280px] min-w-[620px]" viewBox="0 0 650 280">
+              {/* ENLARGED SVG GRAPHIC (viewBox 0 0 760 380) */}
+              <svg className="w-full h-[380px] min-w-[700px]" viewBox="0 0 760 380">
                 {/* Background Grid Lines */}
-                <line x1="0" y1="35" x2="650" y2="35" stroke="#27272a" strokeDasharray="3 3" />
-                <line x1="0" y1="85" x2="650" y2="85" stroke="#27272a" strokeDasharray="3 3" />
-                <line x1="0" y1="135" x2="650" y2="135" stroke="#27272a" strokeDasharray="3 3" />
-                <line x1="0" y1="185" x2="650" y2="185" stroke="#27272a" strokeDasharray="3 3" />
-                <line x1="0" y1="235" x2="650" y2="235" stroke="#27272a" strokeDasharray="3 3" />
+                <line x1="0" y1="45" x2="760" y2="45" stroke="#27272a" strokeDasharray="4 4" />
+                <line x1="0" y1="110" x2="760" y2="110" stroke="#27272a" strokeDasharray="4 4" />
+                <line x1="0" y1="175" x2="760" y2="175" stroke="#27272a" strokeDasharray="4 4" />
+                <line x1="0" y1="240" x2="760" y2="240" stroke="#27272a" strokeDasharray="4 4" />
+                <line x1="0" y1="310" x2="760" y2="310" stroke="#27272a" strokeDasharray="4 4" />
 
-                {/* BSL Zone Overlay */}
+                {/* BSL Zone Overlay (매수 유동성 저항 영역) */}
                 <g 
                   className="cursor-pointer group"
                   onMouseEnter={() => setHoveredTarget({
                     type: 'bsl',
                     price: data.liquidityMap.bsl.price,
-                    label: 'BSL (Buy-Side Liquidity / PDH)',
+                    label: '★ 매수 유동성 집적 저항선 (BSL / 전고점 물량)',
                     color: 'text-rose-400',
-                    rationale: `${data.liquidityMap.bsl.type} - 상방 미소진 유동성 집적 구간 (${data.liquidityMap.bsl.touches}회 터치)`
+                    rationale: `${data.liquidityMap.bsl.type} - 이전 전고점에 몰려있는 매수 주문 물량 영역입니다. 세력이 주가를 올릴 때 첫 번째로 강력히 뚫어야 하는 수급 벽입니다.`
                   })}
                   onMouseLeave={() => setHoveredTarget(null)}
                 >
-                  <rect x="20" y="15" width="610" height="22" fill="#f43f5e" fillOpacity="0.08" rx="4" className="group-hover:fill-opacity-20 transition" />
-                  <line x1="20" y1="15" x2="630" y2="15" stroke="#f43f5e" strokeWidth="2" strokeDasharray="4 4" />
-                  <text x="30" y="12" fill="#f43f5e" fontSize="10" fontWeight="extrabold">
-                    ★ BSL (Buy-Side Liquidity): {data.liquidityMap.bsl.price.toLocaleString()} ({data.liquidityMap.bsl.status})
+                  <rect x="20" y="20" width="720" height="28" fill="#f43f5e" fillOpacity="0.1" rx="6" className="group-hover:fill-opacity-25 transition" />
+                  <line x1="20" y1="20" x2="740" y2="20" stroke="#f43f5e" strokeWidth="2.5" strokeDasharray="5 5" />
+                  <text x="30" y="38" fill="#f43f5e" fontSize="12" fontWeight="900">
+                    ★ 매수 유동성 저항선 (BSL - 전고점 매수물량): {data.liquidityMap.bsl.price.toLocaleString()}원 ({data.liquidityMap.bsl.status})
                   </text>
                 </g>
 
@@ -786,14 +1003,14 @@ export const SmcMarketStructureVisualizer: React.FC = () => {
                     price: data.targets.tp3.price,
                     label: data.targets.tp3.label,
                     color: 'text-emerald-400',
-                    rationale: data.targets.tp3.rationale
+                    rationale: data.targets.tp3.rationale + " (최고점 대세 상승 파동에서 마지막 남은 물량까지 최고 수익으로 실현하는 보물상자 구간이에요!)"
                   })}
                   onMouseLeave={() => setHoveredTarget(null)}
                 >
-                  <line x1="380" y1="45" x2="630" y2="45" stroke="#10b981" strokeWidth="2.5" strokeDasharray="3 3" className="group-hover:stroke-width-4 transition" />
-                  <rect x="390" y="33" width="220" height="18" rx="4" fill="#064e3b" stroke="#10b981" />
-                  <text x="398" y="45" fill="#6ee7b7" fontSize="10" fontWeight="extrabold">
-                    🎯 TP3 (Major BSL): {data.targets.tp3.price.toLocaleString()}
+                  <line x1="440" y1="65" x2="740" y2="65" stroke="#10b981" strokeWidth="4" strokeDasharray="4 4" className="group-hover:stroke-width-6 transition" />
+                  <rect x="450" y="48" width="270" height="24" rx="6" fill="#064e3b" stroke="#10b981" strokeWidth="1.5" />
+                  <text x="460" y="65" fill="#6ee7b7" fontSize="12" fontWeight="900">
+                    🎯 3차 목표가 (대세 상승 익절): {data.targets.tp3.price.toLocaleString()}원
                   </text>
                 </g>
 
@@ -805,14 +1022,14 @@ export const SmcMarketStructureVisualizer: React.FC = () => {
                     price: data.targets.tp2.price,
                     label: data.targets.tp2.label,
                     color: 'text-blue-400',
-                    rationale: data.targets.tp2.rationale
+                    rationale: data.targets.tp2.rationale + " (W자 바닥 패턴 상승 폭만큼 주가가 달아오르는 2차 핵심 이익 실현 목표선이에요!)"
                   })}
                   onMouseLeave={() => setHoveredTarget(null)}
                 >
-                  <line x1="300" y1="75" x2="630" y2="75" stroke="#3b82f6" strokeWidth="2.5" strokeDasharray="3 3" className="group-hover:stroke-width-4 transition" />
-                  <rect x="310" y="63" width="210" height="18" rx="4" fill="#1e3a8a" stroke="#3b82f6" />
-                  <text x="318" y="75" fill="#93c5fd" fontSize="10" fontWeight="extrabold">
-                    🎯 TP2 (Pattern Target): {data.targets.tp2.price.toLocaleString()}
+                  <line x1="340" y1="105" x2="740" y2="105" stroke="#3b82f6" strokeWidth="4" strokeDasharray="4 4" className="group-hover:stroke-width-6 transition" />
+                  <rect x="350" y="88" width="260" height="24" rx="6" fill="#1e3a8a" stroke="#3b82f6" strokeWidth="1.5" />
+                  <text x="360" y="105" fill="#93c5fd" fontSize="12" fontWeight="900">
+                    🎯 2차 목표가 (차트 패턴 익절): {data.targets.tp2.price.toLocaleString()}원
                   </text>
                 </g>
 
@@ -824,108 +1041,132 @@ export const SmcMarketStructureVisualizer: React.FC = () => {
                     price: data.targets.tp1.price,
                     label: data.targets.tp1.label,
                     color: 'text-cyan-400',
-                    rationale: data.targets.tp1.rationale
+                    rationale: data.targets.tp1.rationale + " (주가가 처음으로 부딪히는 1차 저항 구간이에요. 여기서 일부 분할 매도하여 수익을 확정하세요!)"
                   })}
                   onMouseLeave={() => setHoveredTarget(null)}
                 >
-                  <line x1="220" y1="105" x2="630" y2="105" stroke="#06b6d4" strokeWidth="2.5" strokeDasharray="3 3" className="group-hover:stroke-width-4 transition" />
-                  <rect x="230" y="93" width="210" height="18" rx="4" fill="#082f49" stroke="#06b6d4" />
-                  <text x="238" y="105" fill="#67e8f9" fontSize="10" fontWeight="extrabold">
-                    🎯 TP1 (Swing Resistance): {data.targets.tp1.price.toLocaleString()}
+                  <line x1="250" y1="145" x2="740" y2="145" stroke="#06b6d4" strokeWidth="4" strokeDasharray="4 4" className="group-hover:stroke-width-6 transition" />
+                  <rect x="260" y="128" width="260" height="24" rx="6" fill="#082f49" stroke="#06b6d4" strokeWidth="1.5" />
+                  <text x="270" y="145" fill="#67e8f9" fontSize="12" fontWeight="900">
+                    🎯 1차 목표가 (안전 1차 익절): {data.targets.tp1.price.toLocaleString()}원
                   </text>
                 </g>
 
-                {/* FVG ZONE BOX (Fair Value Gap) */}
+                {/* FVG ZONE BOX (Fair Value Gap - 매수 갭 구역) */}
                 <g 
                   className="cursor-pointer group"
                   onMouseEnter={() => setHoveredTarget({
                     type: 'fvg',
                     price: data.fvg.fvgMidpoint,
-                    label: `Fair Value Gap (${data.fvg.type})`,
+                    label: `⚡ 수급 불균형 매수 갭 구역 (FVG - ${data.fvg.type})`,
                     color: 'text-amber-400',
-                    rationale: data.fvg.rationale
+                    rationale: data.fvg.rationale + " (주가가 너무 급격히 솟구쳐 생긴 공백이에요. 주가가 잠시 이곳으로 쉬러 내려올 때가 가장 안전하고 좋은 매수 기회예요!)"
                   })}
                   onMouseLeave={() => setHoveredTarget(null)}
                 >
-                  <rect x="240" y="125" width="160" height="30" fill="#f59e0b" fillOpacity="0.15" stroke="#f59e0b" strokeWidth="1.5" strokeDasharray="3 3" rx="4" className="group-hover:fill-opacity-30 transition" />
-                  <line x1="240" y1="140" x2="400" y2="140" stroke="#f59e0b" strokeWidth="1" strokeDasharray="2 2" />
-                  <text x="248" y="137" fill="#fbbf24" fontSize="9" fontWeight="extrabold">
-                    FVG Imbalance Zone (50%: {data.fvg.fvgMidpoint.toLocaleString()})
+                  <rect x="270" y="175" width="200" height="42" fill="#f59e0b" fillOpacity="0.18" stroke="#f59e0b" strokeWidth="2" strokeDasharray="4 4" rx="6" className="group-hover:fill-opacity-35 transition" />
+                  <line x1="270" y1="196" x2="470" y2="196" stroke="#f59e0b" strokeWidth="1.5" strokeDasharray="2 2" />
+                  <text x="280" y="192" fill="#fbbf24" fontSize="11" fontWeight="900">
+                    ⚡ FVG 착한 매수 갭 구역 (4번)
+                  </text>
+                  <text x="280" y="208" fill="#fef08a" fontSize="10" fontWeight="bold">
+                    중앙가(50%): {data.fvg.fvgMidpoint.toLocaleString()}원
                   </text>
                 </g>
 
-                {/* BOS Breakout Line */}
-                <line x1="120" y1="120" x2="420" y2="120" stroke="#06b6d4" strokeWidth="2.5" />
-                <rect x="180" y="112" width="130" height="16" rx="4" fill="#082f49" stroke="#0284c7" />
-                <text x="188" y="124" fill="#38bdf8" fontSize="10" fontWeight="bold">
-                  Confirmed BOS ({data.bos.level.toLocaleString()})
+                {/* BOS Breakout Line (전고점 실몸통 돌파선) */}
+                <line x1="140" y1="165" x2="520" y2="165" stroke="#06b6d4" strokeWidth="4" />
+                <rect x="180" y="152" width="220" height="24" rx="6" fill="#082f49" stroke="#0284c7" strokeWidth="1.5" />
+                <text x="190" y="168" fill="#38bdf8" fontSize="11" fontWeight="900">
+                  🚀 3번: 전고점 실몸통 돌파선(BOS)
                 </text>
 
-                {/* Wave Path */}
+                {/* MAIN WAVE PATH (주가 파동선 - 더 크고 굵게!) */}
                 <path
-                  d="M 40,165 L 90,120 L 130,175 L 220,105 L 260,135 L 340,75 L 420,100 L 560,30"
+                  d="M 40,230 L 100,165 L 145,245 L 250,145 L 300,195 L 400,105 L 500,135 L 700,40"
                   fill="none"
                   stroke="#06b6d4"
-                  strokeWidth="3.5"
+                  strokeWidth="5"
                   strokeLinecap="round"
+                  strokeLinejoin="round"
                 />
 
-                {/* Wave Points (HH, HL, Retest, Entry) */}
-                <circle cx="90" cy="120" r="5" fill="#38bdf8" />
-                <text x="82" y="110" fill="#93c5fd" fontSize="10" fontWeight="bold">Swing High</text>
+                {/* STEP-BY-STEP ELEMENTARY VISUAL MARKERS (1️⃣ 2️⃣ 3️⃣ 4️⃣ 5️⃣ 🛡️) */}
 
-                <circle cx="130" cy="175" r="5" fill="#10b981" />
-                <text x="122" y="190" fill="#6ee7b7" fontSize="10" fontWeight="bold">HL (Retest)</text>
+                {/* 1️⃣ 개미 털기 (SSL Sweep) */}
+                <g transform="translate(145, 290)">
+                  <circle cx="0" cy="0" r="16" fill="#f59e0b" fillOpacity="0.3" className="animate-ping" />
+                  <circle cx="0" cy="0" r="10" fill="#f59e0b" stroke="#ffffff" strokeWidth="2.5" />
+                  <text x="-4" y="4" fill="#ffffff" fontSize="12" fontWeight="900">1</text>
+                  <path d="M 0,-25 L 0,-12 M -5,-16 L 0,-10 L 5,-16" stroke="#fbbf24" strokeWidth="3" strokeLinecap="round" />
+                  <rect x="-65" y="14" width="130" height="20" rx="4" fill="#18181b" stroke="#f59e0b" />
+                  <text x="-58" y="28" fill="#fbbf24" fontSize="10" fontWeight="900">1️⃣ 개미 털기 (Sweep)</text>
+                </g>
 
-                <circle cx="220" cy="105" r="6" fill="#06b6d4" stroke="#ffffff" strokeWidth="2" />
-                <text x="210" y="93" fill="#38bdf8" fontSize="10" fontWeight="extrabold">BOS Close Break</text>
+                {/* 2️⃣ 추세 반전 신호 (CHoCH) */}
+                <g transform="translate(100, 165)">
+                  <circle cx="0" cy="0" r="7" fill="#38bdf8" stroke="#ffffff" strokeWidth="2" />
+                  <rect x="-45" y="-25" width="90" height="18" rx="4" fill="#082f49" stroke="#38bdf8" />
+                  <text x="-40" y="-12" fill="#93c5fd" fontSize="10" fontWeight="900">2️⃣ 추세반전 (CHoCH)</text>
+                </g>
 
-                <circle cx="260" cy="135" r="5" fill="#f59e0b" />
-                <text x="250" y="150" fill="#fcd34d" fontSize="10" fontWeight="bold">Entry Zone</text>
+                {/* 3️⃣ 전고점 확정 돌파 (BOS) */}
+                <g transform="translate(250, 145)">
+                  <circle cx="0" cy="0" r="9" fill="#06b6d4" stroke="#ffffff" strokeWidth="3" />
+                  <rect x="-55" y="-28" width="110" height="20" rx="4" fill="#082f49" stroke="#06b6d4" />
+                  <text x="-48" y="-14" fill="#38bdf8" fontSize="10" fontWeight="900">3️⃣ 전고점 돌파 (BOS)</text>
+                </g>
 
-                {/* SSL Zone Bottom */}
-                <rect x="20" y="210" width="610" height="22" fill="#10b981" fillOpacity="0.08" rx="4" />
-                <line x1="20" y1="210" x2="630" y2="210" stroke="#10b981" strokeWidth="2" strokeDasharray="4 4" />
-                <text x="30" y="225" fill="#10b981" fontSize="10" fontWeight="extrabold">
-                  ★ SSL (Sell-Side Liquidity / PDL / EQL): {data.liquidityMap.ssl.price.toLocaleString()} (Sweep Complete)
-                </text>
+                {/* 4️⃣ 착한 매수 적기 (Entry Zone) */}
+                <g transform="translate(300, 195)">
+                  <circle cx="0" cy="0" r="8" fill="#f59e0b" stroke="#ffffff" strokeWidth="2.5" />
+                  <rect x="-50" y="14" width="100" height="20" rx="4" fill="#451a03" stroke="#f59e0b" />
+                  <text x="-43" y="28" fill="#fcd34d" fontSize="10" fontWeight="900">4️⃣ 매수 적기 (Entry)</text>
+                </g>
 
-                {/* ON-CHART LIQUIDITY SWEEP NOTIFICATION BADGE & ARROW */}
-                {data.liquidityMap.sweepEvent.occurred && (
-                  <g>
-                    {/* Glowing ring around sweep point */}
-                    <circle cx="130" cy="212" r="14" fill="#f59e0b" fillOpacity="0.25" className="animate-ping" />
-                    <circle cx="130" cy="212" r="7" fill="#f59e0b" stroke="#ffffff" strokeWidth="2" />
-                    
-                    {/* Downward Piercing Arrow */}
-                    <path d="M 130,192 L 130,210 M 126,206 L 130,212 L 134,206" stroke="#fbbf24" strokeWidth="2.5" strokeLinecap="round" />
+                {/* 5️⃣ 보물상자 목표가 달성 (TP Wave) */}
+                <g transform="translate(700, 40)">
+                  <circle cx="0" cy="0" r="12" fill="#10b981" stroke="#ffffff" strokeWidth="3" />
+                  <text x="-4" y="4" fill="#ffffff" fontSize="12" fontWeight="900">5</text>
+                  <rect x="-70" y="-28" width="140" height="22" rx="4" fill="#064e3b" stroke="#10b981" />
+                  <text x="-62" y="-13" fill="#6ee7b7" fontSize="10" fontWeight="900">5️⃣ 보물상자 목표가 실현 🎉</text>
+                </g>
 
-                    {/* Prominent Sweep Callout Box */}
-                    <g transform="translate(45, 160)">
-                      <rect x="0" y="0" width="170" height="26" rx="6" fill="#18181b" stroke="#f59e0b" strokeWidth="1.5" />
-                      <text x="8" y="17" fill="#fbbf24" fontSize="10" fontWeight="extrabold">
-                        ⚡ SSL Sweep (유동성 소화)
-                      </text>
-                    </g>
-                  </g>
-                )}
+                {/* SSL Zone Bottom (매도 유동성 지지선 - 개미 손절 물량 털기) */}
+                <g 
+                  className="cursor-pointer group"
+                  onMouseEnter={() => setHoveredTarget({
+                    type: 'ssl',
+                    price: data.liquidityMap.ssl.price,
+                    label: '★ 매도 유동성 지지선 (SSL / 전저점 개미털기 구역)',
+                    color: 'text-emerald-400',
+                    rationale: `${data.liquidityMap.ssl.type} - 이전 전저점 아래 배치된 일반 개인 투자자들의 손절 주문 물량이 모여있는 구간입니다. 세력이 이 라인을 살짝 털고(Sweep) 반등을 시작했습니다.`
+                  })}
+                  onMouseLeave={() => setHoveredTarget(null)}
+                >
+                  <rect x="20" y="295" width="720" height="28" fill="#10b981" fillOpacity="0.1" rx="6" className="group-hover:fill-opacity-25 transition" />
+                  <line x1="20" y1="295" x2="740" y2="295" stroke="#10b981" strokeWidth="2.5" strokeDasharray="5 5" />
+                  <text x="30" y="313" fill="#10b981" fontSize="12" fontWeight="900">
+                    ★ 매도 유동성 지지선 (SSL - 개미 손절 물량 털기 완결): {data.liquidityMap.ssl.price.toLocaleString()}원 (개미 털기 완료)
+                  </text>
+                </g>
 
-                {/* HOVERABLE STOP LOSS LINE */}
+                {/* HOVERABLE STOP LOSS LINE (🛡️ 손실 방어 손절가 선) */}
                 <g 
                   className="cursor-pointer group"
                   onMouseEnter={() => setHoveredTarget({
                     type: 'sl',
                     price: data.targets.stopLoss,
-                    label: 'Logical Stop Loss (손절가)',
+                    label: '🛡️ 손실 방어 손절가 (SL - 보물 방패 가격선)',
                     color: 'text-rose-400',
-                    rationale: `HL (Protected Low) 아래 -${(Math.abs(data.price - data.targets.stopLoss)).toLocaleString()} 마진 및 0.8 ATR Buffer 적용 무효화 가격대`
+                    rationale: `주가가 이 빨간선 아래로 내려가면 상승 시나리오가 파기되므로, 소중한 자산을 절대적으로 보호하기 위해 자동으로 거래를 중단하고 손절하는 방패 가격선이에요 (-${(Math.abs(data.price - data.targets.stopLoss)).toLocaleString()}원 마진 보장).`
                   })}
                   onMouseLeave={() => setHoveredTarget(null)}
                 >
-                  <line x1="100" y1="190" x2="630" y2="190" stroke="#ef4444" strokeWidth="2.5" className="group-hover:stroke-width-4 transition" />
-                  <rect x="110" y="178" width="180" height="18" rx="4" fill="#450a0a" stroke="#ef4444" />
-                  <text x="118" y="190" fill="#fca5a5" fontSize="10" fontWeight="extrabold">
-                    🛑 SL (Stop Loss): {data.targets.stopLoss.toLocaleString()}
+                  <line x1="120" y1="265" x2="740" y2="265" stroke="#ef4444" strokeWidth="4" className="group-hover:stroke-width-6 transition" />
+                  <rect x="130" y="248" width="250" height="24" rx="6" fill="#450a0a" stroke="#ef4444" strokeWidth="1.5" />
+                  <text x="140" y="265" fill="#fca5a5" fontSize="12" fontWeight="900">
+                    🛡️ 손절가 (자산 보호 방패선): {data.targets.stopLoss.toLocaleString()}원
                   </text>
                 </g>
               </svg>
@@ -941,13 +1182,13 @@ export const SmcMarketStructureVisualizer: React.FC = () => {
                 </div>
                 <div>
                   <h4 className="text-sm font-black text-white flex items-center gap-2">
-                    <span>AI Signal Reliability Score Engine</span>
-                    <span className="text-[10px] font-mono bg-cyan-950 text-cyan-300 border border-cyan-800 px-2 py-0.5 rounded-full">
-                      가짜 돌파(Fake Breakout) 필터링
+                    <span>🤖 AI 매매 신호 정밀 신뢰도 검증 엔진</span>
+                    <span className="text-[10px] font-bold bg-cyan-950 text-cyan-300 border border-cyan-800 px-2 py-0.5 rounded-full">
+                      가짜 돌파(속임수 차트) 필터링
                     </span>
                   </h4>
                   <p className="text-xs text-zinc-400">
-                    BOS/CHoCH 발생 시 수급, 캔들 몸통, 상위 타임프레임 동기화 및 리테스트를 종합 정밀 산출
+                    전고점 돌파(BOS) 및 추세 전환 발생 시 거래량 폭발, 캔들 몸통, 상위 시간대 차트 동기화를 종합 산출합니다.
                   </p>
                 </div>
               </div>
@@ -955,7 +1196,7 @@ export const SmcMarketStructureVisualizer: React.FC = () => {
               <div className="flex items-center space-x-3 bg-zinc-950 px-3 py-1.5 rounded-xl border border-zinc-800">
                 <span className="text-xs text-zinc-400 font-bold">가짜 신호 위험도:</span>
                 <span className="text-xs font-black text-emerald-400 font-mono">
-                  {data.reliabilityScore.fakeBreakoutRiskPct}% (극소)
+                  {data.reliabilityScore.fakeBreakoutRiskPct}% (매우 안전)
                 </span>
               </div>
             </div>
@@ -967,10 +1208,10 @@ export const SmcMarketStructureVisualizer: React.FC = () => {
                 <div className="flex items-center justify-between text-xs font-bold text-zinc-300">
                   <span className="flex items-center gap-1.5">
                     <BarChart2 className="h-4 w-4 text-cyan-400" />
-                    1. 거래량 폭발 (Volume)
+                    1. 거래량 폭발 강도
                   </span>
                   <span className="font-mono text-cyan-400">
-                    {data.reliabilityScore.factors.volumeExpansion.score} / {data.reliabilityScore.factors.volumeExpansion.maxScore}
+                    {data.reliabilityScore.factors.volumeExpansion.score}점 / {data.reliabilityScore.factors.volumeExpansion.maxScore}점
                   </span>
                 </div>
                 <div className="w-full bg-zinc-800 h-2 rounded-full overflow-hidden">
@@ -986,10 +1227,10 @@ export const SmcMarketStructureVisualizer: React.FC = () => {
                 <div className="flex items-center justify-between text-xs font-bold text-zinc-300">
                   <span className="flex items-center gap-1.5">
                     <Activity className="h-4 w-4 text-emerald-400" />
-                    2. 캔들 몸통 강도 (Body)
+                    2. 캔들 몸통 꽉참 비중
                   </span>
                   <span className="font-mono text-emerald-400">
-                    {data.reliabilityScore.factors.candleBodySize.score} / {data.reliabilityScore.factors.candleBodySize.maxScore}
+                    {data.reliabilityScore.factors.candleBodySize.score}점 / {data.reliabilityScore.factors.candleBodySize.maxScore}점
                   </span>
                 </div>
                 <div className="w-full bg-zinc-800 h-2 rounded-full overflow-hidden">
@@ -1005,10 +1246,10 @@ export const SmcMarketStructureVisualizer: React.FC = () => {
                 <div className="flex items-center justify-between text-xs font-bold text-zinc-300">
                   <span className="flex items-center gap-1.5">
                     <Layers className="h-4 w-4 text-blue-400" />
-                    3. 상위 시간봉 (HTF)
+                    3. 상위 시간대 차트 동조
                   </span>
                   <span className="font-mono text-blue-400">
-                    {data.reliabilityScore.factors.htfAlignment.score} / {data.reliabilityScore.factors.htfAlignment.maxScore}
+                    {data.reliabilityScore.factors.htfAlignment.score}점 / {data.reliabilityScore.factors.htfAlignment.maxScore}점
                   </span>
                 </div>
                 <div className="w-full bg-zinc-800 h-2 rounded-full overflow-hidden">
@@ -1024,10 +1265,10 @@ export const SmcMarketStructureVisualizer: React.FC = () => {
                 <div className="flex items-center justify-between text-xs font-bold text-zinc-300">
                   <span className="flex items-center gap-1.5">
                     <Sparkles className="h-4 w-4 text-amber-400" />
-                    4. Retest & Sweep
+                    4. 개미털기 후 지지 테스트
                   </span>
                   <span className="font-mono text-amber-400">
-                    {data.reliabilityScore.factors.retestAndSweep.score} / {data.reliabilityScore.factors.retestAndSweep.maxScore}
+                    {data.reliabilityScore.factors.retestAndSweep.score}점 / {data.reliabilityScore.factors.retestAndSweep.maxScore}점
                   </span>
                 </div>
                 <div className="w-full bg-zinc-800 h-2 rounded-full overflow-hidden">
@@ -1047,9 +1288,9 @@ export const SmcMarketStructureVisualizer: React.FC = () => {
               <div className="flex items-center justify-between border-b border-zinc-800 pb-2">
                 <h4 className="text-xs sm:text-sm font-black text-white flex items-center gap-1.5">
                   <ShieldCheck className="h-4 w-4 text-cyan-400" />
-                  <span>BOS (Break of Structure) 8대 정밀 조건 검증</span>
+                  <span>전고점 구조 돌파(BOS) 8대 핵심 조건 검증</span>
                 </h4>
-                <span className="text-[10px] font-mono text-emerald-400 bg-emerald-950 px-2 py-0.5 rounded border border-emerald-800">
+                <span className="text-[10px] font-bold text-emerald-400 bg-emerald-950 px-2 py-0.5 rounded border border-emerald-800">
                   {data.bos.status}
                 </span>
               </div>
@@ -1058,29 +1299,29 @@ export const SmcMarketStructureVisualizer: React.FC = () => {
                 <div className="flex items-center justify-between p-2 rounded-xl bg-zinc-950 border border-zinc-800">
                   <span className="text-zinc-300 font-bold flex items-center gap-2">
                     <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />
-                    1. 캔들 종가(Close Break) 돌파 여부
+                    1. 캔들 종가(실몸통) 돌파 여부
                   </span>
-                  <span className="text-[10px] font-mono font-extrabold text-emerald-400 bg-emerald-950 px-2 py-0.5 rounded">
-                    {data.bos.isCloseBreakVerified ? "종가 돌파 통과" : "미달 (꼬리)"}
-                  </span>
-                </div>
-
-                <div className="flex items-center justify-between p-2 rounded-xl bg-zinc-950 border border-zinc-800">
-                  <span className="text-zinc-300 font-bold flex items-center gap-2">
-                    <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />
-                    2. 거래량(Volume Expansion) 폭발
-                  </span>
-                  <span className="text-[10px] font-mono font-extrabold text-emerald-400 bg-emerald-950 px-2 py-0.5 rounded">
-                    {data.bos.volumeExpansion ? "거래량 +180% 급증" : "보통"}
+                  <span className="text-[10px] font-bold text-emerald-400 bg-emerald-950 px-2 py-0.5 rounded">
+                    {data.bos.isCloseBreakVerified ? "실몸통 돌파 완벽 성공" : "미달 (가짜 꼬리)"}
                   </span>
                 </div>
 
                 <div className="flex items-center justify-between p-2 rounded-xl bg-zinc-950 border border-zinc-800">
                   <span className="text-zinc-300 font-bold flex items-center gap-2">
                     <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />
-                    3. 돌파 캔들 몸통 강도 (Body Strength)
+                    2. 거래량 폭발 동반 여부
                   </span>
-                  <span className="text-[10px] font-mono font-extrabold text-cyan-400 bg-cyan-950 px-2 py-0.5 rounded">
+                  <span className="text-[10px] font-bold text-emerald-400 bg-emerald-950 px-2 py-0.5 rounded">
+                    {data.bos.volumeExpansion ? "평균 대비 +180% 거래량 폭발" : "보통 수준"}
+                  </span>
+                </div>
+
+                <div className="flex items-center justify-between p-2 rounded-xl bg-zinc-950 border border-zinc-800">
+                  <span className="text-zinc-300 font-bold flex items-center gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />
+                    3. 돌파 캔들 몸통 꽉참 강도
+                  </span>
+                  <span className="text-[10px] font-bold text-cyan-400 bg-cyan-950 px-2 py-0.5 rounded">
                     {data.bos.candleBodyStrength}
                   </span>
                 </div>
@@ -1088,27 +1329,27 @@ export const SmcMarketStructureVisualizer: React.FC = () => {
                 <div className="flex items-center justify-between p-2 rounded-xl bg-zinc-950 border border-zinc-800">
                   <span className="text-zinc-300 font-bold flex items-center gap-2">
                     <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />
-                    4. Retest 지지/저항 전환 확인
+                    4. 눌림목(Retest) 지지 전환
                   </span>
-                  <span className="text-[10px] font-mono font-extrabold text-emerald-400 bg-emerald-950 px-2 py-0.5 rounded">
-                    {data.bos.retestConfirmed ? "Retest 지지 확인" : "진행중"}
+                  <span className="text-[10px] font-bold text-emerald-400 bg-emerald-950 px-2 py-0.5 rounded">
+                    {data.bos.retestConfirmed ? "눌림목 지지 재차 확인" : "검증 진행 중"}
                   </span>
                 </div>
               </div>
 
               {/* Multi-Timeframe BOS Split */}
-              <div className="bg-zinc-950 p-3 rounded-xl border border-zinc-800/80 space-y-1.5 font-mono text-[11px]">
-                <div className="text-[10px] font-bold text-cyan-400 uppercase">Multi-Level BOS Division</div>
+              <div className="bg-zinc-950 p-3 rounded-xl border border-zinc-800/80 space-y-1.5 text-[11px]">
+                <div className="text-[10px] font-bold text-cyan-400">📊 시간대별 전고점 돌파 분할 현황</div>
                 <div className="flex justify-between text-zinc-300">
-                  <span>• Major BOS (HTF):</span>
+                  <span>• 큰 파동 전고점 (일봉/4시간봉):</span>
                   <span className="text-white font-bold">{data.bos.multiLevel.major}</span>
                 </div>
                 <div className="flex justify-between text-zinc-300">
-                  <span>• Internal BOS (MTF):</span>
+                  <span>• 중간 파동 전고점 (1시간/15분봉):</span>
                   <span className="text-white font-bold">{data.bos.multiLevel.internal}</span>
                 </div>
                 <div className="flex justify-between text-zinc-300">
-                  <span>• Micro BOS (LTF):</span>
+                  <span>• 미세 파동 전고점 (5분/1분봉):</span>
                   <span className="text-white font-bold">{data.bos.multiLevel.micro}</span>
                 </div>
               </div>
@@ -1119,10 +1360,10 @@ export const SmcMarketStructureVisualizer: React.FC = () => {
               <div className="flex items-center justify-between border-b border-zinc-800 pb-2">
                 <h4 className="text-xs sm:text-sm font-black text-white flex items-center gap-1.5">
                   <Zap className="h-4 w-4 text-amber-400" />
-                  <span>BSL & SSL 유동성 탐지 & Sweep 맵</span>
+                  <span>매수·매도 수급(유동성) 탐지 & 개미털기 맵</span>
                 </h4>
-                <span className="text-[10px] font-mono text-cyan-400 bg-cyan-950 px-2 py-0.5 rounded border border-cyan-800">
-                  Smart Liquidity Engine
+                <span className="text-[10px] text-cyan-400 bg-cyan-950 px-2 py-0.5 rounded border border-cyan-800 font-bold">
+                  스마트 수급 탐지 엔진
                 </span>
               </div>
 
@@ -1130,15 +1371,15 @@ export const SmcMarketStructureVisualizer: React.FC = () => {
               <div className="p-3 bg-zinc-950 rounded-xl border border-rose-500/30 space-y-1">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-bold text-rose-400 flex items-center gap-1">
-                    <span className="w-2 h-2 rounded-full bg-rose-500 inline-block" /> BSL (Buy-Side Liquidity)
+                    <span className="w-2 h-2 rounded-full bg-rose-500 inline-block" /> BSL (매수 수급 집중 저항 구역)
                   </span>
-                  <span className="text-[10px] font-mono bg-rose-950 text-rose-300 px-2 py-0.5 rounded">
+                  <span className="text-[10px] bg-rose-950 text-rose-300 px-2 py-0.5 rounded font-bold">
                     {data.liquidityMap.bsl.status}
                   </span>
                 </div>
                 <div className="flex justify-between text-xs font-mono pt-0.5">
-                  <span className="text-zinc-400">가격: <strong className="text-white">{data.liquidityMap.bsl.price.toLocaleString()}</strong></span>
-                  <span className="text-zinc-400">터치 횟수: <strong className="text-cyan-400">{data.liquidityMap.bsl.touches}회 (EQH/PDH)</strong></span>
+                  <span className="text-zinc-400">가격대: <strong className="text-white">{data.liquidityMap.bsl.price.toLocaleString()}원</strong></span>
+                  <span className="text-zinc-400">저항 터치: <strong className="text-cyan-400">{data.liquidityMap.bsl.touches}회 터치</strong></span>
                 </div>
                 <p className="text-[11px] text-zinc-400">{data.liquidityMap.bsl.type}</p>
               </div>
@@ -1147,15 +1388,15 @@ export const SmcMarketStructureVisualizer: React.FC = () => {
               <div className="p-3 bg-zinc-950 rounded-xl border border-emerald-500/30 space-y-1">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-bold text-emerald-400 flex items-center gap-1">
-                    <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block" /> SSL (Sell-Side Liquidity)
+                    <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block" /> SSL (매도 수급 개미털기 구역)
                   </span>
-                  <span className="text-[10px] font-mono bg-emerald-950 text-emerald-300 px-2 py-0.5 rounded">
+                  <span className="text-[10px] bg-emerald-950 text-emerald-300 px-2 py-0.5 rounded font-bold">
                     {data.liquidityMap.ssl.status}
                   </span>
                 </div>
                 <div className="flex justify-between text-xs font-mono pt-0.5">
-                  <span className="text-zinc-400">가격: <strong className="text-white">{data.liquidityMap.ssl.price.toLocaleString()}</strong></span>
-                  <span className="text-zinc-400">터치 횟수: <strong className="text-cyan-400">{data.liquidityMap.ssl.touches}회 (EQL/PDL)</strong></span>
+                  <span className="text-zinc-400">가격대: <strong className="text-white">{data.liquidityMap.ssl.price.toLocaleString()}원</strong></span>
+                  <span className="text-zinc-400">지지 터치: <strong className="text-cyan-400">{data.liquidityMap.ssl.touches}회 터치</strong></span>
                 </div>
                 <p className="text-[11px] text-zinc-400">{data.liquidityMap.ssl.type}</p>
               </div>
@@ -1164,7 +1405,7 @@ export const SmcMarketStructureVisualizer: React.FC = () => {
               <div className="p-3 bg-cyan-950/40 border border-cyan-500/40 rounded-xl space-y-1 text-xs">
                 <div className="font-bold text-cyan-300 flex items-center gap-1.5">
                   <Sparkles className="h-4 w-4 text-cyan-400" />
-                  <span>유동성 흡수 이벤트: {data.liquidityMap.sweepEvent.type}</span>
+                  <span>개미 털기 완료 이벤트: {data.liquidityMap.sweepEvent.type}</span>
                 </div>
                 <p className="text-[11px] text-zinc-300 leading-relaxed">
                   {data.liquidityMap.sweepEvent.description}
@@ -1178,10 +1419,10 @@ export const SmcMarketStructureVisualizer: React.FC = () => {
             <div className="flex items-center justify-between border-b border-zinc-800 pb-2.5">
               <h4 className="text-xs sm:text-sm font-black text-white flex items-center gap-2">
                 <Target className="h-4 w-4 text-amber-400" />
-                <span>AI 다중 목표가(TP1/TP2/TP3) & Risk-Reward 계산기</span>
+                <span>🎯 AI 3단계 분할 익절 목표가 (1차/2차/3차) & 손익비 정밀 계산기</span>
               </h4>
-              <span className="text-[10px] font-mono text-amber-400 bg-amber-950 px-2 py-0.5 rounded border border-amber-800">
-                Triple Target System
+              <span className="text-[10px] font-bold text-amber-400 bg-amber-950 px-2 py-0.5 rounded border border-amber-800">
+                3단계 익절 보호 시스템
               </span>
             </div>
 
@@ -1190,10 +1431,10 @@ export const SmcMarketStructureVisualizer: React.FC = () => {
               <div className="bg-zinc-950 p-4 rounded-xl border border-cyan-500/40 space-y-2">
                 <div className="flex items-center justify-between text-cyan-400 font-extrabold">
                   <span>{data.targets.tp1.label}</span>
-                  <span className="text-[10px] bg-cyan-950 px-2 py-0.5 rounded border border-cyan-800">1차 익절</span>
+                  <span className="text-[10px] bg-cyan-950 px-2 py-0.5 rounded border border-cyan-800">1차 안전 익절</span>
                 </div>
                 <div className="text-lg font-black text-white font-mono">
-                  {data.targets.tp1.price.toLocaleString()}
+                  {data.targets.tp1.price.toLocaleString()}원
                 </div>
                 <p className="text-[11px] text-zinc-400 leading-snug">
                   {data.targets.tp1.rationale}
@@ -1204,10 +1445,10 @@ export const SmcMarketStructureVisualizer: React.FC = () => {
               <div className="bg-zinc-950 p-4 rounded-xl border border-blue-500/40 space-y-2">
                 <div className="flex items-center justify-between text-blue-400 font-extrabold">
                   <span>{data.targets.tp2.label}</span>
-                  <span className="text-[10px] bg-blue-950 px-2 py-0.5 rounded border border-blue-800">2차 패턴익절</span>
+                  <span className="text-[10px] bg-blue-950 px-2 py-0.5 rounded border border-blue-800">2차 패턴 익절</span>
                 </div>
                 <div className="text-lg font-black text-white font-mono">
-                  {data.targets.tp2.price.toLocaleString()}
+                  {data.targets.tp2.price.toLocaleString()}원
                 </div>
                 <p className="text-[11px] text-zinc-400 leading-snug">
                   {data.targets.tp2.rationale}
@@ -1218,10 +1459,10 @@ export const SmcMarketStructureVisualizer: React.FC = () => {
               <div className="bg-zinc-950 p-4 rounded-xl border border-emerald-500/40 space-y-2">
                 <div className="flex items-center justify-between text-emerald-400 font-extrabold">
                   <span>{data.targets.tp3.label}</span>
-                  <span className="text-[10px] bg-emerald-950 px-2 py-0.5 rounded border border-emerald-800">3차 대세익절</span>
+                  <span className="text-[10px] bg-emerald-950 px-2 py-0.5 rounded border border-emerald-800">3차 대세 익절</span>
                 </div>
                 <div className="text-lg font-black text-white font-mono">
-                  {data.targets.tp3.price.toLocaleString()}
+                  {data.targets.tp3.price.toLocaleString()}원
                 </div>
                 <p className="text-[11px] text-zinc-400 leading-snug">
                   {data.targets.tp3.rationale}
@@ -1232,22 +1473,22 @@ export const SmcMarketStructureVisualizer: React.FC = () => {
             {/* RISK REWARD MULTIPLE TARGETS (1R, 2R, 3R) */}
             <div className="bg-zinc-950 p-3.5 rounded-xl border border-zinc-800/80 space-y-2 text-xs">
               <div className="flex items-center justify-between text-zinc-400 font-bold">
-                <span>R:R 리스크 대비 리워드 마디 목표선</span>
-                <span className="font-mono text-cyan-400">SL: {data.targets.stopLoss.toLocaleString()}</span>
+                <span>⚖️ 손실 위험 대비 수익 비율 단계별 목표 가격</span>
+                <span className="font-mono text-cyan-400">손절가(방패선): {data.targets.stopLoss.toLocaleString()}원</span>
               </div>
 
               <div className="grid grid-cols-3 gap-2 text-center font-mono text-xs">
                 <div className="p-2 rounded bg-zinc-900 border border-zinc-800">
-                  <span className="text-[10px] text-zinc-400 block">1R Target</span>
-                  <span className="font-bold text-white">{data.targets.riskRewardLevels.r1.toLocaleString()}</span>
+                  <span className="text-[10px] text-zinc-400 block">1배 수익 (1R)</span>
+                  <span className="font-bold text-white">{data.targets.riskRewardLevels.r1.toLocaleString()}원</span>
                 </div>
                 <div className="p-2 rounded bg-zinc-900 border border-zinc-800">
-                  <span className="text-[10px] text-zinc-400 block">2R Target</span>
-                  <span className="font-bold text-cyan-300">{data.targets.riskRewardLevels.r2.toLocaleString()}</span>
+                  <span className="text-[10px] text-zinc-400 block">2배 수익 (2R)</span>
+                  <span className="font-bold text-cyan-300">{data.targets.riskRewardLevels.r2.toLocaleString()}원</span>
                 </div>
                 <div className="p-2 rounded bg-zinc-900 border border-zinc-800">
-                  <span className="text-[10px] text-amber-400 block">3R Target</span>
-                  <span className="font-bold text-amber-300">{data.targets.riskRewardLevels.r3.toLocaleString()}</span>
+                  <span className="text-[10px] text-amber-400 block">3배 수익 (3R)</span>
+                  <span className="font-bold text-amber-300">{data.targets.riskRewardLevels.r3.toLocaleString()}원</span>
                 </div>
               </div>
             </div>
@@ -1257,43 +1498,43 @@ export const SmcMarketStructureVisualizer: React.FC = () => {
               <div className="flex items-center justify-between border-b border-zinc-800 pb-2">
                 <span className="font-extrabold text-amber-400 text-xs flex items-center gap-1.5">
                   <Flame className="h-4 w-4 text-amber-400" />
-                  <span>FVG (Fair Value Gap) & 6단계 진입 마스터 엔진</span>
+                  <span>수급 불균형 매수 적기(FVG 갭) & 6단계 자율 매매 파이프라인</span>
                 </span>
-                <span className="text-[10px] font-mono font-bold bg-amber-950 text-amber-300 border border-amber-800 px-2 py-0.5 rounded">
+                <span className="text-[10px] font-bold bg-amber-950 text-amber-300 border border-amber-800 px-2 py-0.5 rounded">
                   {data.fvg.type} ({data.fvg.status})
                 </span>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-2 font-mono text-xs">
                 <div className="bg-zinc-900 p-2.5 rounded-lg border border-zinc-800">
-                  <span className="text-[10px] text-zinc-400 block">FVG Top (상단)</span>
-                  <span className="font-bold text-amber-300">{data.fvg.fvgTop.toLocaleString()}</span>
+                  <span className="text-[10px] text-zinc-400 block">매수 갭 상단 가격</span>
+                  <span className="font-bold text-amber-300">{data.fvg.fvgTop.toLocaleString()}원</span>
                 </div>
                 <div className="bg-zinc-900 p-2.5 rounded-lg border border-zinc-800">
-                  <span className="text-[10px] text-cyan-400 block">FVG 50% Midpoint (중앙)</span>
-                  <span className="font-bold text-cyan-300">{data.fvg.fvgMidpoint.toLocaleString()}</span>
+                  <span className="text-[10px] text-cyan-400 block">매수 갭 50% 중앙 가격</span>
+                  <span className="font-bold text-cyan-300">{data.fvg.fvgMidpoint.toLocaleString()}원</span>
                 </div>
                 <div className="bg-zinc-900 p-2.5 rounded-lg border border-zinc-800">
-                  <span className="text-[10px] text-zinc-400 block">FVG Bottom (하단)</span>
-                  <span className="font-bold text-amber-300">{data.fvg.fvgBottom.toLocaleString()}</span>
+                  <span className="text-[10px] text-zinc-400 block">매수 갭 하단 가격</span>
+                  <span className="font-bold text-amber-300">{data.fvg.fvgBottom.toLocaleString()}원</span>
                 </div>
               </div>
 
               {/* 6-Step SHORT Logic Flow */}
               <div className="bg-zinc-900/80 p-3 rounded-lg border border-zinc-800 text-[11px] space-y-1.5">
-                <span className="font-bold text-zinc-300 block">⚡ SMC 6단계 타겟팅 파이프라인:</span>
+                <span className="font-bold text-zinc-300 block">⚡ 스마트머니(SMC) 6단계 자율 체결 알고리즘:</span>
                 <div className="flex flex-wrap items-center gap-1.5 text-[10px] font-mono">
-                  <span className="bg-rose-950 text-rose-300 border border-rose-800 px-2 py-0.5 rounded">1. BSL Sweep</span>
+                  <span className="bg-amber-950 text-amber-300 border border-amber-800 px-2 py-0.5 rounded">1. 개미털기 확인</span>
                   <ChevronRight className="h-3 w-3 text-zinc-500" />
-                  <span className="bg-amber-950 text-amber-300 border border-amber-800 px-2 py-0.5 rounded">2. Bearish CHoCH</span>
+                  <span className="bg-cyan-950 text-cyan-300 border border-cyan-800 px-2 py-0.5 rounded">2. 추세 반전 신호</span>
                   <ChevronRight className="h-3 w-3 text-zinc-500" />
-                  <span className="bg-cyan-950 text-cyan-300 border border-cyan-800 px-2 py-0.5 rounded">3. Bearish FVG</span>
+                  <span className="bg-blue-950 text-blue-300 border border-blue-800 px-2 py-0.5 rounded">3. 전고점 파워 돌파</span>
                   <ChevronRight className="h-3 w-3 text-zinc-500" />
-                  <span className="bg-blue-950 text-blue-300 border border-blue-800 px-2 py-0.5 rounded">4. FVG Retest</span>
+                  <span className="bg-purple-950 text-purple-300 border border-purple-800 px-2 py-0.5 rounded">4. 갭 지지 테스트</span>
                   <ChevronRight className="h-3 w-3 text-zinc-500" />
-                  <span className="bg-emerald-950 text-emerald-300 border border-emerald-800 px-2 py-0.5 rounded font-extrabold">5. SHORT Entry</span>
+                  <span className="bg-emerald-950 text-emerald-300 border border-emerald-800 px-2 py-0.5 rounded font-extrabold">5. 자동 매수 체결</span>
                   <ChevronRight className="h-3 w-3 text-zinc-500" />
-                  <span className="bg-emerald-900 text-emerald-200 border border-emerald-700 px-2 py-0.5 rounded font-extrabold">6. SSL Target TP</span>
+                  <span className="bg-emerald-900 text-emerald-200 border border-emerald-700 px-2 py-0.5 rounded font-extrabold">6. 목표가 익절 완료</span>
                 </div>
               </div>
             </div>
@@ -1302,7 +1543,7 @@ export const SmcMarketStructureVisualizer: React.FC = () => {
             <div className="bg-zinc-950 p-4 rounded-xl border border-zinc-800 text-xs space-y-1.5">
               <h5 className="font-bold text-cyan-300 flex items-center gap-1.5">
                 <Sparkles className="h-4 w-4 text-cyan-400" />
-                <span>AI 마스터 트레이딩 총평 및 진입 근거</span>
+                <span>🤖 AI 매매 총평 및 초등학생 눈높이 매수·매도 가이드</span>
               </h5>
               <p className="text-zinc-300 leading-relaxed">
                 {data.rationale}
@@ -1375,11 +1616,18 @@ export const SmcMarketStructureVisualizer: React.FC = () => {
                   </button>
 
                   <button
-                    onClick={() => setIsApiConfigModalOpen(true)}
-                    className="p-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-zinc-300 rounded-xl transition cursor-pointer"
-                    title="실거래 API 및 자산 설정"
+                    onClick={() => {
+                      if (onOpenBrokerApiModal) {
+                        onOpenBrokerApiModal();
+                      } else {
+                        setIsApiConfigModalOpen(true);
+                      }
+                    }}
+                    className="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-amber-300 rounded-xl transition cursor-pointer flex items-center gap-1.5 font-bold text-xs"
+                    title="실거래 API 키 & 자산 리스크 설정"
                   >
-                    <Settings className="h-4 w-4" />
+                    <Settings className="h-4 w-4 text-amber-400" />
+                    <span>🔑 실거래 API 설정</span>
                   </button>
                 </div>
               </div>
@@ -1636,85 +1884,219 @@ export const SmcMarketStructureVisualizer: React.FC = () => {
               <X className="h-5 w-5" />
             </button>
 
-            <div className="flex items-center gap-2 border-b border-zinc-800 pb-3">
-              <div className="p-2 bg-cyan-950 text-cyan-400 border border-cyan-800 rounded-xl">
-                <Search className="h-5 w-5" />
+            <div className="flex items-center gap-3 border-b border-zinc-800 pb-3">
+              <div className="p-2.5 bg-cyan-950 text-cyan-400 border border-cyan-800 rounded-xl">
+                <Search className="h-5 w-5 animate-pulse" />
               </div>
               <div>
-                <h3 className="text-base font-black text-white">SMC AI 분석 종목 신규 등록</h3>
-                <p className="text-xs text-zinc-400">국내/해외 주식, 암호화폐 종목 코드 및 이름을 입력하세요.</p>
+                <h3 className="text-base font-black text-white flex items-center gap-2">
+                  <span>🔍 실종목 검색 & SMC AI 엔진 즉시 연동</span>
+                  <span className="text-[10px] font-mono bg-cyan-500/20 text-cyan-300 px-2 py-0.5 rounded-full border border-cyan-500/30">
+                    Live Auto Connect
+                  </span>
+                </h3>
+                <p className="text-xs text-zinc-400">
+                  수동 입력 없이, 종목명·티커(005930/NVDA)·초성(ㅅㅅㅈㅈ, ㅎㄷㅊ) 검색으로 1초 만에 SMC 분석을 실행합니다.
+                </p>
               </div>
             </div>
 
-            <form onSubmit={handleRegisterStock} className="space-y-3 text-xs">
-              <div>
-                <label className="text-zinc-300 font-bold block mb-1">종목 코드 (Symbol Ticker)</label>
+            {/* LIVE REAL-TIME STOCK SEARCH BAR */}
+            <div className="space-y-2">
+              <label className="text-xs font-bold text-cyan-400 flex items-center justify-between">
+                <span>실시간 종목 검색 (한국주식 / 미국주식 / 가상자산)</span>
+                <span className="text-[10px] text-zinc-500 font-mono">Chosung Search Ready</span>
+              </label>
+              <div className="relative">
                 <input
                   type="text"
-                  required
-                  placeholder="예: 035720 (카카오), AAPL, ETH"
-                  value={registerForm.symbol}
-                  onChange={(e) => setRegisterForm({ ...registerForm, symbol: e.target.value })}
-                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-white placeholder-zinc-500 focus:outline-none focus:border-cyan-500 font-mono"
+                  autoFocus
+                  value={modalSearchQuery}
+                  onChange={(e) => setModalSearchQuery(e.target.value)}
+                  placeholder="검색어를 입력하세요 (예: 삼성전자, NVDA, 비트코인, ㅅㅅㅈㅈ, 005380)"
+                  className="w-full bg-zinc-950 border border-cyan-500/60 rounded-xl pl-9 pr-8 py-2 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-cyan-400 font-mono shadow-inner"
                 />
+                <Search className="h-4 w-4 text-cyan-400 absolute left-3 top-2.5" />
+                {modalSearchQuery && (
+                  <button 
+                    onClick={() => setModalSearchQuery("")}
+                    className="absolute right-3 top-2.5 text-zinc-500 hover:text-white"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                )}
               </div>
+            </div>
 
-              <div>
-                <label className="text-zinc-300 font-bold block mb-1">종목명 (Stock Name)</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="예: 카카오, Apple Inc, Ethereum"
-                  value={registerForm.name}
-                  onChange={(e) => setRegisterForm({ ...registerForm, name: e.target.value })}
-                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-white placeholder-zinc-500 focus:outline-none focus:border-cyan-500"
-                />
+            {/* SEARCH RESULTS OR TRENDING STOCKS */}
+            {modalSearchQuery.trim() ? (
+              <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
+                <div className="text-[11px] font-bold text-zinc-400">
+                  '<span className="text-cyan-400">{modalSearchQuery}</span>' 검색 결과 ({liveModalSearchResults.length}건)
+                </div>
+                {liveModalSearchResults.length > 0 ? (
+                  <div className="grid grid-cols-1 gap-1.5">
+                    {liveModalSearchResults.map((item) => (
+                      <button
+                        key={`${item.market}-${item.symbol}`}
+                        onClick={() => handleSelectRealStock(item)}
+                        className="w-full p-2.5 bg-zinc-950/80 hover:bg-cyan-950/60 border border-zinc-800 hover:border-cyan-500/50 rounded-xl transition flex items-center justify-between text-left group cursor-pointer"
+                      >
+                        <div className="flex items-center space-x-3">
+                          <span className={`px-2 py-0.5 text-[10px] font-mono font-bold rounded-md ${
+                            item.market === 'KOREA' ? 'bg-blue-900/60 text-blue-300 border border-blue-700/50' :
+                            item.market === 'US' ? 'bg-purple-900/60 text-purple-300 border border-purple-700/50' :
+                            'bg-amber-900/60 text-amber-300 border border-amber-700/50'
+                          }`}>
+                            {item.market}
+                          </span>
+                          <div>
+                            <div className="font-extrabold text-xs text-zinc-100 group-hover:text-cyan-300 flex items-center gap-1.5">
+                              <span>{item.name}</span>
+                              <span className="text-[10px] font-mono text-zinc-400 font-normal">({item.symbol})</span>
+                            </div>
+                            {item.sectorTag && (
+                              <div className="text-[9px] text-zinc-500">{item.sectorTag}</div>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <span className="text-xs font-mono font-bold text-cyan-400 group-hover:underline">
+                            SMC 바로연동 →
+                          </span>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="p-4 bg-zinc-950 rounded-xl border border-zinc-800 text-center space-y-2">
+                    <p className="text-xs text-zinc-400">기본 인덱스에 없는 검색어입니다.</p>
+                    <button
+                      onClick={() => handleSelectRealStock({ symbol: modalSearchQuery.toUpperCase().trim(), name: modalSearchQuery.trim(), market: "KOREA" })}
+                      className="px-3 py-1.5 bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-xs rounded-lg transition"
+                    >
+                      + '{modalSearchQuery}' 커스텀 실종목으로 즉시 분석 실행
+                    </button>
+                  </div>
+                )}
               </div>
+            ) : (
+              /* POPULAR HOT STOCKS GRID */
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-zinc-300 flex items-center gap-1">
+                    <Flame className="h-3.5 w-3.5 text-amber-400" />
+                    <span>인기 핫 스톡 (1클릭 SMC 연동 주도주)</span>
+                  </span>
+                  <span className="text-[10px] text-zinc-500">클릭 즉시 AI 분석</span>
+                </div>
+                <div className="grid grid-cols-2 gap-2 max-h-56 overflow-y-auto pr-1">
+                  {POPULAR_HOT_STOCKS.map((item) => (
+                    <button
+                      key={item.symbol}
+                      onClick={() => handleSelectRealStock(item)}
+                      className="p-2.5 bg-zinc-950 hover:bg-cyan-950/60 border border-zinc-800 hover:border-cyan-500/50 rounded-xl text-left transition flex items-center justify-between group cursor-pointer"
+                    >
+                      <div>
+                        <div className="font-bold text-xs text-zinc-200 group-hover:text-cyan-300 flex items-center gap-1">
+                          <span>{item.name}</span>
+                          <span className="text-[9px] font-mono text-zinc-500">({item.symbol})</span>
+                        </div>
+                        <span className="text-[9px] text-cyan-400 font-mono">{item.sectorTag}</span>
+                      </div>
+                      <span className={`px-1.5 py-0.5 text-[9px] font-mono font-bold rounded ${
+                        item.market === 'KOREA' ? 'bg-blue-900/40 text-blue-300' :
+                        item.market === 'US' ? 'bg-purple-900/40 text-purple-300' :
+                        'bg-amber-900/40 text-amber-300'
+                      }`}>
+                        {item.market}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
 
-              <div>
-                <label className="text-zinc-300 font-bold block mb-1">기준 단가 / 현재가 (Price)</label>
-                <input
-                  type="number"
-                  placeholder="예: 42500"
-                  value={registerForm.price}
-                  onChange={(e) => setRegisterForm({ ...registerForm, price: e.target.value })}
-                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-white placeholder-zinc-500 focus:outline-none focus:border-cyan-500 font-mono"
-                />
-              </div>
+            {/* COLLAPSIBLE MANUAL CUSTOM INPUT OPTION */}
+            <div className="border-t border-zinc-800 pt-3">
+              <button
+                type="button"
+                onClick={() => setIsManualInputOpen(!isManualInputOpen)}
+                className="text-xs text-zinc-400 hover:text-white flex items-center justify-between w-full cursor-pointer font-bold"
+              >
+                <span>🛠️ 수동 종목 코드/단가 직접 입력 폼 {isManualInputOpen ? "접기 ▲" : "열기 ▼"}</span>
+              </button>
 
-              <div>
-                <label className="text-zinc-300 font-bold block mb-1">시장 구분 (Market)</label>
-                <select
-                  value={registerForm.market}
-                  onChange={(e) => setRegisterForm({ ...registerForm, market: e.target.value })}
-                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-cyan-500 font-bold"
-                >
-                  <option value="KOREA">한국 주식 (KOSPI/KOSDAQ)</option>
-                  <option value="US">미국 주식 (NASDAQ/NYSE)</option>
-                  <option value="CRYPTO">암호화폐 (Crypto)</option>
-                </select>
-              </div>
+              {isManualInputOpen && (
+                <form onSubmit={handleRegisterStock} className="space-y-3 text-xs pt-3">
+                  <div>
+                    <label className="text-zinc-300 font-bold block mb-1">종목 코드 (Symbol Ticker)</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="예: 035720 (카카오), AAPL, ETH"
+                      value={registerForm.symbol}
+                      onChange={(e) => setRegisterForm({ ...registerForm, symbol: e.target.value })}
+                      className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-white placeholder-zinc-500 focus:outline-none focus:border-cyan-500 font-mono"
+                    />
+                  </div>
 
-              <div className="pt-2 flex justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={() => setIsRegisterModalOpen(false)}
-                  className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-bold rounded-xl transition cursor-pointer"
-                >
-                  취소
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-black rounded-xl transition flex items-center gap-1.5 shadow-lg cursor-pointer"
-                >
-                  <Plus className="h-4 w-4" />
-                  <span>종목 등록하기</span>
-                </button>
-              </div>
-            </form>
+                  <div>
+                    <label className="text-zinc-300 font-bold block mb-1">종목명 (Stock Name)</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="예: 카카오, Apple Inc, Ethereum"
+                      value={registerForm.name}
+                      onChange={(e) => setRegisterForm({ ...registerForm, name: e.target.value })}
+                      className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-white placeholder-zinc-500 focus:outline-none focus:border-cyan-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-zinc-300 font-bold block mb-1">기준 단가 / 현재가 (Price)</label>
+                    <input
+                      type="number"
+                      placeholder="예: 42500"
+                      value={registerForm.price}
+                      onChange={(e) => setRegisterForm({ ...registerForm, price: e.target.value })}
+                      className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-white placeholder-zinc-500 focus:outline-none focus:border-cyan-500 font-mono"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-zinc-300 font-bold block mb-1">시장 구분 (Market)</label>
+                    <select
+                      value={registerForm.market}
+                      onChange={(e) => setRegisterForm({ ...registerForm, market: e.target.value })}
+                      className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-cyan-500 font-bold"
+                    >
+                      <option value="KOREA">한국 주식 (KOSPI/KOSDAQ)</option>
+                      <option value="US">미국 주식 (NASDAQ/NYSE)</option>
+                      <option value="CRYPTO">암호화폐 (Crypto)</option>
+                    </select>
+                  </div>
+
+                  <div className="pt-2 flex justify-end gap-2">
+                    <button
+                      type="submit"
+                      className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-white font-bold rounded-xl transition cursor-pointer"
+                    >
+                      수동 등록
+                    </button>
+                  </div>
+                </form>
+              )}
+            </div>
           </div>
         </div>
       )}
+
+      {/* Real Broker API Connect Modal */}
+      <BrokerApiConnectModal
+        isOpen={isApiConfigModalOpen}
+        onClose={() => setIsApiConfigModalOpen(false)}
+      />
     </div>
   );
 };

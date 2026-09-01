@@ -1402,7 +1402,7 @@ export const MicroCapitalAutoTradingConsole: React.FC = () => {
           <div className="bg-zinc-950 p-3 rounded-xl border border-zinc-800/80 space-y-1">
             <span className="text-zinc-500 text-[10px] block">국내 증권사(KIS) 원화 예수금</span>
             <div className="text-base font-black text-white">
-              {cashBreakdown?.krw ? cashBreakdown.krw.toLocaleString() : availableCash.toLocaleString()}원
+              {cashBreakdown?.koreaCash ? cashBreakdown.koreaCash.toLocaleString() : availableCash.toLocaleString()}원
             </div>
             <div className="flex items-center gap-1 text-[10px] text-emerald-400">
               <span className={`w-1.5 h-1.5 rounded-full ${brokerApiStatus.korea === "CONNECTED" ? "bg-emerald-400" : "bg-amber-400"}`}></span>

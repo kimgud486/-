@@ -33,7 +33,8 @@ import {
   HeartPulse,
   LineChart as LineChartIcon,
   Shield,
-  HelpCircle
+  HelpCircle,
+  Globe
 } from "lucide-react";
 import {
   Radar,
@@ -55,6 +56,7 @@ import {
 } from "recharts";
 import { useApp } from "../context/AppContext";
 import { useModalScrollLock } from "../hooks/useModalScrollLock";
+import { formatCurrencyPrice, isUsMarketStock, getUsdExchangeRate } from "../lib/currencyUtils";
 
 export interface ModelSecuritiesAnalysis {
   modelId: string;
@@ -119,6 +121,32 @@ export const MultiModelSecuritiesConsensusModal: React.FC<MultiModelSecuritiesCo
     market: "KOREA"
   });
 
+  const isUS = isUsMarketStock(selectedStock.market, selectedStock.symbol);
+  const currentFx = getUsdExchangeRate();
+
+  const formatPrice = (val: number | undefined | null) => {
+    if (val === undefined || val === null || isNaN(val)) return isUS ? "$0.00" : "0원";
+    if (isUS) {
+      return `$${val.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    }
+    return `${Math.round(val).toLocaleString()}원`;
+  };
+
+  const formatDualPrice = (val: number | undefined | null) => {
+    if (val === undefined || val === null || isNaN(val)) return { primary: isUS ? "$0.00" : "0원", sub: "" };
+    if (isUS) {
+      const krw = Math.round(val * currentFx);
+      return {
+        primary: `$${val.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+        sub: `(≈ ₩${krw.toLocaleString()})`
+      };
+    }
+    return {
+      primary: `${Math.round(val).toLocaleString()}원`,
+      sub: ""
+    };
+  };
+
   const [stockCandles, setStockCandles] = useState<any[]>([]);
   const [stockFundamentals, setStockFundamentals] = useState<any>({
     per: 14.8,
@@ -149,15 +177,18 @@ export const MultiModelSecuritiesConsensusModal: React.FC<MultiModelSecuritiesCo
     generatedAt: string;
   } | null>(null);
 
-  // Popular Quick Stocks
+  // Popular Quick Stocks (Both KR & US Top Leaders)
   const popularStocks = [
-    { symbol: "005930", name: "삼성전자", price: 74800, changePct: +3.45 },
-    { symbol: "000660", name: "SK하이닉스", price: 189500, changePct: +5.12 },
-    { symbol: "196170", name: "알테오젠", price: 345000, changePct: +7.80 },
-    { symbol: "034020", name: "두산에너빌리티", price: 21800, changePct: +4.25 },
-    { symbol: "042700", name: "한미반도체", price: 112000, changePct: +6.15 },
-    { symbol: "005380", name: "현대차", price: 248000, changePct: +1.85 },
-    { symbol: "247540", name: "에코프로비엠", price: 178000, changePct: -1.20 }
+    { symbol: "005930", name: "삼성전자", price: 74800, changePct: +3.45, market: "KOREA" },
+    { symbol: "000660", name: "SK하이닉스", price: 189500, changePct: +5.12, market: "KOREA" },
+    { symbol: "NVDA", name: "엔비디아", price: 128.50, changePct: +4.65, market: "US" },
+    { symbol: "TSLA", name: "테슬라", price: 218.40, changePct: +3.80, market: "US" },
+    { symbol: "AAPL", name: "애플", price: 226.30, changePct: +1.45, market: "US" },
+    { symbol: "196170", name: "알테오젠", price: 345000, changePct: +7.80, market: "KOREA" },
+    { symbol: "MSFT", name: "마이크로소프트", price: 448.20, changePct: +2.15, market: "US" },
+    { symbol: "034020", name: "두산에너빌리티", price: 21800, changePct: +4.25, market: "KOREA" },
+    { symbol: "042700", name: "한미반도체", price: 112000, changePct: +6.15, market: "KOREA" },
+    { symbol: "PLTR", name: "팔란티어", price: 32.40, changePct: +5.80, market: "US" }
   ];
 
   // Debounce live search suggestions as user types
@@ -394,9 +425,12 @@ export const MultiModelSecuritiesConsensusModal: React.FC<MultiModelSecuritiesCo
     specialty: "실시간 틱 체결 델타, 구조 파괴(BOS), 추세 반전(CHoCH), 불균형 영역(FVG)",
     opinion: isGain ? "강력 매수" : "분할 매수",
     confidenceScore: isGain ? 94 : 76,
-    targetPrice: Math.round(currentPrice * 1.085),
-    stopLossPrice: Math.round(currentPrice * 0.965),
-    entryZone: [Math.round(currentPrice * 0.99), Math.round(currentPrice * 1.01)],
+    targetPrice: isUS ? Number((currentPrice * 1.085).toFixed(2)) : Math.round(currentPrice * 1.085),
+    stopLossPrice: isUS ? Number((currentPrice * 0.965).toFixed(2)) : Math.round(currentPrice * 0.965),
+    entryZone: [
+      isUS ? Number((currentPrice * 0.99).toFixed(2)) : Math.round(currentPrice * 0.99),
+      isUS ? Number((currentPrice * 1.01).toFixed(2)) : Math.round(currentPrice * 1.01)
+    ],
     keyBullishReasons: [
       "5분봉 상에서 상방 구조 파괴(BOS) 확정 및 매도 호가 소진율 78% 돌파",
       "체결강도 142% 상회 및 시장가 대량 매수 틱(Aggressive Buys) 집중 포착",
@@ -432,9 +466,12 @@ export const MultiModelSecuritiesConsensusModal: React.FC<MultiModelSecuritiesCo
     specialty: "글로벌 뉴스 감성 지수, 테마 대장주 상관도, 외국인/기관 메가 수급 유입",
     opinion: "강력 매수",
     confidenceScore: 89,
-    targetPrice: Math.round(currentPrice * 1.115),
-    stopLossPrice: Math.round(currentPrice * 0.95),
-    entryZone: [Math.round(currentPrice * 0.985), Math.round(currentPrice * 1.015)],
+    targetPrice: isUS ? Number((currentPrice * 1.115).toFixed(2)) : Math.round(currentPrice * 1.115),
+    stopLossPrice: isUS ? Number((currentPrice * 0.95).toFixed(2)) : Math.round(currentPrice * 0.95),
+    entryZone: [
+      isUS ? Number((currentPrice * 0.985).toFixed(2)) : Math.round(currentPrice * 0.985),
+      isUS ? Number((currentPrice * 1.015).toFixed(2)) : Math.round(currentPrice * 1.015)
+    ],
     keyBullishReasons: [
       "섹터 내 1등 주도주 위상 유지 및 테마 내 상대강도(RS 94) 최상위 랭크",
       "외국인 + 기관 동시 양매수 유입 및 글로벌 AI/반도체 뉴스 센티먼트 +82점",
@@ -470,9 +507,12 @@ export const MultiModelSecuritiesConsensusModal: React.FC<MultiModelSecuritiesCo
     specialty: "6대 팩터(모멘텀/수급/밸류/변동성/퀄리티/실적), 손익비(R:R) 최적화",
     opinion: isGain ? "강력 매수" : "분할 매수",
     confidenceScore: 88,
-    targetPrice: Math.round(currentPrice * 1.075),
-    stopLossPrice: Math.round(currentPrice * 0.97),
-    entryZone: [Math.round(currentPrice * 0.992), Math.round(currentPrice * 1.008)],
+    targetPrice: isUS ? Number((currentPrice * 1.075).toFixed(2)) : Math.round(currentPrice * 1.075),
+    stopLossPrice: isUS ? Number((currentPrice * 0.97).toFixed(2)) : Math.round(currentPrice * 0.97),
+    entryZone: [
+      isUS ? Number((currentPrice * 0.992).toFixed(2)) : Math.round(currentPrice * 0.992),
+      isUS ? Number((currentPrice * 1.008).toFixed(2)) : Math.round(currentPrice * 1.008)
+    ],
     keyBullishReasons: [
       "손익비(Risk-Reward Ratio) 1:2.85로 통계적 기대값이 극대화된 위치",
       "상대 거래량 배수(RVOL) 3.6배 및 6대 퀀트 퀄리티 복합 스코어 91점 기록",
@@ -508,9 +548,12 @@ export const MultiModelSecuritiesConsensusModal: React.FC<MultiModelSecuritiesCo
     specialty: "다중 타임프레임 차트 패턴, 엘리어트 상승 3파동 추정, 매물대 지지 분석",
     opinion: isGain ? "강력 매수" : "관망",
     confidenceScore: isGain ? 86 : 68,
-    targetPrice: Math.round(currentPrice * 1.10),
-    stopLossPrice: Math.round(currentPrice * 0.96),
-    entryZone: [Math.round(currentPrice * 0.988), Math.round(currentPrice * 1.012)],
+    targetPrice: isUS ? Number((currentPrice * 1.10).toFixed(2)) : Math.round(currentPrice * 1.10),
+    stopLossPrice: isUS ? Number((currentPrice * 0.96).toFixed(2)) : Math.round(currentPrice * 0.96),
+    entryZone: [
+      isUS ? Number((currentPrice * 0.988).toFixed(2)) : Math.round(currentPrice * 0.988),
+      isUS ? Number((currentPrice * 1.012).toFixed(2)) : Math.round(currentPrice * 1.012)
+    ],
     keyBullishReasons: [
       "일봉 상 컵앤핸들(Cup & Handle) 패턴 상단 목선(Neckline) 안착 돌파",
       "5일/20일/60일 이동평균선 완전 정배열 완성 및 하방 지지선 견고",
@@ -593,17 +636,14 @@ export const MultiModelSecuritiesConsensusModal: React.FC<MultiModelSecuritiesCo
     models.reduce((sum, m) => sum + m.confidenceScore * m.weightRatio, 0)
   );
 
-  const consensusTarget1 = Math.round(
-    models.reduce((sum, m) => sum + m.targetPrice * m.weightRatio, 0)
-  );
+  const rawConsensusTarget1 = models.reduce((sum, m) => sum + m.targetPrice * m.weightRatio, 0);
+  const consensusTarget1 = isUS ? Number(rawConsensusTarget1.toFixed(2)) : Math.round(rawConsensusTarget1);
 
-  const consensusTarget2 = Math.round(
-    consensusTarget1 * 1.035
-  );
+  const rawConsensusTarget2 = consensusTarget1 * 1.035;
+  const consensusTarget2 = isUS ? Number(rawConsensusTarget2.toFixed(2)) : Math.round(rawConsensusTarget2);
 
-  const consensusStopLoss = Math.round(
-    models.reduce((sum, m) => sum + m.stopLossPrice * m.weightRatio, 0)
-  );
+  const rawConsensusStopLoss = models.reduce((sum, m) => sum + m.stopLossPrice * m.weightRatio, 0);
+  const consensusStopLoss = isUS ? Number(rawConsensusStopLoss.toFixed(2)) : Math.round(rawConsensusStopLoss);
 
   const consensusAgreementRatio = Math.round(
     (models.filter(m => m.opinion === "강력 매수" || m.opinion === "분할 매수").length / models.length) * 100
@@ -627,20 +667,23 @@ export const MultiModelSecuritiesConsensusModal: React.FC<MultiModelSecuritiesCo
           const opinion: "강력 매수" | "분할 매수" | "관망" | "비중 축소" = 
             finalScore >= 88 ? "강력 매수" : finalScore >= 78 ? "분할 매수" : finalScore >= 60 ? "관망" : "비중 축소";
 
+          const entryLow = isUS ? Number((currentPrice * 0.99).toFixed(2)) : Math.round(currentPrice * 0.99);
+          const entryHigh = isUS ? Number((currentPrice * 1.01).toFixed(2)) : Math.round(currentPrice * 1.01);
+
           setVerdictData({
             finalOpinion: opinion,
             weightedScore: finalScore,
             summaryText: `${selectedStock.name}(${selectedStock.symbol}) 종목에 대해 4개 증권소 AI 모델이 교차 검증을 완료하였습니다. 1호 오더플로우 틱 수급(${model1.metrics.orderFlowPower}점)과 2호 테마 머니플로우(${model2.metrics.momentumScore}점), 3호 퀀트 손익비 매력도(${model3.metrics.riskRewardRatio}점), 4호 차트 비전 패턴 완성도(${model4.metrics.patternCompletion}점)가 다차원으로 융합되어 최상위 상방 확률 구조를 형성하고 있습니다.`,
             bulletPoints: [
               `4대 AI 모델 종합 가중 점수 ${finalScore}점 기록 (${models.filter(m => m.opinion.includes("매수")).length}/4개 모델 매수 합의)`,
-              `1차 목표가 ${consensusTarget1.toLocaleString()}원 (+${(((consensusTarget1 - currentPrice) / currentPrice) * 100).toFixed(1)}%), 2차 목표가 ${consensusTarget2.toLocaleString()}원 (+${(((consensusTarget2 - currentPrice) / currentPrice) * 100).toFixed(1)}%) 설정`,
-              `손절 방어선 ${consensusStopLoss.toLocaleString()}원 (${(((consensusStopLoss - currentPrice) / currentPrice) * 100).toFixed(1)}%) 이탈 전까지 손익비 1:2.9 우위 진입 권장`
+              `1차 목표가 ${formatPrice(consensusTarget1)} (+${(((consensusTarget1 - currentPrice) / currentPrice) * 100).toFixed(1)}%), 2차 목표가 ${formatPrice(consensusTarget2)} (+${(((consensusTarget2 - currentPrice) / currentPrice) * 100).toFixed(1)}%) 설정`,
+              `손절 방어선 ${formatPrice(consensusStopLoss)} (${(((consensusStopLoss - currentPrice) / currentPrice) * 100).toFixed(1)}%) 이탈 전까지 손익비 1:2.9 우위 진입 권장`
             ],
-            recommendedEntry: `${Math.round(currentPrice * 0.99).toLocaleString()}원 ~ ${Math.round(currentPrice * 1.01).toLocaleString()}원 분할 접근`,
+            recommendedEntry: `${formatPrice(entryLow)} ~ ${formatPrice(entryHigh)} 분할 접근`,
             targetPrice1: consensusTarget1,
             targetPrice2: consensusTarget2,
             stopLossPrice: consensusStopLoss,
-            riskNotice: `단기 직전 고점 진입 시 차익 실현 유동성 출회 가능성이 있으므로 무효화 손절선(${consensusStopLoss.toLocaleString()}원) 하향 이탈 시 기계적 매도 필요`,
+            riskNotice: `단기 직전 고점 진입 시 차익 실현 유동성 출회 가능성이 있으므로 무효화 손절선(${formatPrice(consensusStopLoss)}) 하향 이탈 시 기계적 매도 필요`,
             generatedAt: new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
           });
 
@@ -709,35 +752,46 @@ export const MultiModelSecuritiesConsensusModal: React.FC<MultiModelSecuritiesCo
               {/* Live Search Suggestions Dropdown */}
               {showSuggestions && searchResults.length > 0 && (
                 <div className="absolute left-0 right-0 top-full mt-1.5 bg-zinc-950 border border-cyan-500/50 rounded-2xl shadow-2xl z-50 max-h-64 overflow-y-auto divide-y divide-zinc-800">
-                  {searchResults.map((item) => (
-                    <button
-                      key={`${item.symbol}-${item.name}`}
-                      type="button"
-                      onClick={() => {
-                        fetchStockAnalysis(item.symbol, item.name);
-                        setSearchQuery("");
-                        setShowSuggestions(false);
-                      }}
-                      className="w-full px-3.5 py-2 text-left flex items-center justify-between hover:bg-zinc-800/80 active:bg-zinc-700 transition cursor-pointer group"
-                    >
-                      <div className="flex items-center gap-2">
-                        <span className="px-1.5 py-0.5 rounded text-[10px] font-mono font-bold bg-zinc-800 text-cyan-400 border border-zinc-700">
-                          {item.symbol}
-                        </span>
-                        <span className="text-xs font-bold text-white group-hover:text-cyan-300 transition">
-                          {item.name}
-                        </span>
-                      </div>
-                      <div className="text-right">
-                        <span className="text-xs font-mono font-bold text-zinc-200 block">
-                          {item.price > 0 ? `${item.price.toLocaleString()}원` : "시세 조회중..."}
-                        </span>
-                        <span className={`text-[10px] font-bold ${item.changePct >= 0 ? "text-rose-400" : "text-blue-400"}`}>
-                          {item.changePct >= 0 ? `+${item.changePct}%` : `${item.changePct}%`}
-                        </span>
-                      </div>
-                    </button>
-                  ))}
+                  {searchResults.map((item) => {
+                    const itemIsUs = isUsMarketStock(item.market, item.symbol);
+                    const formattedItemPrice = item.price > 0 
+                      ? (itemIsUs ? `$${item.price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : `${item.price.toLocaleString()}원`)
+                      : "시세 조회중...";
+                    return (
+                      <button
+                        key={`${item.symbol}-${item.name}`}
+                        type="button"
+                        onClick={() => {
+                          fetchStockAnalysis(item.symbol, item.name);
+                          setSearchQuery("");
+                          setShowSuggestions(false);
+                        }}
+                        className="w-full px-3.5 py-2 text-left flex items-center justify-between hover:bg-zinc-800/80 active:bg-zinc-700 transition cursor-pointer group"
+                      >
+                        <div className="flex items-center gap-2">
+                          <span className="px-1.5 py-0.5 rounded text-[10px] font-mono font-bold bg-zinc-800 text-cyan-400 border border-zinc-700">
+                            {item.symbol}
+                          </span>
+                          <span className="text-xs font-bold text-white group-hover:text-cyan-300 transition">
+                            {item.name}
+                          </span>
+                          {itemIsUs && (
+                            <span className="px-1.5 py-0.2 rounded text-[9px] font-bold bg-purple-950 text-purple-300 border border-purple-800">
+                              🇺🇸 US
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-right">
+                          <span className="text-xs font-mono font-bold text-zinc-200 block">
+                            {formattedItemPrice}
+                          </span>
+                          <span className={`text-[10px] font-bold ${item.changePct >= 0 ? "text-rose-400" : "text-blue-400"}`}>
+                            {item.changePct >= 0 ? `+${item.changePct}%` : `${item.changePct}%`}
+                          </span>
+                        </div>
+                      </button>
+                    );
+                  })}
                 </div>
               )}
             </form>
@@ -762,13 +816,14 @@ export const MultiModelSecuritiesConsensusModal: React.FC<MultiModelSecuritiesCo
               <button
                 key={st.symbol}
                 onClick={() => fetchStockAnalysis(st.symbol, st.name)}
-                className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition whitespace-nowrap cursor-pointer border shrink-0 min-h-[28px] ${
+                className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition whitespace-nowrap cursor-pointer border shrink-0 min-h-[28px] flex items-center gap-1 ${
                   selectedStock.symbol === st.symbol
                     ? "bg-cyan-500/20 text-cyan-300 border-cyan-500 shadow-xs"
                     : "bg-zinc-800/80 text-zinc-300 border-zinc-700 hover:bg-zinc-700"
                 }`}
               >
-                {st.name}
+                {st.market === "US" && <span className="text-[10px]">🇺🇸</span>}
+                <span>{st.name}</span>
               </button>
             ))}
           </div>
@@ -778,18 +833,31 @@ export const MultiModelSecuritiesConsensusModal: React.FC<MultiModelSecuritiesCo
         <div className="px-3 sm:px-5 py-2.5 sm:py-3.5 bg-gradient-to-r from-zinc-900 via-zinc-900 to-cyan-950/40 border-b border-zinc-800 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 sm:gap-4 shrink-0">
           <div className="flex items-center justify-between sm:justify-start gap-3">
             <div className="flex items-center gap-1.5 sm:gap-2">
-              <h3 className="text-base sm:text-2xl font-black text-white tracking-tight">
-                {selectedStock.name}
+              <h3 className="text-base sm:text-2xl font-black text-white tracking-tight flex items-center gap-1.5">
+                {isUS && <span className="text-sm sm:text-base">🇺🇸</span>}
+                <span>{selectedStock.name}</span>
               </h3>
               <span className="text-[10px] sm:text-xs font-mono text-zinc-400 bg-zinc-800 px-1.5 sm:px-2 py-0.5 rounded-md border border-zinc-700">
                 {selectedStock.symbol}
               </span>
+              {isUS && (
+                <span className="text-[10px] font-bold text-purple-300 bg-purple-950/80 px-1.5 py-0.5 rounded border border-purple-700">
+                  USD 통화 적용
+                </span>
+              )}
             </div>
 
             <div className="flex items-center gap-1.5 sm:gap-2">
-              <span className="text-sm sm:text-xl font-mono font-black text-white">
-                {selectedStock.price.toLocaleString()}원
-              </span>
+              <div className="flex flex-col items-end sm:items-start">
+                <span className="text-sm sm:text-xl font-mono font-black text-white">
+                  {formatPrice(selectedStock.price)}
+                </span>
+                {isUS && (
+                  <span className="text-[10px] font-mono text-zinc-400">
+                    ≈ ₩{Math.round(selectedStock.price * currentFx).toLocaleString()}
+                  </span>
+                )}
+              </div>
               <span className={`text-xs sm:text-sm font-bold flex items-center ${isGain ? "text-rose-400" : "text-blue-400"}`}>
                 {isGain ? <TrendingUp className="w-3.5 h-3.5 mr-0.5 inline" /> : <TrendingDown className="w-3.5 h-3.5 mr-0.5 inline" />}
                 {isGain ? `+${selectedStock.changePct}%` : `${selectedStock.changePct}%`}
@@ -958,11 +1026,11 @@ export const MultiModelSecuritiesConsensusModal: React.FC<MultiModelSecuritiesCo
                         <div className="grid grid-cols-2 gap-2 pt-1 border-t border-zinc-800/80 text-[11px]">
                           <div>
                             <span className="text-zinc-400 block text-[10px]">추천 목표가</span>
-                            <span className="font-mono font-bold text-rose-400">{model.targetPrice.toLocaleString()}원</span>
+                            <span className="font-mono font-bold text-rose-400">{formatPrice(model.targetPrice)}</span>
                           </div>
                           <div>
                             <span className="text-zinc-400 block text-[10px]">손절 기준가</span>
-                            <span className="font-mono font-bold text-blue-400">{model.stopLossPrice.toLocaleString()}원</span>
+                            <span className="font-mono font-bold text-blue-400">{formatPrice(model.stopLossPrice)}</span>
                           </div>
                         </div>
                       </div>
@@ -1110,7 +1178,9 @@ export const MultiModelSecuritiesConsensusModal: React.FC<MultiModelSecuritiesCo
                   <BarChart3 className="w-4 h-4 text-cyan-400" />
                   <span>4대 AI 모델 다차원 교차 비교 매트릭스</span>
                 </h4>
-                <span className="text-[10px] sm:text-xs text-zinc-400">KRX 실시간 틱 &amp; 퀀트 팩터</span>
+                <span className="text-[10px] sm:text-xs text-zinc-400">
+                  {isUS ? "NASDAQ/NYSE 실시간 틱 & 퀀트 팩터" : "KRX 실시간 틱 & 퀀트 팩터"}
+                </span>
               </div>
 
               <div className="overflow-x-auto no-scrollbar">
@@ -1141,24 +1211,24 @@ export const MultiModelSecuritiesConsensusModal: React.FC<MultiModelSecuritiesCo
                     </tr>
                     <tr className="hover:bg-zinc-800/30">
                       <td className="py-2 px-2.5 font-bold text-zinc-300">추천 목표가</td>
-                      <td className="py-2 px-2.5 font-mono text-rose-400 font-bold">{model1.targetPrice.toLocaleString()}원 (+8.5%)</td>
-                      <td className="py-2 px-2.5 font-mono text-rose-400 font-bold">{model2.targetPrice.toLocaleString()}원 (+11.5%)</td>
-                      <td className="py-2 px-2.5 font-mono text-rose-400 font-bold">{model3.targetPrice.toLocaleString()}원 (+7.5%)</td>
-                      <td className="py-2 px-2.5 font-mono text-rose-400 font-bold">{model4.targetPrice.toLocaleString()}원 (+10.0%)</td>
+                      <td className="py-2 px-2.5 font-mono text-rose-400 font-bold">{formatPrice(model1.targetPrice)} (+8.5%)</td>
+                      <td className="py-2 px-2.5 font-mono text-rose-400 font-bold">{formatPrice(model2.targetPrice)} (+11.5%)</td>
+                      <td className="py-2 px-2.5 font-mono text-rose-400 font-bold">{formatPrice(model3.targetPrice)} (+7.5%)</td>
+                      <td className="py-2 px-2.5 font-mono text-rose-400 font-bold">{formatPrice(model4.targetPrice)} (+10.0%)</td>
                     </tr>
                     <tr className="hover:bg-zinc-800/30">
                       <td className="py-2 px-2.5 font-bold text-zinc-300">손절 방어선</td>
-                      <td className="py-2 px-2.5 font-mono text-blue-400 font-bold">{model1.stopLossPrice.toLocaleString()}원 (-3.5%)</td>
-                      <td className="py-2 px-2.5 font-mono text-blue-400 font-bold">{model2.stopLossPrice.toLocaleString()}원 (-5.0%)</td>
-                      <td className="py-2 px-2.5 font-mono text-blue-400 font-bold">{model3.stopLossPrice.toLocaleString()}원 (-3.0%)</td>
-                      <td className="py-2 px-2.5 font-mono text-blue-400 font-bold">{model4.stopLossPrice.toLocaleString()}원 (-4.0%)</td>
+                      <td className="py-2 px-2.5 font-mono text-blue-400 font-bold">{formatPrice(model1.stopLossPrice)} (-3.5%)</td>
+                      <td className="py-2 px-2.5 font-mono text-blue-400 font-bold">{formatPrice(model2.stopLossPrice)} (-5.0%)</td>
+                      <td className="py-2 px-2.5 font-mono text-blue-400 font-bold">{formatPrice(model3.stopLossPrice)} (-3.0%)</td>
+                      <td className="py-2 px-2.5 font-mono text-blue-400 font-bold">{formatPrice(model4.stopLossPrice)} (-4.0%)</td>
                     </tr>
                     <tr className="hover:bg-zinc-800/30">
                       <td className="py-2 px-2.5 font-bold text-zinc-300">진입 유효 구간</td>
-                      <td className="py-2 px-2.5 font-mono text-zinc-300">{model1.entryZone[0].toLocaleString()} ~ {model1.entryZone[1].toLocaleString()}원</td>
-                      <td className="py-2 px-2.5 font-mono text-zinc-300">{model2.entryZone[0].toLocaleString()} ~ {model2.entryZone[1].toLocaleString()}원</td>
-                      <td className="py-2 px-2.5 font-mono text-zinc-300">{model3.entryZone[0].toLocaleString()} ~ {model3.entryZone[1].toLocaleString()}원</td>
-                      <td className="py-2 px-2.5 font-mono text-zinc-300">{model4.entryZone[0].toLocaleString()} ~ {model4.entryZone[1].toLocaleString()}원</td>
+                      <td className="py-2 px-2.5 font-mono text-zinc-300">{formatPrice(model1.entryZone[0])} ~ {formatPrice(model1.entryZone[1])}</td>
+                      <td className="py-2 px-2.5 font-mono text-zinc-300">{formatPrice(model2.entryZone[0])} ~ {formatPrice(model2.entryZone[1])}</td>
+                      <td className="py-2 px-2.5 font-mono text-zinc-300">{formatPrice(model3.entryZone[0])} ~ {formatPrice(model3.entryZone[1])}</td>
+                      <td className="py-2 px-2.5 font-mono text-zinc-300">{formatPrice(model4.entryZone[0])} ~ {formatPrice(model4.entryZone[1])}</td>
                     </tr>
                   </tbody>
                 </table>
@@ -1177,7 +1247,7 @@ export const MultiModelSecuritiesConsensusModal: React.FC<MultiModelSecuritiesCo
                     <span>📈 실시간 시세 연동 차트 &amp; 초보자 가이드</span>
                   </h4>
                   <p className="text-[11px] sm:text-xs text-zinc-400 mt-0.5">
-                    현재가({selectedStock.price.toLocaleString()}원)와 차트 종가가 100% 동기화된 실시간 캔들 차트
+                    현재가({formatPrice(selectedStock.price)})와 차트 종가가 100% 동기화된 실시간 캔들 차트
                   </p>
                 </div>
 
@@ -1197,9 +1267,9 @@ export const MultiModelSecuritiesConsensusModal: React.FC<MultiModelSecuritiesCo
                   <span>{selectedStock.name} ({selectedStock.symbol}) 30일 추세 &amp; 현재가 가이드라인</span>
                 </span>
                 <div className="flex items-center gap-3 text-[11px] font-mono">
-                  <span className="text-rose-400 font-bold">― 1차 목표가 ({consensusTarget1.toLocaleString()}원)</span>
-                  <span className="text-cyan-400 font-bold">― 현재가 ({selectedStock.price.toLocaleString()}원)</span>
-                  <span className="text-blue-400 font-bold">― 손절가 ({consensusStopLoss.toLocaleString()}원)</span>
+                  <span className="text-rose-400 font-bold">― 1차 목표가 ({formatPrice(consensusTarget1)})</span>
+                  <span className="text-cyan-400 font-bold">― 현재가 ({formatPrice(selectedStock.price)})</span>
+                  <span className="text-blue-400 font-bold">― 손절가 ({formatPrice(consensusStopLoss)})</span>
                 </div>
               </div>
 
@@ -1220,18 +1290,18 @@ export const MultiModelSecuritiesConsensusModal: React.FC<MultiModelSecuritiesCo
                       orientation="right"
                       stroke="#71717a"
                       tick={{ fontSize: 10, fill: "#a1a1aa" }}
-                      tickFormatter={(v) => v.toLocaleString()}
+                      tickFormatter={(v) => isUS ? `$${v}` : v.toLocaleString()}
                     />
                     <Tooltip
                       contentStyle={{ backgroundColor: "#09090b", borderColor: "#3f3f46", borderRadius: "12px", fontSize: "11px", color: "#f4f4f5" }}
-                      formatter={(val: any) => [typeof val === 'number' ? `${val.toLocaleString()}원` : val, '가격']}
+                      formatter={(val: any) => [typeof val === 'number' ? formatPrice(val) : val, '가격']}
                     />
                     <Area type="monotone" dataKey="close" stroke="#06b6d4" strokeWidth={2} fill="url(#priceGradient)" name="종가" />
                     <Line type="monotone" dataKey="high" stroke="#f43f5e" strokeWidth={1} strokeDasharray="2 2" dot={false} name="고가" />
                     <Line type="monotone" dataKey="low" stroke="#3b82f6" strokeWidth={1} strokeDasharray="2 2" dot={false} name="저가" />
-                    <ReferenceLine y={selectedStock.price} stroke="#06b6d4" strokeWidth={2} label={{ value: `현재가 ${selectedStock.price.toLocaleString()}원`, fill: '#06b6d4', fontSize: 10, position: 'insideRight' }} />
-                    <ReferenceLine y={consensusTarget1} stroke="#f43f5e" strokeDasharray="3 3" label={{ value: `목표가 ${consensusTarget1.toLocaleString()}원`, fill: '#f43f5e', fontSize: 10, position: 'insideRight' }} />
-                    <ReferenceLine y={consensusStopLoss} stroke="#3b82f6" strokeDasharray="3 3" label={{ value: `손절가 ${consensusStopLoss.toLocaleString()}원`, fill: '#3b82f6', fontSize: 10, position: 'insideRight' }} />
+                    <ReferenceLine y={selectedStock.price} stroke="#06b6d4" strokeWidth={2} label={{ value: `현재가 ${formatPrice(selectedStock.price)}`, fill: '#06b6d4', fontSize: 10, position: 'insideRight' }} />
+                    <ReferenceLine y={consensusTarget1} stroke="#f43f5e" strokeDasharray="3 3" label={{ value: `목표가 ${formatPrice(consensusTarget1)}`, fill: '#f43f5e', fontSize: 10, position: 'insideRight' }} />
+                    <ReferenceLine y={consensusStopLoss} stroke="#3b82f6" strokeDasharray="3 3" label={{ value: `손절가 ${formatPrice(consensusStopLoss)}`, fill: '#3b82f6', fontSize: 10, position: 'insideRight' }} />
                   </ComposedChart>
                 </ResponsiveContainer>
               </div>
@@ -1333,7 +1403,7 @@ export const MultiModelSecuritiesConsensusModal: React.FC<MultiModelSecuritiesCo
                     </div>
                     <div className="flex items-center gap-2">
                       <span className="font-bold text-rose-400 shrink-0">· 매도 목표:</span>
-                      <span>1차 {consensusTarget1.toLocaleString()}원 달성 시 절반 익절</span>
+                      <span>1차 {formatPrice(consensusTarget1)} 달성 시 절반 익절</span>
                     </div>
                   </div>
                 </div>
@@ -1416,14 +1486,14 @@ export const MultiModelSecuritiesConsensusModal: React.FC<MultiModelSecuritiesCo
                   <div className="p-2.5 bg-amber-950/20 border border-amber-500/30 rounded-xl space-y-1 text-xs">
                     <span className="font-bold text-amber-300 block">⚠️ 핵심 발생 리스크 요인:</span>
                     <p className="text-[11px] text-zinc-300 leading-tight">
-                      직전 전고점 부근 단기 매물 차익실현 물량이 출회될 수 있습니다. 손절가({consensusStopLoss.toLocaleString()}원) 이탈 시에는 기계적으로 대응하는 것이 좋습니다.
+                      직전 전고점 부근 단기 매물 차익실현 물량이 출회될 수 있습니다. 손절가({formatPrice(consensusStopLoss)}) 이탈 시에는 기계적으로 대응하는 것이 좋습니다.
                     </p>
                   </div>
                 </div>
 
                 <div className="p-2 bg-amber-950/30 border border-amber-500/30 rounded-xl text-[11px] text-amber-300 flex items-center justify-between font-mono">
                   <span>손절선 대응 규칙:</span>
-                  <strong className="text-rose-400">{consensusStopLoss.toLocaleString()}원 터치 시 매도</strong>
+                  <strong className="text-rose-400">{formatPrice(consensusStopLoss)} 터치 시 매도</strong>
                 </div>
               </div>
 
@@ -1513,19 +1583,19 @@ export const MultiModelSecuritiesConsensusModal: React.FC<MultiModelSecuritiesCo
 
                     <div className="p-2.5 sm:p-3.5 bg-zinc-950/80 border border-zinc-800 rounded-xl sm:rounded-2xl">
                       <span className="text-[10px] sm:text-[11px] text-zinc-400 font-bold block">1차 목표가 (TP1)</span>
-                      <span className="text-xs sm:text-base font-black text-rose-400 font-mono mt-0.5 block truncate">{(verdictData.targetPrice1 ?? consensusTarget1 ?? 0).toLocaleString()}원</span>
+                      <span className="text-xs sm:text-base font-black text-rose-400 font-mono mt-0.5 block truncate">{formatPrice(verdictData.targetPrice1 ?? consensusTarget1 ?? 0)}</span>
                       <span className="text-[9px] sm:text-[10px] text-rose-400/80">+{((((verdictData.targetPrice1 ?? consensusTarget1) - currentPrice) / currentPrice) * 100).toFixed(1)}%</span>
                     </div>
 
                     <div className="p-2.5 sm:p-3.5 bg-zinc-950/80 border border-zinc-800 rounded-xl sm:rounded-2xl">
                       <span className="text-[10px] sm:text-[11px] text-zinc-400 font-bold block">2차 목표가 (TP2)</span>
-                      <span className="text-xs sm:text-base font-black text-amber-400 font-mono mt-0.5 block truncate">{(verdictData.targetPrice2 ?? consensusTarget2 ?? 0).toLocaleString()}원</span>
+                      <span className="text-xs sm:text-base font-black text-amber-400 font-mono mt-0.5 block truncate">{formatPrice(verdictData.targetPrice2 ?? consensusTarget2 ?? 0)}</span>
                       <span className="text-[9px] sm:text-[10px] text-amber-400/80">+{((((verdictData.targetPrice2 ?? consensusTarget2) - currentPrice) / currentPrice) * 100).toFixed(1)}%</span>
                     </div>
 
                     <div className="p-2.5 sm:p-3.5 bg-zinc-950/80 border border-zinc-800 rounded-xl sm:rounded-2xl">
                       <span className="text-[10px] sm:text-[11px] text-zinc-400 font-bold block">손절선 (SL)</span>
-                      <span className="text-xs sm:text-base font-black text-blue-400 font-mono mt-0.5 block truncate">{(verdictData.stopLossPrice ?? consensusStopLoss ?? 0).toLocaleString()}원</span>
+                      <span className="text-xs sm:text-base font-black text-blue-400 font-mono mt-0.5 block truncate">{formatPrice(verdictData.stopLossPrice ?? consensusStopLoss ?? 0)}</span>
                       <span className="text-[9px] sm:text-[10px] text-blue-400/80">{((((verdictData.stopLossPrice ?? consensusStopLoss) - currentPrice) / currentPrice) * 100).toFixed(1)}%</span>
                     </div>
                   </div>
@@ -1584,7 +1654,7 @@ export const MultiModelSecuritiesConsensusModal: React.FC<MultiModelSecuritiesCo
                     addNotification({
                       type: "BUY",
                       title: `🚀 [컨센서스 합의] ${selectedStock.name} 매수 주문 실행`,
-                      message: `4대 증권소 모델 합의에 따라 ${selectedStock.price.toLocaleString()}원에 매수 체결되었습니다.`
+                      message: `4대 증권소 모델 합의에 따라 ${formatPrice(selectedStock.price)}에 매수 체결되었습니다.`
                     });
                   }}
                   className="px-4 sm:px-5 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 active:from-emerald-700 text-white rounded-xl text-xs font-black transition cursor-pointer shadow-lg flex items-center justify-center gap-1.5"

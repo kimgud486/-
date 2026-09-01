@@ -17,6 +17,11 @@ function MainLayout() {
   const [consensusSelectedSymbol, setConsensusSelectedSymbol] = useState<string>("005930");
 
   useEffect(() => {
+    // Ensure document and body allow natural vertical scrolling
+    document.body.style.overflow = "";
+    document.body.style.position = "";
+    document.documentElement.style.overflow = "";
+
     const handleOpenConsensus = (e: Event) => {
       const customEvent = e as CustomEvent<string>;
       if (customEvent.detail) {
