@@ -677,13 +677,13 @@ export const AiLongShortAnalysisScannerSuite: React.FC = () => {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {filteredSignals.map((sig) => {
+          {filteredSignals.map((sig, idx) => {
             const isLong = sig.type === "LONG";
             const isBoosterHighYield = sig.expectedProfitPct >= 15 || sig.riskRewardRatio >= 3.0;
 
             return (
               <div
-                key={sig.id}
+                key={`${sig.id}_${idx}`}
                 className={`p-5 rounded-3xl border transition shadow-xl relative overflow-hidden space-y-4 ${
                   isLong
                     ? "bg-gradient-to-br from-slate-900 via-slate-900 to-emerald-950/30 border-emerald-500/40 hover:border-emerald-400"

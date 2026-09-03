@@ -17,7 +17,7 @@ import {
   Tag
 } from "lucide-react";
 import { useApp } from "../../context/AppContext";
-import { COMPREHENSIVE_STOCK_INDEX, resolveStockName } from "../../lib/stockDictionary";
+import { COMPREHENSIVE_STOCK_INDEX, resolveStockName, safeSymbolStr } from "../../lib/stockDictionary";
 
 export interface GeminiNewsSentimentData {
   success: boolean;
@@ -96,11 +96,12 @@ export const GeminiNewsSentimentLayer: React.FC<{
 
   const handleSearchStock = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!symbol.trim()) return;
-    fetchSentimentAnalysis(symbol.trim().toUpperCase(), true);
+    const clean = safeSymbolStr(symbol).toUpperCase();
+    if (!clean) return;
+    fetchSentimentAnalysis(clean, true);
   };
 
-  const currentStockName = resolveStockName(symbol, symbol, "KOREA");
+  const currentStockName = resolveStockName(symbol, safeSymbolStr(symbol), "KOREA");
 
   const filteredArticles = data?.articles ? data.articles.filter(a => {
     if (!activeKeyword) return true;

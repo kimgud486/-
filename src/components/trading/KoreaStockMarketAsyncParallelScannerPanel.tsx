@@ -688,9 +688,9 @@ export const KoreaStockMarketAsyncParallelScannerPanel: React.FC<
             <span>실시간 AI 비동기 체결 로그</span>
           </div>
           <div className="space-y-1 max-h-20 overflow-y-auto">
-            {executionLog.map((log) => (
+            {executionLog.map((log, idx) => (
               <div
-                key={log.id}
+                key={`${log.id}_${idx}`}
                 className={`text-[11px] leading-tight flex items-center justify-between ${
                   log.type === "BUY" ? "text-emerald-300" : "text-cyan-300"
                 }`}

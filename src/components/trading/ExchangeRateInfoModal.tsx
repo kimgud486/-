@@ -334,7 +334,7 @@ export const ExchangeRateInfoModal: React.FC<ExchangeRateInfoModalProps> = ({
               </div>
 
               <div className="space-y-1.5 max-h-40 overflow-y-auto">
-                {usPositions.map((pos) => {
+                {usPositions.map((pos, idx) => {
                   const curP = pos.currentPrice || pos.avgPrice;
                   const itemUsdCost = pos.quantity * pos.avgPrice;
                   const itemUsdEval = pos.quantity * curP;
@@ -344,7 +344,7 @@ export const ExchangeRateInfoModal: React.FC<ExchangeRateInfoModalProps> = ({
 
                   return (
                     <div
-                      key={pos.id || pos.symbol}
+                      key={`${pos.id || pos.symbol}_${idx}`}
                       className="p-2.5 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700 flex items-center justify-between text-xs font-mono"
                     >
                       <div>

@@ -68,7 +68,7 @@ interface MarketCloseAIPredictionPanelProps {
 const PRESET_WATCH_STOCKS = [
   { symbol: "021050", name: "서원", cap: "소형주", type: "구리/원자재/초전도" },
   { symbol: "004830", name: "덕성", cap: "소형주", type: "초전도체/신소재" },
-  { symbol: "450880", name: "우진엔텍", cap: "소형주", type: "원전 계측/정비" },
+  { symbol: "457550", name: "우진엔텍", cap: "소형주", type: "원전 계측/정비" },
   { symbol: "080220", name: "제주반도체", cap: "중형주", type: "온디바이스 AI" },
   { symbol: "399720", name: "가온칩스", cap: "중형주", type: "디자인하우스/반도체" },
   { symbol: "454910", name: "두산로보틱스", cap: "중형주", type: "협동로봇" },

@@ -135,12 +135,12 @@ export const ExpectedProfitabilityPanel: React.FC<ExpectedProfitabilityPanelProp
   const { isPulsing, pulseClass, pulseGlowClass } = usePricePulse(activeStock.symbol);
 
   // Determine pricing defaults
-  const price = currentTick?.price || activeStock.price || 281500;
-  const changePct = currentTick?.changePct ?? activeStock.changePercent ?? 0;
-  const isConnected = streamStatus?.isConnected ?? true;
   const isUS = activeStock.market === "US" || (/^[A-Z]{1,5}$/.test(activeStock.symbol) && activeStock.symbol !== "BTC" && activeStock.symbol !== "ETH");
   const isCrypto = activeStock.market === "BTC" || activeStock.market === "UPBIT" || activeStock.symbol.startsWith("KRW-") || initialIsCrypto;
   const currencyUnit = isUS ? "$" : (isCrypto ? "KRW" : "원");
+  const price = currentTick?.price || activeStock.price || (isUS ? 150 : isCrypto ? 95000000 : 50000);
+  const changePct = currentTick?.changePct ?? activeStock.changePercent ?? 0;
+  const isConnected = streamStatus?.isConnected ?? true;
 
   // AI Levels based on live price
   const entryPrice = customEntry || price;

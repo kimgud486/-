@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Maximize2, RefreshCw, ZoomIn, ZoomOut, Sliders, ChevronDown, Sparkles, Layers } from "lucide-react";
+import { Maximize2, RefreshCw, ZoomIn, ZoomOut, Sliders, ChevronDown, Sparkles, Layers, Target, ShieldAlert, ArrowUpRight, CheckCircle2, TrendingUp, ShieldCheck } from "lucide-react";
 import { StockItem } from "../../data/stockUniverse";
 import { CandlestickPatternOverlayVisualizer } from "./CandlestickPatternOverlayVisualizer";
 
@@ -53,7 +53,8 @@ export const LightCandlestickChart: React.FC<LightCandlestickChartProps> = ({
     OB: true,
     VWAP: true,
     VP: true,
-    SR: true
+    SR: true,
+    EXIT_3STEP: true
   });
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -329,6 +330,74 @@ export const LightCandlestickChart: React.FC<LightCandlestickChartProps> = ({
       ctx.fillText("Bull Flag", chartW * 0.82, bosY - 14);
     }
 
+    // 🎯 Draw 3-Step Exit Strategy Markers (TP1 40%, TP2 30%, TP3 30%, SL)
+    if (toggles.EXIT_3STEP) {
+      const baseEntry = safeStock.price || livePrice;
+      const tp1Price = Math.round(baseEntry * 1.035);
+      const tp2Price = Math.round(baseEntry * 1.070);
+      const tp3Price = Math.round(baseEntry * 1.120);
+      const slPrice = Math.round(baseEntry * 0.975);
+
+      const tp1Y = toY(tp1Price);
+      const tp2Y = toY(tp2Price);
+      const tp3Y = toY(tp3Price);
+      const slY = toY(slPrice);
+
+      // TP3 Line (+12.0%, 30% Moonshot Runner)
+      ctx.strokeStyle = "rgba(168, 85, 247, 0.85)"; // Purple
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([4, 2]);
+      ctx.beginPath();
+      ctx.moveTo(margin.left, tp3Y);
+      ctx.lineTo(w - margin.right, tp3Y);
+      ctx.stroke();
+
+      ctx.fillStyle = "#A855F7";
+      ctx.font = "bold 9px 'JetBrains Mono', sans-serif";
+      ctx.fillText(`🚀 TP3 (+12.0% | 30% 잔량) ₩${tp3Price.toLocaleString()}`, margin.left + 8, tp3Y - 3);
+
+      // TP2 Line (+7.0%, 30% Trailing Stop)
+      ctx.strokeStyle = "rgba(14, 165, 233, 0.85)"; // Sky Blue
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([4, 2]);
+      ctx.beginPath();
+      ctx.moveTo(margin.left, tp2Y);
+      ctx.lineTo(w - margin.right, tp2Y);
+      ctx.stroke();
+
+      ctx.fillStyle = "#0284C7";
+      ctx.font = "bold 9px 'JetBrains Mono', sans-serif";
+      ctx.fillText(`🎯 TP2 (+7.0% | 30% 트레일링) ₩${tp2Price.toLocaleString()}`, margin.left + 8, tp2Y - 3);
+
+      // TP1 Line (+3.5%, 40% Breakeven Lock)
+      ctx.strokeStyle = "rgba(16, 185, 129, 0.85)"; // Emerald
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([4, 2]);
+      ctx.beginPath();
+      ctx.moveTo(margin.left, tp1Y);
+      ctx.lineTo(w - margin.right, tp1Y);
+      ctx.stroke();
+
+      ctx.fillStyle = "#059669";
+      ctx.font = "bold 9px 'JetBrains Mono', sans-serif";
+      ctx.fillText(`🎯 TP1 (+3.5% | 40% 본절가스탑) ₩${tp1Price.toLocaleString()}`, margin.left + 8, tp1Y - 3);
+
+      // Stop Loss Line (-2.5%)
+      ctx.strokeStyle = "rgba(239, 68, 68, 0.75)"; // Red
+      ctx.lineWidth = 1.2;
+      ctx.setLineDash([3, 3]);
+      ctx.beginPath();
+      ctx.moveTo(margin.left, slY);
+      ctx.lineTo(w - margin.right, slY);
+      ctx.stroke();
+
+      ctx.fillStyle = "#DC2626";
+      ctx.font = "bold 9px 'JetBrains Mono', sans-serif";
+      ctx.fillText(`🛑 SL (-2.5% 손절선) ₩${slPrice.toLocaleString()}`, margin.left + 8, slY - 3);
+
+      ctx.setLineDash([]);
+    }
+
     const candleW = Math.max(3, (chartW / count) * 0.65);
     const spacing = chartW / count;
 
@@ -578,14 +647,139 @@ export const LightCandlestickChart: React.FC<LightCandlestickChartProps> = ({
 
         {/* Real-time Trailing Stop & Risk-Reward Badge */}
         <div className="flex items-center gap-2 font-mono">
+          <button
+            onClick={() => toggleBadge("EXIT_3STEP")}
+            className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-black border transition cursor-pointer ${
+              toggles.EXIT_3STEP
+                ? "bg-purple-50 text-purple-700 border-purple-300 shadow-2xs"
+                : "bg-slate-50 text-slate-400 border-slate-200"
+            }`}
+          >
+            <Target className="w-3 h-3" />
+            <span>3단계 분할 익절 마커 (TP1/2/3) {toggles.EXIT_3STEP ? "ON" : "OFF"}</span>
+          </button>
           <span className="px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-700 border border-indigo-200 text-[10px] font-black">
             🎯 R:R 1:2.4 확증
           </span>
           <span className="px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-black">
-            🛡️ Auto Breakeven 발동 대기 (+1.2%)
+            🛡️ Auto Breakeven 대기
           </span>
         </div>
       </div>
+
+      {/* 🎯 3-Step Exit Strategy Live Progress Monitor */}
+      {toggles.EXIT_3STEP && (
+        <div className="mt-3 p-3.5 bg-slate-900 text-white rounded-xl border border-slate-800 shadow-md">
+          <div className="flex items-center justify-between mb-2.5 pb-2 border-b border-slate-800">
+            <div className="flex items-center gap-2">
+              <span className="p-1 rounded-md bg-purple-500/20 text-purple-400">
+                <Target className="w-4 h-4" />
+              </span>
+              <div>
+                <div className="text-xs font-mono font-black text-slate-100 flex items-center gap-2">
+                  <span>AI 3단계 분할 익절 & 트레일링 스탑 실시간 추적</span>
+                  <span className="px-1.5 py-0.2 text-[9px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded font-mono font-bold">
+                    자동 분할 매도 가동
+                  </span>
+                </div>
+                <div className="text-[10px] text-slate-400">
+                  진입가: ₩{(safeStock.price || livePrice).toLocaleString()} | 손절가: ₩{Math.round((safeStock.price || livePrice) * 0.975).toLocaleString()} (-2.5%)
+                </div>
+              </div>
+            </div>
+
+            <div className="text-right font-mono">
+              <span className="text-[10px] text-slate-400">현재 가격 위치: </span>
+              <span className="text-xs font-bold text-emerald-400">
+                ₩{livePrice.toLocaleString()} ({safeStock.changeRate >= 0 ? "+" : ""}{safeStock.changeRate}%)
+              </span>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs font-mono">
+            {/* Step 1 Card */}
+            <div className={`p-2.5 rounded-lg border transition ${
+              livePrice >= Math.round((safeStock.price || livePrice) * 1.035)
+                ? "bg-emerald-950/40 border-emerald-500/50 text-emerald-300"
+                : "bg-slate-800/60 border-slate-700/60 text-slate-300"
+            }`}>
+              <div className="flex items-center justify-between font-bold mb-1">
+                <span className="flex items-center gap-1">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>1차 익절 (TP1)</span>
+                </span>
+                <span className="text-emerald-400 font-black">+3.5% (40% 매도)</span>
+              </div>
+              <div className="text-sm font-black text-slate-100">
+                ₩{Math.round((safeStock.price || livePrice) * 1.035).toLocaleString()}
+              </div>
+              <div className="text-[10px] text-slate-400 mt-1 leading-tight">
+                체결 즉시 스탑로스를 본절가(Breakeven)로 상향하여 원금 보호
+              </div>
+              <div className="w-full bg-slate-700/50 h-1.5 rounded-full mt-2 overflow-hidden">
+                <div 
+                  className="bg-emerald-400 h-full rounded-full transition-all duration-500" 
+                  style={{ width: `${Math.min(100, Math.max(0, ((livePrice / (safeStock.price || livePrice) - 1) / 0.035) * 100))}%` }}
+                />
+              </div>
+            </div>
+
+            {/* Step 2 Card */}
+            <div className={`p-2.5 rounded-lg border transition ${
+              livePrice >= Math.round((safeStock.price || livePrice) * 1.070)
+                ? "bg-sky-950/40 border-sky-500/50 text-sky-300"
+                : "bg-slate-800/60 border-slate-700/60 text-slate-300"
+            }`}>
+              <div className="flex items-center justify-between font-bold mb-1">
+                <span className="flex items-center gap-1">
+                  <TrendingUp className="w-3.5 h-3.5 text-sky-400" />
+                  <span>2차 익절 (TP2)</span>
+                </span>
+                <span className="text-sky-400 font-black">+7.0% (30% 매도)</span>
+              </div>
+              <div className="text-sm font-black text-slate-100">
+                ₩{Math.round((safeStock.price || livePrice) * 1.070).toLocaleString()}
+              </div>
+              <div className="text-[10px] text-slate-400 mt-1 leading-tight">
+                1차 목표가를 새로운 지지선(Trailing Stop)으로 잠금
+              </div>
+              <div className="w-full bg-slate-700/50 h-1.5 rounded-full mt-2 overflow-hidden">
+                <div 
+                  className="bg-sky-400 h-full rounded-full transition-all duration-500" 
+                  style={{ width: `${Math.min(100, Math.max(0, ((livePrice / (safeStock.price || livePrice) - 1) / 0.070) * 100))}%` }}
+                />
+              </div>
+            </div>
+
+            {/* Step 3 Card */}
+            <div className={`p-2.5 rounded-lg border transition ${
+              livePrice >= Math.round((safeStock.price || livePrice) * 1.120)
+                ? "bg-purple-950/40 border-purple-500/50 text-purple-300"
+                : "bg-slate-800/60 border-slate-700/60 text-slate-300"
+            }`}>
+              <div className="flex items-center justify-between font-bold mb-1">
+                <span className="flex items-center gap-1">
+                  <ArrowUpRight className="w-3.5 h-3.5 text-purple-400" />
+                  <span>3차 문샷 (TP3)</span>
+                </span>
+                <span className="text-purple-400 font-black">+12.0% (30% 잔량)</span>
+              </div>
+              <div className="text-sm font-black text-slate-100">
+                ₩{Math.round((safeStock.price || livePrice) * 1.120).toLocaleString()}
+              </div>
+              <div className="text-[10px] text-slate-400 mt-1 leading-tight">
+                슈퍼트렌드 상단까지 잔량 30% 홀딩 극대화
+              </div>
+              <div className="w-full bg-slate-700/50 h-1.5 rounded-full mt-2 overflow-hidden">
+                <div 
+                  className="bg-purple-400 h-full rounded-full transition-all duration-500" 
+                  style={{ width: `${Math.min(100, Math.max(0, ((livePrice / (safeStock.price || livePrice) - 1) / 0.120) * 100))}%` }}
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* AI Candlestick Pattern Overlay & Net Profit Fee Guard Visualizer */}
       <div className="mt-4">

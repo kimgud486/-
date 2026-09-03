@@ -12,6 +12,23 @@ import {
   Clock
 } from "lucide-react";
 
+const renderSafeString = (val: any): string => {
+  if (val === null || val === undefined) return "";
+  if (typeof val === "string") return val;
+  if (typeof val === "number" || typeof val === "boolean") return String(val);
+  if (typeof val === "object") {
+    if (val.message && typeof val.message === "string") return val.message;
+    if (val.name && typeof val.name === "string") return val.name;
+    if (val.symbol && typeof val.symbol === "string") return val.symbol;
+    try {
+      return JSON.stringify(val);
+    } catch {
+      return String(val);
+    }
+  }
+  return String(val);
+};
+
 export const ToastContainer: React.FC = () => {
   const { toasts, removeToast, clearAllToasts, isToastMuted, toggleToastMute } = useApp() as any;
 
@@ -114,7 +131,7 @@ export const ToastContainer: React.FC = () => {
                 {iconComponent}
                 <div className="space-y-1 min-w-0">
                   <div className="flex items-center gap-1.5 flex-wrap">
-                    <h4 className="text-[12px] font-black tracking-tight text-white">{toast.title}</h4>
+                    <h4 className="text-[12px] font-black tracking-tight text-white">{renderSafeString(toast.title)}</h4>
                     
                     {/* Explicit Status Badges */}
                     {isApiKeyError && (
@@ -135,12 +152,12 @@ export const ToastContainer: React.FC = () => {
 
                     <span className="text-[9px] text-zinc-400 font-mono flex items-center gap-0.5 ml-auto">
                       <Clock className="h-2.5 w-2.5" />
-                      {toast.timestamp}
+                      {renderSafeString(toast.timestamp)}
                     </span>
                   </div>
 
                   <p className="text-[11px] text-zinc-200 font-sans leading-relaxed break-words">
-                    {toast.message}
+                    {renderSafeString(toast.message)}
                   </p>
                 </div>
               </div>
@@ -165,8 +182,8 @@ export const ToastContainer: React.FC = () => {
                   }`}>
                     {toast.orderInfo.side === "BUY" ? "매수" : "매도"}
                   </span>
-                  <span className="font-bold text-white truncate max-w-[100px]">{toast.orderInfo.name}</span>
-                  <span className="text-zinc-400">({toast.orderInfo.symbol})</span>
+                  <span className="font-bold text-white truncate max-w-[100px]">{renderSafeString(toast.orderInfo.name)}</span>
+                  <span className="text-zinc-400">({renderSafeString(toast.orderInfo.symbol)})</span>
                 </div>
 
                 <div className="flex items-center gap-1.5 text-zinc-200 shrink-0">

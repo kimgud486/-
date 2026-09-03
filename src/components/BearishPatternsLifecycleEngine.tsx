@@ -35,6 +35,8 @@ import {
   EngineAnalysisOutput
 } from "../lib/bearishMasterEngine";
 import { realtimeMarketFeedService } from "../services/realtimeMarketFeedService";
+import { UnifiedMasterDecisionEngine } from "../services/unifiedMasterDecisionEngine";
+import { useApp } from "../context/AppContext";
 
 export interface StockItemOption {
   symbol: string;
@@ -45,7 +47,7 @@ export interface StockItemOption {
 }
 
 export const SAMPLE_STOCKS: StockItemOption[] = [
-  { symbol: "450880", name: "우진엔텍", price: 28800, changeRate: -3.8, market: "KOREA" },
+  { symbol: "457550", name: "우진엔텍", price: 28800, changeRate: -3.8, market: "KOREA" },
   { symbol: "005930", name: "삼성전자", price: 78500, changeRate: -1.2, market: "KOREA" },
   { symbol: "000660", name: "SK하이닉스", price: 192500, changeRate: -4.5, market: "KOREA" },
   { symbol: "028300", name: "HLB", price: 84200, changeRate: -6.1, market: "KOREA" },
@@ -56,11 +58,52 @@ export const SAMPLE_STOCKS: StockItemOption[] = [
 ];
 
 export const BearishPatternsLifecycleEngine: React.FC = () => {
+  const { selectedSymbol } = useApp();
   const [selectedStock, setSelectedStock] = useState<StockItemOption>(SAMPLE_STOCKS[0]);
   const [categoryFilter, setCategoryFilter] = useState<string>("ALL");
   const [selectedPatternCode, setSelectedPatternCode] = useState<string>("BEARISH_ENGULFING");
   const [customSearch, setCustomSearch] = useState<string>("");
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
+
+  // Sync with AppContext selectedSymbol
+  useEffect(() => {
+    if (selectedSymbol && selectedSymbol !== selectedStock.symbol) {
+      const found = SAMPLE_STOCKS.find(s => s.symbol === selectedSymbol || s.symbol.replace("BTC-", "") === selectedSymbol);
+      if (found) {
+        setSelectedStock(found);
+      } else {
+        setSelectedStock({
+          symbol: selectedSymbol,
+          name: selectedSymbol,
+          price: 50000,
+          changeRate: -1.5,
+          market: selectedSymbol.startsWith("KRW-") || selectedSymbol === "BTC" ? "CRYPTO" : (/^[A-Za-z]+$/.test(selectedSymbol) ? "US" : "KOREA")
+        });
+      }
+    }
+  }, [selectedSymbol]);
+
+  useEffect(() => {
+    const handleStockSelected = (e: CustomEvent) => {
+      if (e.detail?.symbol) {
+        const sym = e.detail.symbol;
+        const found = SAMPLE_STOCKS.find(s => s.symbol === sym || s.symbol.replace("BTC-", "") === sym);
+        if (found) {
+          setSelectedStock(found);
+        } else {
+          setSelectedStock({
+            symbol: sym,
+            name: e.detail.name || sym,
+            price: e.detail.price || 50000,
+            changeRate: e.detail.changeRate || -1.5,
+            market: sym.startsWith("KRW-") || sym === "BTC" ? "CRYPTO" : (/^[A-Za-z]+$/.test(sym) ? "US" : "KOREA")
+          });
+        }
+      }
+    };
+    window.addEventListener("stock-selected" as any, handleStockSelected);
+    return () => window.removeEventListener("stock-selected" as any, handleStockSelected);
+  }, []);
 
   useEffect(() => {
     const unsub = realtimeMarketFeedService.subscribe((quotesMap) => {
@@ -86,6 +129,17 @@ export const BearishPatternsLifecycleEngine: React.FC = () => {
       selectedStock.name,
       selectedStock.price,
       selectedStock.changeRate
+    );
+  }, [selectedStock]);
+
+  // Compute Single Unified Master Consensus (단 하나의 통합 AI 마스터 브레인과 100% 동기화)
+  const unifiedDecision = useMemo(() => {
+    return UnifiedMasterDecisionEngine.analyze(
+      selectedStock.symbol,
+      selectedStock.name,
+      selectedStock.price,
+      selectedStock.changeRate,
+      selectedStock.market === "CRYPTO" ? "BTC" : selectedStock.market
     );
   }, [selectedStock]);
 
@@ -169,6 +223,29 @@ export const BearishPatternsLifecycleEngine: React.FC = () => {
             <span>실시간 재스캔</span>
           </button>
         </div>
+      </div>
+
+      {/* 👑 SINGLE UNIFIED MASTER AI CONSENSUS BANNER (단일 통합 마스터 브레인 최종 판정) */}
+      <div className="p-4 rounded-2xl bg-gradient-to-r from-cyan-950/40 via-slate-900 to-slate-950 border border-cyan-500/40 space-y-2 shadow-lg">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <Sparkles className="w-4 h-4 text-cyan-400" />
+            <span className="text-xs font-black text-cyan-300">
+              👑 단일 통합 AI 마스터 브레인 최종 합의 판정
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className={`text-xs font-black px-2.5 py-0.5 rounded-lg bg-slate-800 ${unifiedDecision.verdictColor}`}>
+              {unifiedDecision.verdictKorean}
+            </span>
+            <span className="text-[11px] font-mono text-cyan-300 font-bold">
+              통합 점수: {unifiedDecision.masterScore}점
+            </span>
+          </div>
+        </div>
+        <p className="text-xs text-slate-300 leading-relaxed bg-slate-950/60 p-2.5 rounded-xl border border-slate-800/80">
+          {unifiedDecision.unifiedSummary}
+        </p>
       </div>
 
       {/* DUAL AI BATTLE: BULL SCORE VS BEAR SCORE */}

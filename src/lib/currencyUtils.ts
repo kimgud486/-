@@ -40,13 +40,16 @@ export function krwToUsd(krwAmount: number, rate: number = currentLiveExchangeRa
   return Number((krwAmount / rate).toFixed(2));
 }
 
+import { safeSymbolStr } from "./stockDictionary";
+
 /**
  * Check if a symbol or market represents a US Stock
  */
-export function isUsMarketStock(market?: string, symbol?: string): boolean {
+export function isUsMarketStock(market?: string, symbol?: any): boolean {
   if (market === "US") return true;
   if (!symbol) return false;
-  const clean = symbol.trim().toUpperCase().replace(/^KRW-/, "");
+  const clean = safeSymbolStr(symbol).toUpperCase().replace(/^KRW-/, "");
+  if (!clean) return false;
   // Crypto or Korean 6-digit codes
   if (/^\d{6}$/.test(clean)) return false;
   if (["BTC", "ETH", "XRP", "SOL", "DOGE", "ADA", "AVAX", "DOT", "LINK", "MATIC", "SHIB", "SEI", "SUI", "XLM"].includes(clean)) return false;

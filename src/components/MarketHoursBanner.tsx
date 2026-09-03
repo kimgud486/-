@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from "react";
 import { getMarketStatus, getExecutionPhase, MarketStatus, ExecutionPhaseInfo } from "../lib/marketHours";
-import { Clock, ShieldAlert, Zap, Lock, Unlock, RotateCcw, ShieldCheck, Sliders } from "lucide-react";
+import { Clock, ShieldAlert, Zap, Lock, Unlock, RotateCcw, ShieldCheck, Sliders, Globe, Cpu, Sparkles } from "lucide-react";
 import { useApp } from "../context/AppContext";
 import { SmartSafetyGovernanceModal } from "./trading/SmartSafetyGovernanceModal";
+import { UsScalperSuperBrainModal } from "./trading/UsScalperSuperBrainModal";
 
 export const MarketHoursBanner: React.FC = () => {
   const { 
@@ -11,14 +12,17 @@ export const MarketHoursBanner: React.FC = () => {
     isKillSwitchActive, 
     killSwitchMode,
     resetKillSwitch,
-    blockedSymbolDetails
-  } = useApp();
+    blockedSymbolDetails,
+    selectedSymbol,
+    executeTrade
+  } = useApp() as any;
   const [koreaStatus, setKoreaStatus] = useState<MarketStatus>(() => getMarketStatus('KOREA'));
   const [usStatus, setUsStatus] = useState<MarketStatus>(() => getMarketStatus('US'));
   const [btcStatus, setBtcStatus] = useState<MarketStatus>(() => getMarketStatus('BTC'));
   const [koreaPhase, setKoreaPhase] = useState<ExecutionPhaseInfo>(() => getExecutionPhase('KOREA'));
   const [nowString, setNowString] = useState<string>("");
   const [isGovernanceOpen, setIsGovernanceOpen] = useState(false);
+  const [isUsBrainOpen, setIsUsBrainOpen] = useState(false);
 
   useEffect(() => {
     const update = () => {
@@ -59,31 +63,40 @@ export const MarketHoursBanner: React.FC = () => {
           </div>
           <div>
             <h3 className="text-xs font-black text-white flex items-center gap-2">
-              <span>글로벌 자산 시장 개장/휴장 실시간 통제 센터</span>
+              <span>국내/해외 장시간 자동전환 듀얼 뇌엔진 통제 센터</span>
               <span className="text-[10px] bg-indigo-500/30 text-indigo-300 font-mono font-bold px-2 py-0.5 rounded border border-indigo-500/40">
-                LIVE MARKET HOURS
+                DUAL BRAIN ENGINE v5.0
               </span>
             </h3>
             <p className="text-[11px] text-zinc-400 font-medium">
-              국내주식, 미국주식, 가상자산 정규장 개장 여부를 실시간 감시하여 장마감 시간 자동 매매 오발주를 차단합니다.
+              국내장(09:00~15:30)에는 <strong>🇰🇷 국내 수급·오더플로우 엔진</strong>이 작동하며, 미국장(22:30~05:00) 개장 시 <strong>🇺🇸 US SCALPER SUPER BRAIN 20-Agent</strong>로 자동 전환됩니다.
             </p>
           </div>
         </div>
 
         <div className="flex items-center gap-2">
+          {/* US Scalper Super Brain Direct Access Button */}
+          <button
+            onClick={() => setIsUsBrainOpen(true)}
+            className="px-2.5 py-1 rounded-lg bg-indigo-600/90 hover:bg-indigo-500 text-white border border-indigo-400 text-xs font-black transition flex items-center gap-1.5 cursor-pointer shadow-sm animate-pulse"
+          >
+            <Cpu className="w-3.5 h-3.5 text-cyan-300" />
+            <span>🧠 미국주식 20-Agent 뇌엔진 열기</span>
+          </button>
+
           <button
             onClick={() => setIsGovernanceOpen(true)}
             className={`px-2.5 py-1 rounded-lg border text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-sm ${
               isKillSwitchActive
                 ? "bg-rose-600/90 hover:bg-rose-500 text-white border-rose-400 animate-pulse"
-                : blockedSymbolDetails.length > 0
+                : blockedSymbolDetails?.length > 0
                 ? "bg-amber-600/80 hover:bg-amber-500 text-white border-amber-400"
                 : "bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border-zinc-700"
             }`}
           >
             <ShieldAlert className="w-3.5 h-3.5 text-amber-300" />
             <span>AI 안전 거버넌스</span>
-            {blockedSymbolDetails.length > 0 && (
+            {blockedSymbolDetails?.length > 0 && (
               <span className="px-1.5 py-0.2 bg-amber-400/30 text-amber-200 rounded-full text-[10px] font-mono font-bold">
                 {blockedSymbolDetails.length}
               </span>
@@ -126,16 +139,14 @@ export const MarketHoursBanner: React.FC = () => {
             <div className="flex items-center justify-between bg-zinc-900/80 px-2 py-1 rounded border border-zinc-800 text-[10px]">
               <span className="text-zinc-400 flex items-center gap-1 font-mono">
                 <Zap className="w-3 h-3 text-amber-400" />
-                매매 구간:
+                국내 활성 엔진:
               </span>
               <span className={`font-bold font-mono px-1.5 py-0.2 rounded ${
-                koreaPhase.phase === 'COOLING_SCAN' ? 'bg-amber-500/30 text-amber-300 border border-amber-500/40' :
-                koreaPhase.phase === 'PATTERN_CHECK' ? 'bg-indigo-500/30 text-indigo-300 border border-indigo-500/40' :
-                koreaPhase.phase === 'REGULAR_TREND' ? 'bg-emerald-500/30 text-emerald-300 border border-emerald-500/40' :
-                koreaPhase.phase === 'CLOSING_SELECTION' ? 'bg-purple-500/30 text-purple-300 border border-purple-500/40' :
-                'bg-rose-500/30 text-rose-300 border border-rose-500/40'
+                koreaStatus.isOpen 
+                  ? 'bg-emerald-500/30 text-emerald-300 border border-emerald-500/40'
+                  : 'bg-zinc-700 text-zinc-300'
               }`}>
-                {koreaPhase.phaseName}
+                {koreaStatus.isOpen ? '🇰🇷 국내 6단계 퀀트 파이프라인 가동' : '장마감 대기'}
               </span>
             </div>
 
@@ -211,16 +222,35 @@ export const MarketHoursBanner: React.FC = () => {
               <span className="text-sm">🇺🇸</span>
               <span className="font-bold text-xs text-white">미국주식 (NYSE/NASDAQ)</span>
             </div>
-            <span className={`text-[10px] font-bold px-2 py-0.5 rounded font-mono ${
-              usStatus.isOpen 
-                ? "bg-blue-500/30 text-blue-300 border border-blue-500/50 animate-pulse" 
-                : "bg-rose-500/20 text-rose-300 border border-rose-500/30"
-            }`}>
-              {usStatus.statusBadgeText}
-            </span>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => setIsUsBrainOpen(true)}
+                className="text-[9px] px-1.5 py-0.5 rounded bg-indigo-500/30 text-indigo-300 hover:bg-indigo-500 hover:text-white font-bold transition flex items-center gap-0.5 cursor-pointer"
+              >
+                <Sparkles className="w-2.5 h-2.5" />
+                <span>20-Agent AI 분석</span>
+              </button>
+              <span className={`text-[10px] font-bold px-2 py-0.5 rounded font-mono ${
+                usStatus.isOpen 
+                  ? "bg-blue-500/30 text-blue-300 border border-blue-500/50 animate-pulse" 
+                  : "bg-rose-500/20 text-rose-300 border border-rose-500/30"
+              }`}>
+                {usStatus.statusBadgeText}
+              </span>
+            </div>
           </div>
 
           <div className="space-y-1 text-[11px]">
+            <div className="flex items-center justify-between bg-zinc-900/80 px-2 py-1 rounded border border-zinc-800 text-[10px]">
+              <span className="text-zinc-400 flex items-center gap-1 font-mono">
+                <Cpu className="w-3 h-3 text-indigo-400" />
+                해외 뇌엔진:
+              </span>
+              <span className="font-bold font-mono text-cyan-300">
+                US SCALPER BRAIN v5.0
+              </span>
+            </div>
+
             <div className="flex justify-between text-zinc-400 font-mono text-[10px]">
               <span>운영시간</span>
               <span className="text-zinc-200 font-bold">{usStatus.operatingHoursText}</span>
@@ -264,6 +294,13 @@ export const MarketHoursBanner: React.FC = () => {
       <SmartSafetyGovernanceModal
         isOpen={isGovernanceOpen}
         onClose={() => setIsGovernanceOpen(false)}
+      />
+
+      <UsScalperSuperBrainModal
+        isOpen={isUsBrainOpen}
+        onClose={() => setIsUsBrainOpen(false)}
+        stock={{ symbol: selectedSymbol || "NVDA", name: selectedSymbol || "엔비디아", market: "US" }}
+        onExecuteTrade={executeTrade}
       />
     </div>
   );

@@ -22,9 +22,11 @@ export interface MarketStatus {
 /**
  * Returns detailed market classification and real-time open/closed status for any stock symbol and market code.
  */
-export function getMarketStatus(symbol: string, marketInput?: string): MarketStatus {
-  const sym = (symbol || "").toUpperCase().trim();
-  const mInput = (marketInput || "").toUpperCase().trim();
+import { safeSymbolStr } from "./stockDictionary";
+
+export function getMarketStatus(symbol: any, marketInput?: any): MarketStatus {
+  const sym = safeSymbolStr(symbol).toUpperCase();
+  const mInput = safeSymbolStr(marketInput).toUpperCase();
 
   let marketType: MarketCategory = "KOREA";
 

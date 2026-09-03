@@ -214,7 +214,7 @@ export const AiDecisionLogsSidebar: React.FC = () => {
             </div>
           ) : (
             <div className="relative pl-6 space-y-6 before:absolute before:left-2.5 before:top-3 before:bottom-3 before:w-0.5 before:bg-gradient-to-b before:from-emerald-500 before:via-indigo-500 before:to-zinc-800">
-              {filteredLogs.map((log) => {
+              {filteredLogs.map((log, idx) => {
                 const isExpanded = expandedLogId === log.id;
                 const isBuy = log.action === "BUY_SIGNAL";
                 const isSell = log.action === "SELL_SIGNAL";
@@ -228,7 +228,7 @@ export const AiDecisionLogsSidebar: React.FC = () => {
                 const isLong = positionDir === "LONG";
 
                 return (
-                  <div key={log.id} className="relative group">
+                  <div key={`${log.id}_${idx}`} className="relative group">
                     {/* Timeline Node Dot */}
                     <div className={`absolute -left-[23px] top-1.5 w-4 h-4 rounded-full border-2 flex items-center justify-center transition ${
                       isBuy ? "bg-emerald-950 border-emerald-400 text-emerald-400" :

@@ -10,12 +10,14 @@ import { MarketInsightChart } from "./MarketInsightChart";
 import { searchStocksFromIndex, COMPREHENSIVE_STOCK_INDEX, matchesChosungOrKeyword } from "../lib/stockDictionary";
 import { getCapCategoryInfo } from "./GlobalStockSearchAndAdd";
 import { getMarketStatus } from "../lib/marketStatus";
+import { useApp } from "../context/AppContext";
 
 interface FloatingSearchBarProps {
   variant?: "navbar" | "hero";
 }
 
 export const FloatingSearchBar: React.FC<FloatingSearchBarProps> = ({ variant = "navbar" }) => {
+  const { setSelectedSymbol } = useApp();
   const [query, setQuery] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isThemeModalOpen, setIsThemeModalOpen] = useState(false);
@@ -189,6 +191,13 @@ export const FloatingSearchBar: React.FC<FloatingSearchBarProps> = ({ variant = 
 
   const handleOpenTickerModal = (symbolToOpen: string) => {
     setActiveSearchSymbol(symbolToOpen);
+    if (setSelectedSymbol) {
+      setSelectedSymbol(symbolToOpen);
+    }
+    // Dispatch global event for all synchronous AI engine panels
+    try {
+      window.dispatchEvent(new CustomEvent("stock-selected", { detail: { symbol: symbolToOpen } }));
+    } catch (e) {}
     setIsModalOpen(true);
     setIsFocused(false);
   };

@@ -32,9 +32,10 @@ export const StockSearchAndAddModal: React.FC<StockSearchAndAddModalProps> = ({
   const [activeCategory, setActiveCategory] = useState<"ALL" | "LARGE" | "MID" | "SMALL">("ALL");
   const [isRegisterOpen, setIsRegisterOpen] = useState(false);
 
-  // Checkboxes for Markets (Explicit checkboxes: 국내, 미국)
+  // Checkboxes for Markets (Explicit checkboxes: 국내, 미국, 업비트)
   const [showKorea, setShowKorea] = useState(true);
   const [showUS, setShowUS] = useState(true);
+  const [showUpbit, setShowUpbit] = useState(true);
 
   // Live real-time market quotes stream
   const [liveQuotes, setLiveQuotes] = useState<Map<string, LiveMarketQuote>>(new Map());
@@ -42,8 +43,8 @@ export const StockSearchAndAddModal: React.FC<StockSearchAndAddModalProps> = ({
   // Custom Register Form State
   const [regName, setRegName] = useState("");
   const [regSymbol, setRegSymbol] = useState("");
-  const [regMarket, setRegMarket] = useState<"KOSPI" | "KOSDAQ" | "US">("KOSDAQ");
-  const [regCategory, setRegCategory] = useState<"SMALL" | "MID" | "LARGE">("SMALL");
+  const [regMarket, setRegMarket] = useState<"KOSPI" | "KOSDAQ" | "US" | "UPBIT">("KOSDAQ");
+  const [regCategory, setRegCategory] = useState<"SMALL" | "MID" | "LARGE" | "CRYPTO">("SMALL");
   const [regPrice, setRegPrice] = useState<string>("12500");
   const [regTheme, setRegTheme] = useState("AI 로봇/반도체 테마주");
 
@@ -61,13 +62,14 @@ export const StockSearchAndAddModal: React.FC<StockSearchAndAddModalProps> = ({
 
   // Apply market checkboxes and category/search filters
   const filteredStocks = allStocks.filter((s) => {
-    if (s.market === "UPBIT" || s.category === "CRYPTO") return false;
     const isKorea = s.market === "KOSPI" || s.market === "KOSDAQ";
     const isUS = s.market === "US";
+    const isUpbit = s.market === "UPBIT" || s.category === "CRYPTO";
 
     let marketMatch = false;
     if (isKorea && showKorea) marketMatch = true;
     if (isUS && showUS) marketMatch = true;
+    if (isUpbit && showUpbit) marketMatch = true;
 
     if (!marketMatch) return false;
 
@@ -207,6 +209,17 @@ export const StockSearchAndAddModal: React.FC<StockSearchAndAddModalProps> = ({
               />
               <span className="text-slate-800 font-bold">🇺🇸 미국</span>
             </label>
+
+            {/* Checkbox 3: 업비트 */}
+            <label className="flex items-center gap-1 cursor-pointer bg-white px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-md sm:rounded-lg border border-slate-300 hover:border-amber-500 transition select-none text-[11px] sm:text-xs">
+              <input
+                type="checkbox"
+                checked={showUpbit}
+                onChange={(e) => setShowUpbit(e.target.checked)}
+                className="w-3.5 h-3.5 text-amber-600 rounded focus:ring-amber-500 cursor-pointer"
+              />
+              <span className="text-slate-800 font-bold">⚡ 업비트</span>
+            </label>
           </div>
 
           <div className="text-slate-500 text-[10px] sm:text-xs font-mono font-bold shrink-0 ml-auto">
@@ -266,6 +279,7 @@ export const StockSearchAndAddModal: React.FC<StockSearchAndAddModalProps> = ({
                   <option value="KOSDAQ">코스닥 (KOSDAQ)</option>
                   <option value="KOSPI">코스피 (KOSPI)</option>
                   <option value="US">미국주식 (US)</option>
+                  <option value="UPBIT">업비트 가상자산 (UPBIT)</option>
                 </select>
               </div>
 

@@ -34,6 +34,7 @@ import {
   BullishEngineAnalysisOutput
 } from "../lib/bullishMasterEngine";
 import { realtimeMarketFeedService, LiveMarketQuote } from "../services/realtimeMarketFeedService";
+import { useApp } from "../context/AppContext";
 
 export type PatternLifecycleStage = 
   | "DETECTED" 
@@ -191,7 +192,7 @@ export interface TrackedPatternStock {
 export const INITIAL_TRACKED_STOCKS: TrackedPatternStock[] = [
   {
     id: "stk-1",
-    symbol: "450880",
+    symbol: "457550",
     name: "우진엔텍",
     patternCode: "BULL_FLAG",
     patternNameKr: "강세 깃발 (Bull Flag)",
@@ -213,7 +214,7 @@ export const INITIAL_TRACKED_STOCKS: TrackedPatternStock[] = [
   },
   {
     id: "stk-2",
-    symbol: "086510",
+    symbol: "080220",
     name: "제주반도체",
     patternCode: "CUP_AND_HANDLE",
     patternNameKr: "컵앤핸들 (Cup & Handle)",
@@ -324,6 +325,7 @@ export const INITIAL_TRACKED_STOCKS: TrackedPatternStock[] = [
 ];
 
 export const BullishPatternsLifecycleEngine: React.FC = () => {
+  const { selectedSymbol } = useApp();
   // Top-Level Active Mode: "ENGINE_V5" vs "LIFECYCLE_STAGE" vs "TARGET_SIMULATOR"
   const [viewMode, setViewMode] = useState<"ENGINE_V5" | "LIFECYCLE_STAGE" | "TARGET_SIMULATOR">("ENGINE_V5");
 
@@ -335,6 +337,33 @@ export const BullishPatternsLifecycleEngine: React.FC = () => {
   const [analysisResult, setAnalysisResult] = useState<BullishEngineAnalysisOutput>(() =>
     BullishIntelligenceEngine.analyzeStock("005930", "삼성전자", 78500, 2.4)
   );
+
+  // Sync with AppContext selectedSymbol
+  useEffect(() => {
+    if (selectedSymbol && selectedSymbol !== inputSymbol) {
+      setInputSymbol(selectedSymbol);
+      setInputName(selectedSymbol === "005930" ? "삼성전자" : (selectedSymbol === "000660" ? "SK하이닉스" : selectedSymbol));
+      setAnalysisResult(BullishIntelligenceEngine.analyzeStock(selectedSymbol, selectedSymbol, inputPrice, inputChange));
+    }
+  }, [selectedSymbol]);
+
+  useEffect(() => {
+    const handleStockSelected = (e: CustomEvent) => {
+      if (e.detail?.symbol) {
+        const sym = e.detail.symbol;
+        const nm = e.detail.name || sym;
+        const prc = e.detail.price || 50000;
+        const chg = e.detail.changeRate || 2.4;
+        setInputSymbol(sym);
+        setInputName(nm);
+        setInputPrice(prc);
+        setInputChange(chg);
+        setAnalysisResult(BullishIntelligenceEngine.analyzeStock(sym, nm, prc, chg));
+      }
+    };
+    window.addEventListener("stock-selected" as any, handleStockSelected);
+    return () => window.removeEventListener("stock-selected" as any, handleStockSelected);
+  }, [inputPrice, inputChange]);
 
   // Pattern Catalog Category Filter
   const [selectedCategory, setSelectedCategory] = useState<BullishCategory | "ALL">("ALL");

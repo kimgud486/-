@@ -487,7 +487,7 @@ export const DayNight24hTradingEngineSuite: React.FC<DayNight24hTradingEngineSui
               </div>
             ) : (
               dbLossLogs.map((log, idx) => (
-                <div key={log.id || idx} className="p-3 bg-slate-900/90 border border-slate-800 hover:border-slate-700 rounded-xl space-y-2 transition">
+                <div key={`${log.id || 'log'}_${idx}`} className="p-3 bg-slate-900/90 border border-slate-800 hover:border-slate-700 rounded-xl space-y-2 transition">
                   <div className="flex items-center justify-between text-xs">
                     <div className="flex items-center gap-2">
                       <span className="font-black text-white">{log.stockName}</span>
@@ -578,7 +578,7 @@ export const DayNight24hTradingEngineSuite: React.FC<DayNight24hTradingEngineSui
                 </div>
               ) : (
                 dbUpgradeLogs.map((upg, idx) => (
-                  <div key={upg.id || idx} className="p-3 bg-slate-900/80 border border-slate-800/80 rounded-xl space-y-1.5 text-xs">
+                  <div key={`${upg.id || 'upg'}_${idx}`} className="p-3 bg-slate-900/80 border border-slate-800/80 rounded-xl space-y-1.5 text-xs">
                     <div className="flex items-center justify-between font-mono">
                       <span className="font-bold text-cyan-300 flex items-center gap-1.5">
                         <CheckCircle2 className="w-3.5 h-3.5 text-cyan-400" />

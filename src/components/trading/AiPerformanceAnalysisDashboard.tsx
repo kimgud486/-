@@ -436,8 +436,8 @@ export const AiPerformanceAnalysisDashboard: React.FC = () => {
 
         {/* Trade-by-Trade Comparative Bar Visualizer */}
         <div className="space-y-3 font-mono">
-          {tradeRecords.filter(t => t.netProfitPct > 0).map((tr) => (
-            <div key={tr.id} className="bg-slate-950/80 border border-slate-800/80 rounded-xl p-3.5 space-y-2">
+          {tradeRecords.filter(t => t.netProfitPct > 0).map((tr, idx) => (
+            <div key={`${tr.id}_${idx}`} className="bg-slate-950/80 border border-slate-800/80 rounded-xl p-3.5 space-y-2">
               <div className="flex flex-wrap items-center justify-between text-xs font-sans">
                 <div className="flex items-center gap-2">
                   <span className="font-bold text-slate-200">{tr.name} ({tr.symbol})</span>
@@ -586,8 +586,8 @@ export const AiPerformanceAnalysisDashboard: React.FC = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800/60 font-mono">
-              {tradeRecords.map((tr) => (
-                <tr key={tr.id} className="hover:bg-slate-800/40 transition">
+              {tradeRecords.map((tr, idx) => (
+                <tr key={`${tr.id}_${idx}`} className="hover:bg-slate-800/40 transition">
                   <td className="py-3 px-3 text-slate-400">{tr.timestamp}</td>
                   <td className="py-3 px-3 font-sans">
                     <div className="font-bold text-slate-200">{tr.name}</div>

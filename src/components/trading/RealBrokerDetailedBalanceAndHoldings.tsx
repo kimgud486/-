@@ -908,7 +908,7 @@ export const RealBrokerDetailedBalanceAndHoldings: React.FC<RealBrokerDetailedBa
           ) : holdingsViewMode === "GRID" ? (
             /* 1. GRID CARD VIEW */
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
-              {filteredPositions.map((pos) => {
+              {filteredPositions.map((pos, idx) => {
                 const isUS = pos.market === "US";
                 const isCrypto = pos.market === "BTC" || (pos as any).broker === "upbit" || pos.symbol.startsWith("KRW-");
                 const badge = getBrokerBadge(pos);
@@ -928,7 +928,7 @@ export const RealBrokerDetailedBalanceAndHoldings: React.FC<RealBrokerDetailedBa
 
                 return (
                   <div
-                    key={pos.id || pos.symbol}
+                    key={`${pos.id || pos.symbol}_${idx}`}
                     className="p-4 bg-slate-900/80 hover:bg-slate-900 border border-slate-800 hover:border-slate-700 rounded-2xl space-y-3 transition shadow-sm flex flex-col justify-between"
                   >
                     {/* Header */}
@@ -1107,7 +1107,7 @@ export const RealBrokerDetailedBalanceAndHoldings: React.FC<RealBrokerDetailedBa
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-800/60 font-mono">
-                  {filteredPositions.map((pos) => {
+                  {filteredPositions.map((pos, idx) => {
                     const isUS = pos.market === "US";
                     const badge = getBrokerBadge(pos);
                     const curPriceKRW = isUS ? pos.currentPrice * exchangeRateKRW : pos.currentPrice;
@@ -1119,7 +1119,7 @@ export const RealBrokerDetailedBalanceAndHoldings: React.FC<RealBrokerDetailedBa
                     const isProfit = pnlKRW >= 0;
 
                     return (
-                      <tr key={pos.id || pos.symbol} className="hover:bg-slate-850/80 transition">
+                      <tr key={`${pos.id || pos.symbol}_${idx}`} className="hover:bg-slate-850/80 transition">
                         <td className="p-3 font-sans">
                           <div className="font-bold text-white text-xs">{pos.name}</div>
                           <div className="text-[10px] text-slate-400 font-mono">{pos.symbol}</div>
@@ -1231,7 +1231,7 @@ export const RealBrokerDetailedBalanceAndHoldings: React.FC<RealBrokerDetailedBa
             </div>
           ) : (
             <div className="space-y-2.5 max-h-96 overflow-y-auto pr-1">
-              {filteredTrades.map((t) => {
+              {filteredTrades.map((t, idx) => {
                 const isBuy = t.side === "BUY";
                 const isWin = (t.pnl || 0) >= 0;
                 const pnlRate = t.pnlRate || 0;
@@ -1240,7 +1240,7 @@ export const RealBrokerDetailedBalanceAndHoldings: React.FC<RealBrokerDetailedBa
 
                 return (
                   <div
-                    key={t.id}
+                    key={`${t.id}_${idx}`}
                     onClick={() => setSelectedTradeForModal(t)}
                     className="p-3.5 bg-slate-900/70 hover:bg-slate-850 border border-slate-800 hover:border-slate-700 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs transition cursor-pointer"
                   >

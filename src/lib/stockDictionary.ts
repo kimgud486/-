@@ -42,6 +42,7 @@ export function isChosungOnly(query: string): boolean {
  * Supports Korean Chosung (초성), English tickers, brand transliterations, themes, and aliases.
  */
 export const COMMON_BRAND_TRANSLITERATION_MAP: Record<string, string[]> = {
+  "woojin": ["우진엔텍", "457550"],
   "samsung": ["삼성", "삼성전자", "005930"],
   "hynix": ["하이닉스", "sk하이닉스", "000660"],
   "hyundai": ["현대", "현대차", "005380"],
@@ -238,6 +239,9 @@ export const OVERSEAS_STOCK_MAP: Record<string, string> = {
 };
 
 export const DOMESTIC_STOCK_MAP: Record<string, string> = {
+  "457550": "우진엔텍",
+  "452880": "우진엔텍",
+  "450880": "우진엔텍",
   "005930": "삼성전자",
   "000660": "SK하이닉스",
   "035420": "NAVER",
@@ -259,6 +263,7 @@ export const DOMESTIC_STOCK_MAP: Record<string, string> = {
   "000810": "삼성화재",
   "086520": "에코프로",
   "247540": "에코프로비엠",
+  "403870": "HPSP",
   "403070": "HPSP",
   "042700": "한미반도체",
   "272210": "한화시스템",
@@ -353,21 +358,38 @@ export const CRYPTO_MAP: Record<string, string> = {
   "TAO": "비텐서 (Bittensor)"
 };
 
+export function safeSymbolStr(symbol: any): string {
+  if (symbol === null || symbol === undefined) return "";
+  if (typeof symbol === "string") return symbol.trim();
+  if (typeof symbol === "number") return String(symbol).trim();
+  if (typeof symbol === "object") {
+    if (typeof symbol.symbol === "string") return symbol.symbol.trim();
+    if (typeof symbol.code === "string") return symbol.code.trim();
+    if (typeof symbol.ticker === "string") return symbol.ticker.trim();
+    if (typeof symbol.id === "string") return symbol.id.trim();
+  }
+  return String(symbol).trim();
+}
+
 /**
  * Returns a clean, bilingual stock name for any symbol and market type.
  */
-export function resolveStockName(symbol: string, rawName?: string, market?: string): string {
-  if (!symbol) return "미지정 종목";
-  const cleanSym = symbol.trim().toUpperCase();
+export function resolveStockName(symbol: any, rawName?: string, market?: string): string {
+  const cleanSym = safeSymbolStr(symbol).toUpperCase();
+  if (!cleanSym) {
+    return rawName && typeof rawName === "string" && rawName.trim() ? rawName.trim() : "미지정 종목";
+  }
   const unCrypto = cleanSym.replace("KRW-", "");
+
+  const safeRawName = typeof rawName === "string" ? rawName : typeof rawName === "object" && rawName && "name" in rawName ? (rawName as any).name : undefined;
 
   // 0. Explicit Crypto / Upbit handling
   const isExplicitCrypto = market === "BTC" || market === "UPBIT" || cleanSym.startsWith("KRW-");
   if (isExplicitCrypto) {
     if (CRYPTO_MAP[unCrypto]) return CRYPTO_MAP[unCrypto];
     if (CRYPTO_MAP[cleanSym]) return CRYPTO_MAP[cleanSym];
-    if (rawName && rawName.trim() && rawName !== cleanSym && !rawName.includes("Corp.") && !rawName.includes("미국")) {
-      return `${rawName} (가상자산)`;
+    if (safeRawName && safeRawName.trim() && safeRawName !== cleanSym && !safeRawName.includes("Corp.") && !safeRawName.includes("미국")) {
+      return `${safeRawName} (가상자산)`;
     }
     return `${unCrypto} (업비트 가상자산)`;
   }
@@ -377,7 +399,7 @@ export function resolveStockName(symbol: string, rawName?: string, market?: stri
     return DOMESTIC_STOCK_MAP[cleanSym];
   }
   if (/^\d{6}$/.test(cleanSym)) {
-    return rawName || `${cleanSym} (국내 주식)`;
+    return safeRawName || `${cleanSym} (국내 주식)`;
   }
 
   // 2. Explicit US market lookup
@@ -396,12 +418,12 @@ export function resolveStockName(symbol: string, rawName?: string, market?: stri
   }
 
   // 5. If rawName exists and is informative
-  if (rawName && rawName.trim() !== "" && rawName.trim().toUpperCase() !== cleanSym && rawName !== "US_STOCK") {
-    if (cleanSym === "AAPL" && !rawName.includes("애플")) return "애플 (Apple Inc.)";
-    if (cleanSym === "NVDA" && !rawName.includes("엔비디아")) return "엔비디아 (NVIDIA Corp.)";
-    if (cleanSym === "TSLA" && !rawName.includes("테슬라")) return "테슬라 (Tesla Inc.)";
-    if (cleanSym === "MSFT" && !rawName.includes("마이크로소프트")) return "마이크로소프트 (Microsoft Corp.)";
-    return rawName;
+  if (safeRawName && safeRawName.trim() !== "" && safeRawName.trim().toUpperCase() !== cleanSym && safeRawName !== "US_STOCK") {
+    if (cleanSym === "AAPL" && !safeRawName.includes("애플")) return "애플 (Apple Inc.)";
+    if (cleanSym === "NVDA" && !safeRawName.includes("엔비디아")) return "엔비디아 (NVIDIA Corp.)";
+    if (cleanSym === "TSLA" && !safeRawName.includes("테슬라")) return "테슬라 (Tesla Inc.)";
+    if (cleanSym === "MSFT" && !safeRawName.includes("마이크로소프트")) return "마이크로소프트 (Microsoft Corp.)";
+    return safeRawName;
   }
 
   // 6. Market-aware fallback
@@ -420,7 +442,7 @@ export function resolveStockName(symbol: string, rawName?: string, market?: stri
  */
 export const COMPREHENSIVE_STOCK_INDEX: SearchableStockItem[] = [
   // 🇰🇷 KOSPI & KOSDAQ (한국증시 우량/인기주)
-  { symbol: "005930", name: "삼성전자", market: "KOREA", sectorTag: "반도체/대장주", price: 281500, changePct: 3.87, aliases: ["삼전", "삼성", "samsung", "ㅅㅅㅈㅈ"], themeTags: ["AI반도체", "HBM", "CXL", "파운드리"] },
+  { symbol: "005930", name: "삼성전자", market: "KOREA", sectorTag: "반도체/대장주", price: 74800, changePct: 2.80, aliases: ["삼전", "삼성", "samsung", "ㅅㅅㅈㅈ"], themeTags: ["AI반도체", "HBM", "CXL", "파운드리"] },
   { symbol: "000660", name: "SK하이닉스", market: "KOREA", sectorTag: "AI 반도체", price: 198500, changePct: 2.10, aliases: ["하닉", "하이닉스", "sk", "ㅎㅇㄴㅅ", "ㅅㅋㅎㅇㄴㅅ"], themeTags: ["HBM3E", "엔비디아공급망", "AI가속기"] },
   { symbol: "207940", name: "삼성바이오로직스", market: "KOREA", sectorTag: "바이오 CDMO", price: 920000, changePct: 1.10, aliases: ["삼바", "삼성바이오", "ㅅㅅㅂㅇㅇ"], themeTags: ["CDMO", "항체약물접합체", "바이오"] },
   { symbol: "005490", name: "POSCO홀딩스", market: "KOREA", sectorTag: "철강/리튬/2차전지", price: 375000, changePct: 0.95, aliases: ["포스코", "포홀", "ㅍㅅㅋ"], themeTags: ["리튬", "2차전지소재", "철강"] },

@@ -135,7 +135,7 @@ export const StrictFilterAuditLogCard: React.FC = () => {
             실시간 자율매매 엔진이 스캔하는 시세 분석 및 필터 로그가 여기에 표시됩니다.
           </div>
         ) : (
-          filteredLogs.map((log) => {
+          filteredLogs.map((log, idx) => {
             const isApproved = log.action === "BUY" || log.message.includes("체결");
             const isExpanded = selectedLogId === log.id;
 
@@ -151,7 +151,7 @@ export const StrictFilterAuditLogCard: React.FC = () => {
 
             return (
               <div
-                key={log.id}
+                key={`${log.id}_${idx}`}
                 className={`p-3.5 rounded-xl border transition ${
                   isApproved
                     ? "bg-emerald-950/20 border-emerald-800/50 hover:border-emerald-600/70"

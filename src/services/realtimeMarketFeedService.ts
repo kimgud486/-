@@ -2,6 +2,8 @@
 // REAL-TIME LIVE MARKET FEED & REAL QUOTES SERVICE (KRX & UPBIT & US)
 // ----------------------------------------------------------------------
 
+import { safeSymbolStr } from "../lib/stockDictionary";
+
 export interface LiveMarketQuote {
   symbol: string;
   name: string;
@@ -66,7 +68,7 @@ class RealtimeMarketFeedService {
 
   private initDefaultQuotes() {
     const defaults: LiveMarketQuote[] = [
-      { symbol: "005930", name: "삼성전자", market: "KOSPI", price: 281500, changeRate: 3.87, changeAmount: 10500, tradeValue: "7조 6,823억", volume: "2,767만", timestamp: new Date().toISOString() },
+      { symbol: "005930", name: "삼성전자", market: "KOSPI", price: 74800, changeRate: 2.80, changeAmount: 2000, tradeValue: "1조 2,823억", volume: "1,767만", timestamp: new Date().toISOString() },
       { symbol: "000660", name: "SK하이닉스", market: "KOSPI", price: 198500, changeRate: 2.10, changeAmount: 4100, tradeValue: "8,420억", volume: "360만", timestamp: new Date().toISOString() },
       { symbol: "005380", name: "현대차", market: "KOSPI", price: 245000, changeRate: -0.81, changeAmount: -2000, tradeValue: "3,210억", volume: "110만", timestamp: new Date().toISOString() },
       { symbol: "000270", name: "기아", market: "KOSPI", price: 118000, changeRate: 1.72, changeAmount: 2000, tradeValue: "2,100억", volume: "95만", timestamp: new Date().toISOString() },
@@ -111,9 +113,9 @@ class RealtimeMarketFeedService {
     });
   }
 
-  public registerSymbol(symbol: string, market?: "KOSPI" | "KOSDAQ" | "UPBIT" | "US") {
-    if (!symbol) return;
-    const cleanSym = symbol.trim().toUpperCase();
+  public registerSymbol(symbol: any, market?: "KOSPI" | "KOSDAQ" | "UPBIT" | "US") {
+    const cleanSym = safeSymbolStr(symbol).toUpperCase();
+    if (!cleanSym) return;
     if (!this.registeredSymbols.has(cleanSym)) {
       const determinedMarket: "KOSPI" | "KOSDAQ" | "UPBIT" | "US" =
         market ||
@@ -329,8 +331,10 @@ class RealtimeMarketFeedService {
     this.notifySubscribers();
   }
 
-  public getQuote(symbol: string): LiveMarketQuote | undefined {
-    return this.quotes.get(symbol.trim().toUpperCase());
+  public getQuote(symbol: any): LiveMarketQuote | undefined {
+    const cleanSym = safeSymbolStr(symbol).toUpperCase();
+    if (!cleanSym) return undefined;
+    return this.quotes.get(cleanSym);
   }
 
   public getAllQuotes(): LiveMarketQuote[] {

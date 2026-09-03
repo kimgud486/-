@@ -279,7 +279,7 @@ export const StockTradePointsVisualizerDashboard: React.FC = () => {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {filteredPositions.map(pos => {
+          {filteredPositions.map((pos, idx) => {
             const cleanSym = pos.symbol.toUpperCase().replace(/^KRW-/, "");
             const avgP = pos.avgPrice || 0;
             const curP = pos.currentPrice || avgP;
@@ -307,7 +307,7 @@ export const StockTradePointsVisualizerDashboard: React.FC = () => {
 
             return (
               <div
-                key={pos.id || pos.symbol}
+                key={`${pos.id || pos.symbol}_${idx}`}
                 className={`bg-white dark:bg-slate-900 border rounded-2xl p-5 shadow-sm transition-all hover:shadow-md relative overflow-hidden ${
                   isBlocked
                     ? "border-amber-500/50 dark:border-amber-500/40 bg-amber-500/5"

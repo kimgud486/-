@@ -70,11 +70,13 @@ export function roundToUSTick(price: number): number {
   return Math.round(price * 100) / 100;
 }
 
+import { safeSymbolStr } from './stockDictionary';
+
 /**
  * Maps US stock symbols to exchange codes for KIS Overseas API (NASD, NYSE, AMEX).
  */
-export function resolveUSExchangeCode(symbol: string): 'NASD' | 'NYSE' | 'AMEX' {
-  const sym = (symbol || '').toUpperCase().trim();
+export function resolveUSExchangeCode(symbol: any): 'NASD' | 'NYSE' | 'AMEX' {
+  const sym = safeSymbolStr(symbol).toUpperCase();
   
   const nyseSymbols = new Set([
     'TSM', 'BABA', 'BRK.B', 'BRK.A', 'JNJ', 'JPM', 'V', 'UNH', 'MA', 'HD',

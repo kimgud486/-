@@ -48,6 +48,8 @@ import { BrokerPnLTrendChartWidget } from "./trading/BrokerPnLTrendChartWidget";
 import { AiTradeHistoryViewer } from "./trading/AiTradeHistoryViewer";
 import { StockPosition } from "../types";
 import { InsufficientFundStocksList } from "./InsufficientFundStocksList";
+import { UnifiedSingleMasterConsensusPanel } from "./UnifiedSingleMasterConsensusPanel";
+import { NeuralBrainMasterControlCenter } from "./NeuralBrainMasterControlCenter";
 import { 
   ResponsiveContainer, 
   AreaChart, 
@@ -229,10 +231,16 @@ export const UnifiedDashboard: React.FC<UnifiedDashboardProps> = ({ onNavigateTo
 
   return (
     <div className="space-y-6">
+        {/* 🧠 40대 인공지능 신경세포(봇) & 중앙 뇌 통제 센터 (NEURAL BRAIN MATRIX) */}
+        <NeuralBrainMasterControlCenter />
+
         {/* HERO INTEGRATED AI SEARCH BAR */}
         <div className="bg-zinc-900/80 border border-zinc-800 p-3 sm:p-4 rounded-2xl backdrop-blur-sm shadow-xl">
           <FloatingSearchBar variant="hero" />
         </div>
+
+        {/* 👑 SINGLE UNIFIED MASTER AI CONSENSUS HUB (하락/상승 모든 분석 단일화 통합 브레인) */}
+        <UnifiedSingleMasterConsensusPanel />
 
         {/* INSUFFICIENT FUNDS SEPARATE CLASSIFICATION LIST */}
         <InsufficientFundStocksList />
@@ -248,14 +256,11 @@ export const UnifiedDashboard: React.FC<UnifiedDashboardProps> = ({ onNavigateTo
 
         {/* REAL-TIME AI EXPECTED PROFITABILITY PANEL WITH ORDER BOOK DEPTH */}
         <ExpectedProfitabilityPanel 
-          symbol="005930"
-          name="삼성전자"
-          market="KOREA"
-          currentPrice={281500}
-          entryPrice={281500}
-          targetPrice1={298000}
-          targetPrice2={315000}
-          stopLossPrice={272000}
+          symbol={positions?.[0]?.symbol || "005930"}
+          name={positions?.[0]?.name || "삼성전자"}
+          market={positions?.[0]?.market || "KOREA"}
+          currentPrice={positions?.[0]?.currentPrice}
+          entryPrice={positions?.[0]?.avgPrice}
         />
 
         {/* 4 MAJOR SECURITIES RESEARCH CONSENSUS & CHART PATTERN HEATMAP */}

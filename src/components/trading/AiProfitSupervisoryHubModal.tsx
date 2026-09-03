@@ -424,14 +424,14 @@ export const AiProfitSupervisoryHubModal: React.FC<AiProfitSupervisoryHubModalPr
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {positions.map((pos) => {
+                {positions.map((pos, idx) => {
                   const pnlPct = ((pos.currentPrice - pos.avgPrice) / pos.avgPrice) * 100;
                   const isProfit = pnlPct >= 0;
                   const isShieldTriggered = pnlPct >= engineState.rules.stage1BreakevenPct;
 
                   return (
                     <div
-                      key={pos.symbol}
+                      key={`${pos.id || pos.symbol || 'pos'}_${idx}`}
                       className="bg-slate-800/80 border border-slate-700/70 rounded-2xl p-4 flex items-center justify-between gap-4"
                     >
                       <div>
@@ -494,9 +494,9 @@ export const AiProfitSupervisoryHubModal: React.FC<AiProfitSupervisoryHubModalPr
             </div>
 
             <div className="bg-slate-950/80 border border-slate-800 rounded-2xl p-3 space-y-2 max-h-52 overflow-y-auto custom-scrollbar">
-              {engineState.auditLogs.map((log) => (
+              {engineState.auditLogs.map((log, idx) => (
                 <div
-                  key={log.id}
+                  key={`${log.id || 'log'}_${idx}`}
                   className="bg-slate-900/90 border border-slate-800/80 rounded-xl p-3 flex items-start justify-between gap-3 text-xs"
                 >
                   <div className="space-y-1">

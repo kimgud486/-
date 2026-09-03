@@ -358,13 +358,13 @@ export const TradeExecutionHistoryView: React.FC = () => {
             <p className="text-sm font-bold text-slate-300">조회 조건에 해당하는 체결 이력이 없습니다.</p>
           </div>
         ) : (
-          filteredRecords.map((r) => {
+          filteredRecords.map((r, idx) => {
             const isLong = r.side === "LONG";
             const isExpanded = expandedId === r.id;
 
             return (
               <div
-                key={r.id}
+                key={`${r.id}_${idx}`}
                 className={`p-4 sm:p-5 rounded-2xl border transition shadow-lg space-y-3 ${
                   isLong
                     ? "bg-gradient-to-r from-slate-900 via-slate-900 to-emerald-950/20 border-emerald-500/30"

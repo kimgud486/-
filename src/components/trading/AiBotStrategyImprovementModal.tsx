@@ -545,11 +545,11 @@ export const AiBotStrategyImprovementModal: React.FC<AiBotStrategyImprovementMod
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {currentCards.map((card) => {
+              {currentCards.map((card, idx) => {
                 const isApplied = card.applied;
                 return (
                   <div
-                    key={card.id}
+                    key={`${card.id}_${idx}`}
                     className={`p-4 rounded-2xl border transition space-y-3 flex flex-col justify-between ${
                       isApplied
                         ? "bg-emerald-950/20 border-emerald-500/80 shadow-md ring-1 ring-emerald-500/30"

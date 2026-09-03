@@ -472,8 +472,8 @@ export const AITradingAdmin: React.FC = () => {
 
           {/* Strategies Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {strategies.map((strat) => (
-              <div key={strat.id} className="bg-white border border-zinc-200 p-5 rounded-lg flex flex-col justify-between space-y-4">
+            {strategies.map((strat, idx) => (
+              <div key={`${strat.id}_${idx}`} className="bg-white border border-zinc-200 p-5 rounded-lg flex flex-col justify-between space-y-4">
                 <div className="space-y-1.5">
                   <div className="flex justify-between items-start">
                     <div>

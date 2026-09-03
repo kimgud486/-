@@ -39,7 +39,10 @@ import { ProfitabilityHealthCheckModal } from "./trading/ProfitabilityHealthChec
 import { MultiModelSecuritiesConsensusModal } from "./MultiModelSecuritiesConsensusModal";
 import { BotConfigModal } from "./trading/BotConfigModal";
 import { BrokerApiConnectModal } from "./trading/BrokerApiConnectModal";
+import { UsScalperSuperBrainModal } from "./trading/UsScalperSuperBrainModal";
 import { PwaInstallModal } from "./PwaInstallModal";
+import { NeuralBrainMasterControlCenter } from "./NeuralBrainMasterControlCenter";
+import { NeuralBotClusterVisualizer } from "./trading/NeuralBotClusterVisualizer";
 import { getUsdExchangeRate, usdToKrw } from "../lib/currencyUtils";
 
 interface AiBotCommandCenterUiProps {
@@ -75,11 +78,12 @@ export const AiBotCommandCenterUi: React.FC<AiBotCommandCenterUiProps> = ({
   const [isHealthCheckOpen, setIsHealthCheckOpen] = useState<boolean>(false);
   const [isBotConfigOpen, setIsBotConfigOpen] = useState<boolean>(false);
   const [isApiConnectOpen, setIsApiConnectOpen] = useState<boolean>(false);
+  const [isUsSuperBrainOpen, setIsUsSuperBrainOpen] = useState<boolean>(false);
   const [isPwaOpen, setIsPwaOpen] = useState<boolean>(false);
   const [selectedBotForConfig, setSelectedBotForConfig] = useState<any>(null);
 
   // Sub-feature tabs drawer / collapsible views
-  const [activeSubTab, setActiveSubTab] = useState<"TERMINAL" | "POSITIONS" | "BOT_FLEET" | "ORDERBOOK" | "SIGNALS" | "LOGS">("TERMINAL");
+  const [activeSubTab, setActiveSubTab] = useState<"NEURAL_BRAIN" | "TERMINAL" | "POSITIONS" | "BOT_FLEET" | "ORDERBOOK" | "SIGNALS" | "LOGS">("NEURAL_BRAIN");
 
   // Determine if Real Mode is active (isRealTrade === true on profile)
   const isRealMode = profile?.isRealTrade === true;
@@ -337,6 +341,17 @@ export const AiBotCommandCenterUi: React.FC<AiBotCommandCenterUiProps> = ({
             <span>분석 대상 종목 검색</span>
           </button>
 
+          {/* US Scalper Super Brain Trigger */}
+          <button
+            onClick={() => setIsUsSuperBrainOpen(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white rounded-lg text-xs font-black transition shadow-[0_0_15px_rgba(99,102,241,0.4)] cursor-pointer border border-indigo-400"
+            title="미국주식 20-Agent 전용 스캘퍼 뇌엔진"
+          >
+            <Cpu className="w-3.5 h-3.5 text-cyan-300 animate-pulse" />
+            <span className="hidden md:inline">🧠 미국주식 20-Agent 뇌엔진</span>
+            <span className="md:hidden">미국 뇌엔진</span>
+          </button>
+
           {/* AI Consensus Modal Trigger */}
           <button
             onClick={() => {
@@ -385,6 +400,18 @@ export const AiBotCommandCenterUi: React.FC<AiBotCommandCenterUiProps> = ({
       {/* ========================================================================= */}
       <div className="bg-[#080B11] border-b border-[#141E30] px-3 sm:px-6 py-2 flex items-center justify-between gap-2 overflow-x-auto whitespace-nowrap scrollbar-none">
         <div className="flex items-center gap-1.5 sm:gap-2">
+          <button
+            onClick={() => setActiveSubTab("NEURAL_BRAIN")}
+            className={`px-3.5 py-1.5 rounded-lg text-xs font-mono font-black transition flex items-center gap-1.5 border ${
+              activeSubTab === "NEURAL_BRAIN"
+                ? "bg-gradient-to-r from-indigo-500 via-purple-500 to-cyan-400 text-white border-cyan-400 shadow-[0_0_18px_rgba(99,102,241,0.5)]"
+                : "text-indigo-300 hover:text-indigo-200 bg-indigo-500/10 border-indigo-500/30 hover:bg-indigo-500/20"
+            }`}
+          >
+            <Sparkles className="w-4 h-4 text-cyan-300 animate-pulse" />
+            <span>🧠 40대 신경세포(봇) & 중앙 뇌 통제 센터</span>
+          </button>
+
           <button
             onClick={() => setActiveSubTab("ORDERBOOK")}
             className={`px-3.5 py-1.5 rounded-lg text-xs font-mono font-black transition flex items-center gap-1.5 border ${
@@ -480,6 +507,13 @@ export const AiBotCommandCenterUi: React.FC<AiBotCommandCenterUiProps> = ({
       {/* ========================================================================= */}
       <main className="max-w-[1440px] mx-auto px-2 sm:px-4 pt-3 sm:pt-4 space-y-4">
         
+        {/* VIEW 0: 🧠 40대 신경세포(봇) & 중앙 뇌 통제 센터 (HUMAN NEURAL BRAIN ARCHITECTURE) */}
+        {activeSubTab === "NEURAL_BRAIN" && (
+          <div className="space-y-6">
+            <NeuralBrainMasterControlCenter />
+          </div>
+        )}
+
         {/* VIEW 1: MASTER QUANT TERMINAL */}
         {activeSubTab === "TERMINAL" && (
           <div className="space-y-4">
@@ -727,6 +761,12 @@ export const AiBotCommandCenterUi: React.FC<AiBotCommandCenterUiProps> = ({
                 </div>
               </div>
             </section>
+
+            {/* ROW 2.5: 40-NEURAL BOT CLUSTER & UNIFIED BRAIN TERMINAL */}
+            <NeuralBotClusterVisualizer 
+              currentStock={currentAsset} 
+              onOpenConsensusModal={onOpenConsensusModal} 
+            />
 
             {/* ROW 3: BTC / STOCK 1M LIVE SPOT FEED CANDLESTICK CHART */}
             <section className="bg-[#0D1322] border border-[#1E293B] rounded-2xl p-4 sm:p-5 shadow-lg relative">
@@ -1027,6 +1067,13 @@ export const AiBotCommandCenterUi: React.FC<AiBotCommandCenterUiProps> = ({
       <BrokerApiConnectModal
         isOpen={isApiConnectOpen}
         onClose={() => setIsApiConnectOpen(false)}
+      />
+
+      <UsScalperSuperBrainModal
+        isOpen={isUsSuperBrainOpen}
+        onClose={() => setIsUsSuperBrainOpen(false)}
+        stock={{ symbol: currentAsset.symbol, name: currentAsset.name, market: currentAsset.market }}
+        onExecuteTrade={executeTrade}
       />
     </div>
   );

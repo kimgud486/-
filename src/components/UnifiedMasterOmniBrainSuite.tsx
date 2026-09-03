@@ -20,6 +20,7 @@ import {
   Search
 } from "lucide-react";
 import { OmniStock, OMNI_MASTER_STOCKS } from "./UnifiedOmniBrainAiControlCenter";
+import { UnifiedMasterDecisionEngine, UnifiedMasterDecision } from "../services/unifiedMasterDecisionEngine";
 
 export interface UnifiedMasterOmniBrainSuiteProps {
   stock?: OmniStock;
@@ -211,6 +212,17 @@ export const UnifiedMasterOmniBrainSuite: React.FC<UnifiedMasterOmniBrainSuitePr
   const currentPrice = liveData?.price || effectiveStock?.price || 0;
   const currentChangePct = liveData?.changePct ?? effectiveStock?.changePercent ?? 0;
 
+  // Single Master Consensus Decision
+  const masterDecision: UnifiedMasterDecision = useMemo(() => {
+    return UnifiedMasterDecisionEngine.analyze(
+      effectiveStock?.symbol || "005930",
+      effectiveStock?.name || "종목",
+      currentPrice,
+      currentChangePct,
+      effectiveStock?.source === "UPBIT" ? "BTC" : "KOREA"
+    );
+  }, [effectiveStock?.symbol, effectiveStock?.name, currentPrice, currentChangePct, effectiveStock?.source]);
+
   return (
     <div className="bg-[#121721] border border-slate-800 rounded-2xl p-4 sm:p-6 space-y-5 shadow-2xl">
       
@@ -326,6 +338,60 @@ export const UnifiedMasterOmniBrainSuite: React.FC<UnifiedMasterOmniBrainSuitePr
           <span>실시간 퀀트 점수: <strong className="text-emerald-400 font-black">{effectiveStock?.quantScore || 85}점</strong></span>
           <span>패턴 승률: <strong className="text-amber-300 font-black">{effectiveStock?.patternWinRate || 92.5}%</strong></span>
           <span>SMC 구조: <strong className="text-purple-400 font-black">{effectiveStock?.smlStructure || "OB_BOUNCE"}</strong></span>
+        </div>
+      </div>
+
+      {/* 👑 SINGLE UNIFIED MASTER CONSENSUS HERO BAR */}
+      <div className={`p-4 rounded-xl border font-mono transition shadow-lg ${
+        masterDecision.finalVerdict === "STRONG_BUY"
+          ? "bg-gradient-to-r from-emerald-950/80 via-indigo-950/80 to-purple-950/80 border-emerald-500/60 text-emerald-100"
+          : masterDecision.finalVerdict === "BUY_ON_DIP"
+          ? "bg-gradient-to-r from-blue-950/80 via-indigo-950/80 to-slate-950/80 border-blue-500/60 text-blue-100"
+          : masterDecision.finalVerdict === "HOLD_OBSERVE"
+          ? "bg-gradient-to-r from-slate-900 via-amber-950/50 to-slate-900 border-amber-500/50 text-amber-200"
+          : "bg-gradient-to-r from-rose-950/80 via-red-950/80 to-slate-950/80 border-rose-500/60 text-rose-100"
+      }`}>
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className={`p-2 rounded-lg font-black text-sm flex items-center gap-1.5 ${
+              masterDecision.finalVerdict === "STRONG_BUY"
+                ? "bg-emerald-500 text-slate-950"
+                : masterDecision.finalVerdict === "BUY_ON_DIP"
+                ? "bg-blue-500 text-white"
+                : masterDecision.finalVerdict === "HOLD_OBSERVE"
+                ? "bg-amber-500 text-slate-950"
+                : "bg-rose-500 text-white"
+            }`}>
+              <ShieldCheck className="h-4 w-4" />
+              <span>{masterDecision.verdictKorean}</span>
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="font-bold text-white text-sm">👑 단일 통합 AI 마스터 브레인 일치 합의</span>
+                <span className="text-[11px] px-2 py-0.5 rounded-full bg-indigo-950 border border-indigo-700 text-indigo-300 font-bold">
+                  마스터 점수 {masterDecision.masterScore}점 (신뢰도 {masterDecision.confidence}%)
+                </span>
+              </div>
+              <p className="text-xs text-slate-300 mt-0.5 line-clamp-1">
+                {masterDecision.unifiedSummary}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-4 text-xs font-mono shrink-0">
+            <div className="text-right">
+              <span className="text-[10px] text-slate-400 block">1차 목표가</span>
+              <span className="text-emerald-400 font-bold">₩{masterDecision.targetPrice1.toLocaleString()}</span>
+            </div>
+            <div className="text-right">
+              <span className="text-[10px] text-slate-400 block">손절 기준가</span>
+              <span className="text-rose-400 font-bold">₩{masterDecision.stopLossPrice.toLocaleString()}</span>
+            </div>
+            <div className="text-right">
+              <span className="text-[10px] text-slate-400 block">손익비 (RR Ratio)</span>
+              <span className="text-amber-300 font-bold">{masterDecision.riskRewardRatio} : 1</span>
+            </div>
+          </div>
         </div>
       </div>
 

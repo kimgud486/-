@@ -227,7 +227,7 @@ export const AiTradeHistoryViewer: React.FC<AiTradeHistoryViewerProps> = ({
             </div>
           </div>
         ) : (
-          displayTrades.map((item: any) => {
+          displayTrades.map((item: any, idx: number) => {
             const isExpanded = expandedId === item.id;
             const mStatus = getMarketStatus(item.symbol, item.market);
             const isBuy = item.side === "BUY";
@@ -248,7 +248,7 @@ export const AiTradeHistoryViewer: React.FC<AiTradeHistoryViewerProps> = ({
 
             return (
               <div
-                key={item.id}
+                key={`${item.id}_${idx}`}
                 className="bg-slate-950 hover:bg-slate-950/80 border border-slate-800 rounded-xl transition overflow-hidden shadow-xs"
               >
                 {/* Main Row */}

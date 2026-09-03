@@ -724,7 +724,7 @@ export const BotStatusDashboard: React.FC = () => {
           </div>
         ) : positions && positions.length > 0 ? (
           <div className="space-y-2">
-            {positions.map((pos) => {
+            {positions.map((pos, idx) => {
               const currentPrice = pos.currentPrice || pos.avgBuyPrice || 0;
               const valuation = currentPrice * (pos.qty || 0);
               const pnl = valuation - (pos.avgBuyPrice || 0) * (pos.qty || 0);
@@ -732,7 +732,7 @@ export const BotStatusDashboard: React.FC = () => {
 
               return (
                 <div
-                  key={pos.symbol}
+                  key={`${pos.id || pos.symbol || 'pos'}_${idx}`}
                   className="p-3 rounded-xl border bg-slate-950/80 border-slate-800 flex flex-col md:flex-row md:items-center justify-between gap-2.5"
                 >
                   <div className="flex items-center gap-3">
@@ -796,9 +796,9 @@ export const BotStatusDashboard: React.FC = () => {
           </div>
 
           <div className="space-y-1.5 max-h-36 overflow-y-auto pr-1">
-            {apiResponseLogs.slice(0, 5).map((log) => (
+            {apiResponseLogs.slice(0, 5).map((log, idx) => (
               <div
-                key={log.id}
+                key={`${log.id || 'log'}_${idx}`}
                 className="bg-slate-950 p-2 rounded-lg border border-slate-800/80 flex items-center justify-between gap-2 text-[11px]"
               >
                 <div className="flex items-center gap-2 truncate">

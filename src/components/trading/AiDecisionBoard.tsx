@@ -233,9 +233,9 @@ export const AiDecisionBoard: React.FC<{
 
       {/* Decision Cards List */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-        {filteredDecisions.map((item) => (
+        {filteredDecisions.map((item, idx) => (
           <div
-            key={item.symbol}
+            key={`${item.symbol}_${idx}`}
             onClick={() => onSelectStock?.(item.symbol)}
             className="p-3.5 bg-slate-50/70 hover:bg-blue-50/40 border border-slate-200 hover:border-blue-300 rounded-xl transition cursor-pointer shadow-2xs flex flex-col justify-between"
           >

@@ -336,14 +336,14 @@ export const PriceTargetAlertModal: React.FC<{
                 </div>
               ) : (
                 <div className="space-y-2.5">
-                  {activeAlerts.map(item => {
+                  {activeAlerts.map((item, idx) => {
                     const condInfo = getConditionLabel(item.condition);
                     const isUS = item.market === "US";
                     const unit = isUS ? "$" : "원";
 
                     return (
                       <div
-                        key={item.id}
+                        key={`${item.id}_${idx}`}
                         className={`p-4 rounded-xl border transition flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
                           item.isActive ? "bg-white border-slate-200 shadow-xs hover:border-blue-300" : "bg-slate-50 border-slate-200 opacity-60"
                         }`}
@@ -512,8 +512,8 @@ export const PriceTargetAlertModal: React.FC<{
                   발생한 알림 히스토리가 없습니다.
                 </div>
               ) : (
-                triggeredAlerts.map(item => (
-                  <div key={item.id} className="p-3.5 bg-emerald-50/80 border border-emerald-200 rounded-xl text-xs flex items-center justify-between gap-3">
+                triggeredAlerts.map((item, idx) => (
+                  <div key={`${item.id}_${idx}`} className="p-3.5 bg-emerald-50/80 border border-emerald-200 rounded-xl text-xs flex items-center justify-between gap-3">
                     <div className="space-y-0.5">
                       <div className="font-bold text-emerald-950 flex items-center gap-2">
                         <CheckCircle2 className="w-4 h-4 text-emerald-600" />

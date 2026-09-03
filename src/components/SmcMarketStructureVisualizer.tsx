@@ -3,6 +3,7 @@ import { searchStocksFromIndex } from "../lib/stockDictionary";
 import { PriceActionStructuresGuide } from "./PriceActionStructuresGuide";
 import { useApp } from "../context/AppContext";
 import { BrokerApiConnectModal } from "./trading/BrokerApiConnectModal";
+import { UsScalperSuperBrainModal } from "./trading/UsScalperSuperBrainModal";
 import { 
   TrendingUp, 
   TrendingDown, 
@@ -181,25 +182,33 @@ export interface SmcMarketStructureVisualizerProps {
 }
 
 const INITIAL_PRESET_SYMBOLS = [
-  { symbol: "005930", name: "삼성전자", price: 240000, market: "KOREA" },
-  { symbol: "000660", name: "SK하이닉스", price: 185000, market: "KOREA" },
-  { symbol: "035720", name: "카카오", price: 42500, market: "KOREA" },
-  { symbol: "NVDA", name: "NVIDIA", price: 128.5, market: "US" },
-  { symbol: "BTC", name: "비트코인", price: 98500000, market: "BTC" },
-  { symbol: "TSLA", name: "테슬라", price: 218.4, market: "US" }
+  { symbol: "NVDA", name: "엔비디아 (NVIDIA)", price: 128.5, market: "US" },
+  { symbol: "TSLA", name: "테슬라 (Tesla)", price: 218.4, market: "US" },
+  { symbol: "AAPL", name: "애플 (Apple)", price: 224.2, market: "US" },
+  { symbol: "MSFT", name: "마이크로소프트", price: 448.5, market: "US" },
+  { symbol: "PLTR", name: "팔란티어 (Palantir)", price: 32.8, market: "US" },
+  { symbol: "SOXL", name: "필라델피아 반도체 3X", price: 42.1, market: "US" },
+  { symbol: "005930", name: "삼성전자", price: 73800, market: "KOREA" },
+  { symbol: "000660", name: "SK하이닉스", price: 233500, market: "KOREA" },
+  { symbol: "BTC", name: "비트코인", price: 98500000, market: "BTC" }
 ];
 
 const POPULAR_HOT_STOCKS = [
-  { symbol: "005930", name: "삼성전자", market: "KOREA", price: 240000, sectorTag: "반도체 대장" },
-  { symbol: "000660", name: "SK하이닉스", market: "KOREA", price: 185000, sectorTag: "HBM 메모리" },
-  { symbol: "005380", name: "현대차", market: "KOREA", price: 245000, sectorTag: "자동차/로봇" },
-  { symbol: "035720", name: "카카오", market: "KOREA", price: 42500, sectorTag: "IT 플랫폼" },
-  { symbol: "NVDA", name: "NVIDIA", market: "US", price: 128.5, sectorTag: "AI 반도체" },
-  { symbol: "TSLA", name: "테슬라", market: "US", price: 218.4, sectorTag: "자율주행/EV" },
-  { symbol: "TSM", name: "TSMC", market: "US", price: 172.4, sectorTag: "파운드리 1위" },
-  { symbol: "BTC", name: "비트코인", market: "BTC", price: 98500000, sectorTag: "가상자산 대장" },
-  { symbol: "005490", name: "POSCO홀딩스", market: "KOREA", price: 375000, sectorTag: "2차전지/철강" },
-  { symbol: "068270", name: "셀트리온", market: "KOREA", price: 198000, sectorTag: "바이오시밀러" }
+  { symbol: "NVDA", name: "엔비디아", market: "US", price: 128.5, sectorTag: "🇺🇸 AI 반도체 대장" },
+  { symbol: "TSLA", name: "테슬라", market: "US", price: 218.4, sectorTag: "🇺🇸 자율주행/옵티머스" },
+  { symbol: "AAPL", name: "애플", market: "US", price: 224.2, sectorTag: "🇺🇸 온디바이스 AI" },
+  { symbol: "MSFT", name: "마이크로소프트", market: "US", price: 448.5, sectorTag: "🇺🇸 AI 클라우드" },
+  { symbol: "PLTR", name: "팔란티어", market: "US", price: 32.8, sectorTag: "🇺🇸 국방/기업 AI" },
+  { symbol: "SOXL", name: "SOXL (반도체 3X)", market: "US", price: 42.1, sectorTag: "🇺🇸 3배 레버리지" },
+  { symbol: "TQQQ", name: "TQQQ (나스닥 3X)", market: "US", price: 68.4, sectorTag: "🇺🇸 3배 레버리지" },
+  { symbol: "AMZN", name: "아마존", market: "US", price: 186.2, sectorTag: "🇺🇸 AWS 클라우드" },
+  { symbol: "GOOGL", name: "알파벳 (구글)", market: "US", price: 174.5, sectorTag: "🇺🇸 제미나이 AI" },
+  { symbol: "META", name: "메타", market: "US", price: 512.3, sectorTag: "🇺🇸 Llama AI" },
+  { symbol: "TSM", name: "TSMC", market: "US", price: 172.4, sectorTag: "🇺🇸 파운드리 1위" },
+  { symbol: "005930", name: "삼성전자", market: "KOREA", price: 73800, sectorTag: "🇰🇷 반도체 대장" },
+  { symbol: "000660", name: "SK하이닉스", market: "KOREA", price: 233500, sectorTag: "🇰🇷 HBM 메모리" },
+  { symbol: "005380", name: "현대차", market: "KOREA", price: 245000, sectorTag: "🇰🇷 자동차/로봇" },
+  { symbol: "BTC", name: "비트코인", market: "BTC", price: 98500000, sectorTag: "🪙 가상자산 대장" }
 ];
 
 export const SmcMarketStructureVisualizer: React.FC<SmcMarketStructureVisualizerProps> = ({ stock, onOpenBrokerApiModal }) => {
@@ -215,6 +224,7 @@ export const SmcMarketStructureVisualizer: React.FC<SmcMarketStructureVisualizer
   const [modalSearchQuery, setModalSearchQuery] = useState("");
   const [isSearchDropdownOpen, setIsSearchDropdownOpen] = useState(false);
   const [isManualInputOpen, setIsManualInputOpen] = useState(false);
+  const [isUsSuperBrainOpen, setIsUsSuperBrainOpen] = useState(false);
 
   // Sync incoming stock prop if passed from parent
   useEffect(() => {
@@ -661,15 +671,26 @@ export const SmcMarketStructureVisualizer: React.FC<SmcMarketStructureVisualizer
           </div>
         </div>
 
-        {/* Action Button */}
-        <button
-          onClick={() => runSmcAnalysis(selectedSymbol, selectedTimeframe)}
-          disabled={isLoading}
-          className="px-4 py-2 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-black text-xs rounded-xl shadow-lg transition flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
-        >
-          <RefreshCw className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
-          <span>SMC 구조 분석 새로고침</span>
-        </button>
+        {/* Action Buttons */}
+        <div className="flex items-center gap-2">
+          {/* US Scalper Super Brain Launch Button */}
+          <button
+            onClick={() => setIsUsSuperBrainOpen(true)}
+            className="px-3.5 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-black text-xs rounded-xl shadow-lg transition flex items-center gap-1.5 cursor-pointer border border-indigo-400 animate-pulse"
+          >
+            <Sparkles className="h-4 w-4 text-cyan-300" />
+            <span>🧠 미국주식 20-Agent 뇌엔진</span>
+          </button>
+
+          <button
+            onClick={() => runSmcAnalysis(selectedSymbol, selectedTimeframe)}
+            disabled={isLoading}
+            className="px-4 py-2 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-black text-xs rounded-xl shadow-lg transition flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+          >
+            <RefreshCw className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
+            <span>SMC 구조 분석 새로고침</span>
+          </button>
+        </div>
       </div>
 
       {/* SELECTOR BAR (Symbols, Live Stock Search & Timeframes) */}
@@ -2096,6 +2117,13 @@ export const SmcMarketStructureVisualizer: React.FC<SmcMarketStructureVisualizer
       <BrokerApiConnectModal
         isOpen={isApiConfigModalOpen}
         onClose={() => setIsApiConfigModalOpen(false)}
+      />
+
+      {/* US Scalper Super Brain 20-Agent Modal */}
+      <UsScalperSuperBrainModal
+        isOpen={isUsSuperBrainOpen}
+        onClose={() => setIsUsSuperBrainOpen(false)}
+        stock={{ symbol: selectedSymbol, name: selectedSymbol, market: "US" }}
       />
     </div>
   );

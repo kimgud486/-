@@ -730,8 +730,8 @@ export const AiCumulativePnLPerformanceChart: React.FC<{
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5 font-mono text-xs">
-          {filteredTrades.map((tr) => (
-            <div key={tr.id} className="p-3 bg-slate-900/90 rounded-xl border border-slate-800/80 flex items-center justify-between gap-3">
+          {filteredTrades.map((tr, idx) => (
+            <div key={`${tr.id}_${idx}`} className="p-3 bg-slate-900/90 rounded-xl border border-slate-800/80 flex items-center justify-between gap-3">
               <div className="space-y-1">
                 <div className="flex items-center gap-1.5 font-sans">
                   <span className={`px-1.5 py-0.2 rounded text-[10px] font-bold ${

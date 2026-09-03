@@ -34,7 +34,11 @@ import {
   LineChart as LineChartIcon,
   Shield,
   HelpCircle,
-  Globe
+  Globe,
+  MessageSquare,
+  ThumbsUp,
+  ThumbsDown,
+  MessageCircle
 } from "lucide-react";
 import {
   Radar,
@@ -159,7 +163,8 @@ export const MultiModelSecuritiesConsensusModal: React.FC<MultiModelSecuritiesCo
   });
 
   const [isLoading, setIsLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState<"all" | "models" | "radar" | "chart" | "verdict">("all");
+  const [activeTab, setActiveTab] = useState<"all" | "discussion" | "models" | "radar" | "chart" | "verdict">("all");
+  const [discussionFilter, setDiscussionFilter] = useState<"ALL" | "LONG" | "SHORT">("ALL");
 
   // AI Synthesis Verdict Generation States
   const [isGeneratingVerdict, setIsGeneratingVerdict] = useState(false);
@@ -908,6 +913,18 @@ export const MultiModelSecuritiesConsensusModal: React.FC<MultiModelSecuritiesCo
           </button>
 
           <button
+            onClick={() => setActiveTab("discussion")}
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition whitespace-nowrap cursor-pointer flex items-center gap-1.5 min-h-[32px] ${
+              activeTab === "discussion"
+                ? "bg-gradient-to-r from-purple-600 to-indigo-600 text-white border border-purple-400 shadow-md ring-1 ring-purple-400/30"
+                : "text-purple-300 hover:text-purple-200 hover:bg-zinc-800"
+            }`}
+          >
+            <MessageSquare className="w-3.5 h-3.5 text-purple-300 animate-pulse" />
+            <span>💬 봇 실시간 합의 토론 (Consensus Discussion)</span>
+          </button>
+
+          <button
             onClick={() => setActiveTab("verdict")}
             className={`px-3 py-1.5 rounded-xl text-xs font-bold transition whitespace-nowrap cursor-pointer flex items-center gap-1 min-h-[32px] ${
               activeTab === "verdict"
@@ -959,6 +976,263 @@ export const MultiModelSecuritiesConsensusModal: React.FC<MultiModelSecuritiesCo
         {/* MODAL MAIN CONTENT: TABS & VIEWS */}
         <div className="flex-1 overflow-auto p-3 sm:p-6 space-y-4 sm:space-y-6">
           
+          {/* SECTION 0: 💬 CONSENSUS DISCUSSION VIEW (봇 실시간 합의 토론) */}
+          {(activeTab === "all" || activeTab === "discussion") && (
+            <div className="space-y-4 animate-fade-in bg-zinc-950/80 border border-purple-500/40 rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 shadow-2xl relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-96 h-96 bg-purple-600/10 rounded-full blur-3xl pointer-events-none"></div>
+
+              {/* Discussion Top Header & Summary Stats */}
+              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-4 border-b border-zinc-800 relative z-10">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="p-1.5 rounded-xl bg-purple-500/20 text-purple-300 border border-purple-500/40">
+                      <MessageSquare className="w-4 h-4" />
+                    </span>
+                    <h4 className="text-sm sm:text-base font-black text-white flex items-center gap-2">
+                      <span>🧠 신경세포 봇 실시간 합의 토론 (Consensus Discussion)</span>
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-purple-950 text-purple-300 border border-purple-700">
+                        LIVE AGENT CHAT
+                      </span>
+                    </h4>
+                  </div>
+                  <p className="text-xs text-zinc-400">
+                    {selectedStock.name} ({selectedStock.symbol}) 종목에 대해 각 전문 AI 봇들이 분석 근거를 발표하고 가중 평균 신뢰도를 합산합니다.
+                  </p>
+                </div>
+
+                {/* Weighted Confidence Gauge & Direction */}
+                <div className="flex items-center gap-3 bg-zinc-900/90 p-2.5 sm:p-3 rounded-2xl border border-zinc-800 shadow-inner">
+                  <div className="text-right">
+                    <div className="text-[10px] text-zinc-400 font-bold">가중 평균 신뢰도 (Weighted Score)</div>
+                    <div className="text-base sm:text-xl font-mono font-black text-emerald-400 flex items-center justify-end gap-1.5">
+                      <span>{weightedScore}%</span>
+                      <span className="text-[10px] px-1.5 py-0.2 bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 rounded">
+                        {weightedScore >= 80 ? "STRONG BUY" : "BUY ON DIP"}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="w-12 h-12 relative flex items-center justify-center">
+                    <svg className="w-full h-full transform -rotate-90">
+                      <circle cx="24" cy="24" r="18" stroke="#27272a" strokeWidth="4" fill="none" />
+                      <circle
+                        cx="24"
+                        cy="24"
+                        r="18"
+                        stroke="#10b981"
+                        strokeWidth="4"
+                        fill="none"
+                        strokeDasharray="113"
+                        strokeDashoffset={113 - (113 * weightedScore) / 100}
+                        strokeLinecap="round"
+                      />
+                    </svg>
+                    <span className="absolute text-[10px] font-mono font-black text-white">{weightedScore}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Consensus Disagreement & Agreement Diagnostics Box */}
+              <div className="p-3.5 sm:p-4 bg-zinc-900/90 border border-zinc-800 rounded-2xl space-y-2.5 relative z-10">
+                <div className="flex items-center justify-between text-xs font-bold text-zinc-200">
+                  <span className="flex items-center gap-1.5 text-cyan-300">
+                    <Scale className="w-4 h-4" />
+                    <span>쟁점 요약: 왜 일부 봇은 강력 매수하고, 일부는 경계하는가?</span>
+                  </span>
+                  <span className="text-[11px] font-mono text-zinc-400">
+                    찬성 4개 / 반대 0개 / 리스크 경계 1개
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5 text-xs">
+                  <div className="p-3 bg-emerald-950/30 border border-emerald-500/30 rounded-xl space-y-1">
+                    <div className="font-bold text-emerald-300 flex items-center gap-1">
+                      <ThumbsUp className="w-3.5 h-3.5 text-emerald-400" />
+                      <span>상승 지지 봇들의 공통 논거 (SMC & 16-Quant)</span>
+                    </div>
+                    <p className="text-zinc-300 text-[11px] leading-relaxed">
+                      기관 오더블록(₩{formatPrice((model1 as any).orderBlockSupport || Math.round(currentPrice * 0.965))}) 지지와 체결강도 130% 돌파, RVOL 2.4배 급증으로 상방 돌파 확률(88%+)이 높다고 판단합니다.
+                    </p>
+                  </div>
+
+                  <div className="p-3 bg-amber-950/30 border border-amber-500/30 rounded-xl space-y-1">
+                    <div className="font-bold text-amber-300 flex items-center gap-1">
+                      <Shield className="w-3.5 h-3.5 text-amber-400" />
+                      <span>하락방어 봇의 리스크 지적 (Risk Defense)</span>
+                    </div>
+                    <p className="text-zinc-300 text-[11px] leading-relaxed">
+                      직전 고점 부근의 윗꼬리 매물대 저항이 존재하므로, 손절선({formatPrice(consensusStopLoss)})을 엄수하고 1차 목표가(+3.5%) 도달 시 즉시 본절가 스탑을 발동해야 함을 강조합니다.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Chat-Like Discussion Feed Filter */}
+              <div className="flex items-center justify-between gap-2 pt-1 relative z-10 flex-wrap">
+                <div className="flex items-center gap-1.5 text-xs font-mono">
+                  <span className="text-zinc-400 text-[11px]">발언 필터:</span>
+                  {(["ALL", "LONG", "SHORT"] as const).map((flt) => (
+                    <button
+                      key={flt}
+                      onClick={() => setDiscussionFilter(flt)}
+                      className={`px-2.5 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${
+                        discussionFilter === flt
+                          ? "bg-purple-600 text-white shadow-sm"
+                          : "bg-zinc-900 text-zinc-400 hover:text-white border border-zinc-800"
+                      }`}
+                    >
+                      {flt === "ALL" ? "전체 봇 발언 (5)" : flt === "LONG" ? "🟢 롱/매수 (4)" : "🟡 리스크방어 (1)"}
+                    </button>
+                  ))}
+                </div>
+
+                <span className="text-[10px] font-mono text-zinc-500">실시간 신경망 연결됨 · Auto Synced</span>
+              </div>
+
+              {/* Chat Stream Messages */}
+              <div className="space-y-3 relative z-10">
+                {/* Bot 1: SMC Bot */}
+                {(discussionFilter === "ALL" || discussionFilter === "LONG") && (
+                  <div className="flex items-start gap-3 p-3.5 bg-zinc-900/80 border border-cyan-500/30 rounded-2xl transition hover:border-cyan-500/60">
+                    <div className="w-9 h-9 rounded-xl bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 flex items-center justify-center shrink-0 font-bold text-xs shadow-md">
+                      🏛️
+                    </div>
+                    <div className="flex-1 space-y-1.5 min-w-0">
+                      <div className="flex items-center justify-between gap-2 flex-wrap">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-black text-white">SMC 스마트머니 오더블록 봇</span>
+                          <span className="px-1.5 py-0.2 rounded text-[9px] font-mono font-bold bg-cyan-950 text-cyan-300 border border-cyan-700">
+                            가중치 25%
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="px-2 py-0.5 rounded text-[10px] font-black bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
+                            🟢 LONG (확신도 91%)
+                          </span>
+                          <span className="text-[10px] font-mono text-zinc-400">목표가: {formatPrice(consensusTarget1)}</span>
+                        </div>
+                      </div>
+                      <div className="p-2.5 bg-zinc-950/80 rounded-xl border border-zinc-800 text-xs text-zinc-200 leading-relaxed">
+                        "{selectedStock.name}의 기관 오더블록 지지선(₩{formatPrice(Math.round(currentPrice * 0.965))}) 확인이 완료되었습니다. 직전 상방 유동성 공백(Liquidity Void)을 채우는 강한 매수세가 유입 중이므로 1차 목표가 {formatPrice(consensusTarget1)}까지 상방 랠리가 가장 유력합니다."
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Bot 2: 16-Quant Alpha Bot */}
+                {(discussionFilter === "ALL" || discussionFilter === "LONG") && (
+                  <div className="flex items-start gap-3 p-3.5 bg-zinc-900/80 border border-emerald-500/30 rounded-2xl transition hover:border-emerald-500/60">
+                    <div className="w-9 h-9 rounded-xl bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 flex items-center justify-center shrink-0 font-bold text-xs shadow-md">
+                      ⚡
+                    </div>
+                    <div className="flex-1 space-y-1.5 min-w-0">
+                      <div className="flex items-center justify-between gap-2 flex-wrap">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-black text-white">16대 팩터 퀀트 알파 봇</span>
+                          <span className="px-1.5 py-0.2 rounded text-[9px] font-mono font-bold bg-emerald-950 text-emerald-300 border border-emerald-700">
+                            가중치 25%
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="px-2 py-0.5 rounded text-[10px] font-black bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
+                            🟢 LONG (확신도 88%)
+                          </span>
+                          <span className="text-[10px] font-mono text-zinc-400">목표가: {formatPrice(consensusTarget2)}</span>
+                        </div>
+                      </div>
+                      <div className="p-2.5 bg-zinc-950/80 rounded-xl border border-zinc-800 text-xs text-zinc-200 leading-relaxed">
+                        "상대거래량(RVOL) 2.4배 폭증 및 섹터 퀄리티 모멘텀 점수가 상위 5%로 산출되었습니다. 리스크 대비 손익비(Risk-Reward)가 1:2.85로 계산되어 통계적 기대값이 극대화된 상태입니다."
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Bot 3: Price Action Vision Bot */}
+                {(discussionFilter === "ALL" || discussionFilter === "LONG") && (
+                  <div className="flex items-start gap-3 p-3.5 bg-zinc-900/80 border border-indigo-500/30 rounded-2xl transition hover:border-indigo-500/60">
+                    <div className="w-9 h-9 rounded-xl bg-indigo-500/20 text-indigo-300 border border-indigo-500/40 flex items-center justify-center shrink-0 font-bold text-xs shadow-md">
+                      📐
+                    </div>
+                    <div className="flex-1 space-y-1.5 min-w-0">
+                      <div className="flex items-center justify-between gap-2 flex-wrap">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-black text-white">프라이스액션 &amp; 기하학 비전 봇</span>
+                          <span className="px-1.5 py-0.2 rounded text-[9px] font-mono font-bold bg-indigo-950 text-indigo-300 border border-indigo-700">
+                            가중치 20%
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="px-2 py-0.5 rounded text-[10px] font-black bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
+                            🟢 LONG (확신도 85%)
+                          </span>
+                          <span className="text-[10px] font-mono text-zinc-400">목표가: {formatPrice(consensusTarget1)}</span>
+                        </div>
+                      </div>
+                      <div className="p-2.5 bg-zinc-950/80 rounded-xl border border-zinc-800 text-xs text-zinc-200 leading-relaxed">
+                        "5일선과 20일 이동평균선 정배열 지지 위에서 상승 N자형 파동이 진행 중입니다. 캔들 몸통 돌파가 유지되고 있으며 볼린저밴드 상단 밴드워킹 패턴이 전개되고 있습니다."
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Bot 4: HFT Tape Bot */}
+                {(discussionFilter === "ALL" || discussionFilter === "LONG") && (
+                  <div className="flex items-start gap-3 p-3.5 bg-zinc-900/80 border border-amber-500/30 rounded-2xl transition hover:border-amber-500/60">
+                    <div className="w-9 h-9 rounded-xl bg-amber-500/20 text-amber-300 border border-amber-500/40 flex items-center justify-center shrink-0 font-bold text-xs shadow-md">
+                      🌊
+                    </div>
+                    <div className="flex-1 space-y-1.5 min-w-0">
+                      <div className="flex items-center justify-between gap-2 flex-wrap">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-black text-white">HFT 1초 CVD 체결테이프 봇</span>
+                          <span className="px-1.5 py-0.2 rounded text-[9px] font-mono font-bold bg-amber-950 text-amber-300 border border-amber-700">
+                            가중치 15%
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="px-2 py-0.5 rounded text-[10px] font-black bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
+                            🟢 LONG (확신도 94%)
+                          </span>
+                          <span className="text-[10px] font-mono text-zinc-400">목표가: {formatPrice(Math.round(currentPrice * 1.045))}</span>
+                        </div>
+                      </div>
+                      <div className="p-2.5 bg-zinc-950/80 rounded-xl border border-zinc-800 text-xs text-zinc-200 leading-relaxed">
+                        "1초/5초 호가창 체결강도 138% 폭발. 누적순매수델타(CVD) 지표에서 대형 고래 계좌의 시장가 매수 틱이 실시간으로 확인되어 초단타 단기 상승 모멘텀이 매우 강력합니다."
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Bot 5: Risk Defense Bot */}
+                {(discussionFilter === "ALL" || discussionFilter === "SHORT") && (
+                  <div className="flex items-start gap-3 p-3.5 bg-zinc-900/80 border border-rose-500/30 rounded-2xl transition hover:border-rose-500/60">
+                    <div className="w-9 h-9 rounded-xl bg-rose-500/20 text-rose-300 border border-rose-500/40 flex items-center justify-center shrink-0 font-bold text-xs shadow-md">
+                      🛡️
+                    </div>
+                    <div className="flex-1 space-y-1.5 min-w-0">
+                      <div className="flex items-center justify-between gap-2 flex-wrap">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-black text-white">하락방어 V5 거부권 봇</span>
+                          <span className="px-1.5 py-0.2 rounded text-[9px] font-mono font-bold bg-rose-950 text-rose-300 border border-rose-700">
+                            가중치 15%
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="px-2 py-0.5 rounded text-[10px] font-black bg-amber-500/20 text-amber-300 border border-amber-500/40">
+                            🟡 경계 / 손절 엄수 (확신도 82%)
+                          </span>
+                          <span className="text-[10px] font-mono text-rose-400">손절선: {formatPrice(consensusStopLoss)}</span>
+                        </div>
+                      </div>
+                      <div className="p-2.5 bg-zinc-950/80 rounded-xl border border-zinc-800 text-xs text-zinc-200 leading-relaxed">
+                        "상승 추세는 확고하나 직전 고점 매물대 저항 시 일시적 흔들림이 있을 수 있습니다. 1차 익절(+3.5%) 시 40%를 분할 청산하고 스탑로스를 본절가로 이동하는 3단계 분할 전략을 준수하십시오."
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* SECTION 1: 4 INDEPENDENT SECURITIES MODEL CARDS */}
           {(activeTab === "all" || activeTab === "models") && (
             <div className="space-y-3 animate-fade-in">

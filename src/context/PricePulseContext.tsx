@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from "react";
 import { stockSyncService, StockSyncEvent } from "../services/stockSyncService";
+import { safeSymbolStr } from "../lib/stockDictionary";
 
 export type PulseDirection = "UP" | "DOWN" | "FLAT";
 
@@ -38,13 +39,13 @@ export const PricePulseProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
   // Helper to trigger pulse
   const triggerPulse = useCallback((
-    symbol: string, 
+    symbol: any, 
     direction: PulseDirection = "UP", 
     price?: number, 
     prevPrice?: number
   ) => {
-    if (!symbol) return;
-    const cleanSym = symbol.trim().toUpperCase();
+    const cleanSym = safeSymbolStr(symbol).toUpperCase();
+    if (!cleanSym) return;
     const now = Date.now();
 
     const newPulse: PulseEvent = {
@@ -79,7 +80,7 @@ export const PricePulseProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
   // Subscribe to RealtimeMarketStreamManager & Global Ticker Events
   useEffect(() => {
-    // 1) Stock Ticker Batch Updates (Only pulse on REAL price change)
+    // 1) Stock Ticker Batch Updates & KIS Realtime Ticks (Only pulse on REAL price change)
     const handleTickerUpdate = (e: any) => {
       const items = Array.isArray(e.detail) ? e.detail : [e.detail];
       items.forEach((item: any) => {
@@ -94,8 +95,24 @@ export const PricePulseProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         if (prevPrice !== undefined && prevPrice !== item.price) {
           const dir: PulseDirection = item.price > prevPrice ? "UP" : "DOWN";
           triggerPulse(sym, dir, item.price, prevPrice);
+        } else if (prevPrice === undefined) {
+          // Initialize last known price
+          lastKnownPricesRef.current[sym] = item.price;
         }
       });
+    };
+
+    const handleKisTickerUpdate = (e: any) => {
+      const item = e.detail;
+      if (!item || !item.symbol || typeof item.price !== "number" || item.price <= 0) return;
+      const sym = item.symbol.toUpperCase();
+      const prevPrice = lastKnownPricesRef.current[sym];
+      lastKnownPricesRef.current[sym] = item.price;
+
+      if (prevPrice !== undefined && prevPrice !== item.price) {
+        const dir: PulseDirection = item.price > prevPrice ? "UP" : "DOWN";
+        triggerPulse(sym, dir, item.price, prevPrice);
+      }
     };
 
     // 2) Price Discrepancy Alerts & Instant Updates
@@ -146,11 +163,13 @@ export const PricePulseProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     });
 
     window.addEventListener("stock_ticker_update", handleTickerUpdate);
+    window.addEventListener("kis_ticker_update", handleKisTickerUpdate);
     window.addEventListener("stock_price_alert_update", handleAlertUpdate);
     window.addEventListener("upbit_ticker_update", handleUpbitUpdate);
 
     return () => {
       window.removeEventListener("stock_ticker_update", handleTickerUpdate);
+      window.removeEventListener("kis_ticker_update", handleKisTickerUpdate);
       window.removeEventListener("stock_price_alert_update", handleAlertUpdate);
       window.removeEventListener("upbit_ticker_update", handleUpbitUpdate);
       unsubscribeSync();
@@ -160,8 +179,9 @@ export const PricePulseProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   }, [triggerPulse]);
 
   // Evaluates pulse state for a given symbol
-  const getPulseState = useCallback((symbol?: string): PulseState => {
-    if (!symbol) {
+  const getPulseState = useCallback((symbol?: any): PulseState => {
+    const cleanSym = safeSymbolStr(symbol).toUpperCase();
+    if (!cleanSym) {
       return {
         isPulsing: false,
         pulseDirection: "UP",
@@ -173,7 +193,6 @@ export const PricePulseProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       };
     }
 
-    const cleanSym = symbol.trim().toUpperCase();
     const pulse = activePulses[cleanSym] || activePulses[cleanSym.replace("KRW-", "")] || activePulses[`KRW-${cleanSym}`];
     
     if (!pulse) {

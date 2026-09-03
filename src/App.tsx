@@ -9,12 +9,14 @@ import { PricePulseProvider } from "./context/PricePulseContext";
 import { ToastContainer } from "./components/ToastContainer";
 import { RealtimeMarketStreamManager } from "./components/RealtimeMarketStreamManager";
 import { MultiModelSecuritiesConsensusModal } from "./components/MultiModelSecuritiesConsensusModal";
+import { MasterAiAutoTradingDashboard } from "./components/trading/MasterAiAutoTradingDashboard";
 import { AiBotCommandCenterUi } from "./components/AiBotCommandCenterUi";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 
 function MainLayout() {
   const [isConsensusModalOpen, setIsConsensusModalOpen] = useState<boolean>(false);
   const [consensusSelectedSymbol, setConsensusSelectedSymbol] = useState<string>("005930");
+  const [viewMode, setViewMode] = useState<"MASTER_IMAGE_EXACT" | "ADVANCED_CLUSTER">("MASTER_IMAGE_EXACT");
 
   useEffect(() => {
     // Ensure document and body allow natural vertical scrolling
@@ -37,17 +39,26 @@ function MainLayout() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] dark:bg-[#09090b] text-slate-900 dark:text-slate-100 flex flex-col font-sans transition-colors duration-200">
+    <div className="min-h-screen bg-white text-slate-800 flex flex-col font-sans">
       <RealtimeMarketStreamManager />
       
-      {/* DIRECT MASTER COMMAND CENTER TERMINAL */}
+      {/* MASTER AI AUTO TRADING DASHBOARD (EXACT MATCH TO UPLOADED IMAGE) */}
       <ErrorBoundary>
-        <AiBotCommandCenterUi
-          onOpenConsensusModal={(sym) => {
-            setConsensusSelectedSymbol(sym);
-            setIsConsensusModalOpen(true);
-          }}
-        />
+        {viewMode === "MASTER_IMAGE_EXACT" ? (
+          <MasterAiAutoTradingDashboard
+            onOpenConsensusModal={(sym) => {
+              setConsensusSelectedSymbol(sym);
+              setIsConsensusModalOpen(true);
+            }}
+          />
+        ) : (
+          <AiBotCommandCenterUi
+            onOpenConsensusModal={(sym) => {
+              setConsensusSelectedSymbol(sym);
+              setIsConsensusModalOpen(true);
+            }}
+          />
+        )}
       </ErrorBoundary>
 
       {/* Global Real-time Toast Notifications */}

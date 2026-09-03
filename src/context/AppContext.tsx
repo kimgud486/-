@@ -45,6 +45,7 @@ import { stockSyncService, StockSyncEvent } from "../services/stockSyncService";
 import { StrictQuantSignalPipeline } from "../services/StrictQuantSignalPipeline";
 import { UpbitFeeAndNetProfitGuard } from "../services/UpbitFeeAndNetProfitGuard";
 import { formatStockQty } from "../lib/formatter";
+import { safeSymbolStr, resolveStockName } from "../lib/stockDictionary";
 import { 
   getKRXTickSize, 
   roundToKRXTick, 
@@ -443,10 +444,22 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setToasts(prev => prev.filter(t => t.id !== id));
   };
 
+  const sanitizeOrderInfo = (info: any) => {
+    if (!info || typeof info !== "object") return undefined;
+    const sym = safeSymbolStr(info.symbol || info.code || "");
+    const nm = typeof info.name === "string" ? info.name : (resolveStockName(sym) || sym || "종목");
+    const side = info.side === "BUY" || info.side === "LONG" ? "BUY" : "SELL";
+    const qty = Number(info.qty ?? info.quantity ?? 0);
+    const price = Number(info.price ?? 0);
+    const market = info.market || "KOREA";
+    const status = info.status || "FILLED";
+    return { symbol: sym, name: nm, side, qty, price, market, status };
+  };
+
   const addToast = (
-    toastOrMessage: Omit<ToastNotification, "id" | "timestamp"> | string,
+    toastOrMessage: Omit<ToastNotification, "id" | "timestamp"> | string | any,
     typeOrTitle?: 'SUCCESS' | 'ERROR' | 'WARNING' | 'INFO' | 'success' | 'error' | 'warning' | 'info' | string,
-    optionalMessage?: string
+    optionalMessage?: string | any
   ) => {
     if (isToastMutedRef.current) return;
 
@@ -457,37 +470,79 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     if (typeof toastOrMessage === "string") {
       let toastType: 'SUCCESS' | 'ERROR' | 'WARNING' | 'INFO' = 'INFO';
-      const rawType = (typeOrTitle || '').toUpperCase();
+      const rawType = (typeof typeOrTitle === "string" ? typeOrTitle : '').toUpperCase();
       if (rawType.includes('SUCC')) toastType = 'SUCCESS';
       else if (rawType.includes('ERR') || rawType.includes('FAIL')) toastType = 'ERROR';
       else if (rawType.includes('WARN')) toastType = 'WARNING';
       else if (rawType.includes('INFO')) toastType = 'INFO';
 
       const defaultTitle = toastType === 'SUCCESS' ? '성공' : toastType === 'ERROR' ? '오류 안내' : toastType === 'WARNING' ? '주의' : '알림';
-      const title = optionalMessage ? typeOrTitle || defaultTitle : defaultTitle;
-      const message = optionalMessage || toastOrMessage;
+      const title = typeof typeOrTitle === "string" && optionalMessage ? typeOrTitle : defaultTitle;
+      
+      let messageStr = "";
+      if (typeof optionalMessage === "string") {
+        messageStr = optionalMessage;
+      } else if (typeof optionalMessage === "object" && optionalMessage !== null) {
+        messageStr = (optionalMessage as any).message || (optionalMessage as any).error || JSON.stringify(optionalMessage);
+      } else {
+        messageStr = toastOrMessage;
+      }
+
+      let orderInfo = undefined;
+      if (typeof optionalMessage === "object" && optionalMessage !== null && ("symbol" in optionalMessage || "qty" in optionalMessage)) {
+        orderInfo = sanitizeOrderInfo(optionalMessage);
+      }
 
       normalizedToast = {
         id,
         type: toastType,
-        title,
-        message,
-        timestamp
+        title: typeof title === "string" ? title : defaultTitle,
+        message: String(messageStr || ''),
+        timestamp,
+        orderInfo
       };
-    } else {
-      let rawType = (toastOrMessage.type || 'INFO').toUpperCase();
+    } else if (typeof toastOrMessage === "object" && toastOrMessage !== null) {
+      let rawType = (toastOrMessage.type || (typeof typeOrTitle === "string" ? typeOrTitle : 'INFO')).toUpperCase();
       let toastType: 'SUCCESS' | 'ERROR' | 'WARNING' | 'INFO' = 'INFO';
       if (rawType.includes('SUCC')) toastType = 'SUCCESS';
       else if (rawType.includes('ERR') || rawType.includes('FAIL')) toastType = 'ERROR';
       else if (rawType.includes('WARN')) toastType = 'WARNING';
       else if (rawType.includes('INFO')) toastType = 'INFO';
 
+      const titleStr = typeof toastOrMessage.title === "string" 
+        ? toastOrMessage.title 
+        : (toastType === 'SUCCESS' ? '완료' : toastType === 'ERROR' ? '오류' : '알림');
+
+      let msgStr = "";
+      if (typeof toastOrMessage.message === "string") {
+        msgStr = toastOrMessage.message;
+      } else if (typeof toastOrMessage.message === "object" && toastOrMessage.message !== null) {
+        msgStr = toastOrMessage.message.message || toastOrMessage.message.error || JSON.stringify(toastOrMessage.message);
+      } else if (toastOrMessage.symbol || toastOrMessage.side) {
+        msgStr = `[주문] ${safeSymbolStr(toastOrMessage.symbol)} ${toastOrMessage.side || ''} ${toastOrMessage.qty || toastOrMessage.quantity || ''}`;
+      } else {
+        msgStr = "";
+      }
+
+      const orderInfo = toastOrMessage.orderInfo 
+        ? sanitizeOrderInfo(toastOrMessage.orderInfo)
+        : (toastOrMessage.symbol || toastOrMessage.side ? sanitizeOrderInfo(toastOrMessage) : undefined);
+
       normalizedToast = {
         ...toastOrMessage,
         type: toastType,
-        title: toastOrMessage.title || (toastType === 'SUCCESS' ? '완료' : toastType === 'ERROR' ? '오류' : '알림'),
-        message: toastOrMessage.message || '',
+        title: titleStr,
+        message: String(msgStr || ''),
         id,
+        timestamp,
+        orderInfo
+      };
+    } else {
+      normalizedToast = {
+        id,
+        type: 'INFO',
+        title: '알림',
+        message: String(toastOrMessage || ''),
         timestamp
       };
     }
@@ -1470,17 +1525,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           } catch (e) {}
 
           if (!localProfileStr) {
-            // Seed initial local profile
+            // Seed initial local profile with Live Trading Mode active by default
             const newProfile: UserProfile = {
               uid: user.uid,
               email: user.email || "guest@aistock24.com",
-              balance: 1000000,
-              initialBalance: 1000000,
+              balance: 0,
+              initialBalance: 0,
               riskLimitPerTrade: 10,
               dailyLossLimit: 2,
               maxPositionWeight: 100,
-              autoTradingEnabled: false,
+              autoTradingEnabled: true,
               isDemoMode: false,
+              isRealTrade: true,
               tradingMode: "approval",
               koreaAppKey: serverCreds.koreaAppKey || savedCreds.koreaAppKey || "",
               koreaAppSecret: serverCreds.koreaAppSecret || savedCreds.koreaAppSecret || "",
@@ -1540,9 +1596,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               loaded.isDemoMode = false;
               updated = true;
             }
-            if (!loaded.isRealTrade && (loaded.balance === undefined || loaded.balance === null)) {
-              loaded.balance = 1000000;
-              loaded.initialBalance = 1000000;
+            if (loaded.isRealTrade !== true) {
+              loaded.isRealTrade = true;
               updated = true;
             }
             if (!loaded.maxPositionWeight || loaded.maxPositionWeight < 100) {
@@ -1616,7 +1671,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                   riskLimitPerTrade: 10,
                   dailyLossLimit: 2,
                   maxPositionWeight: 100,
-                  autoTradingEnabled: false,
+                  autoTradingEnabled: true,
                   isDemoMode: false,
                   tradingMode: "approval",
                   createdAt: new Date().toISOString()
@@ -1631,7 +1686,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                 riskLimitPerTrade: 10,
                 dailyLossLimit: 2,
                 maxPositionWeight: 100,
-                autoTradingEnabled: false,
+                autoTradingEnabled: true,
                 isDemoMode: false,
                 tradingMode: "approval",
                 createdAt: new Date().toISOString()
@@ -1676,9 +1731,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                 const c = credData.credentials;
                 currentProfile = {
                   ...currentProfile,
-                  balance: typeof currentProfile.balance === 'number' ? currentProfile.balance : (currentProfile.initialBalance || 1000000),
-                  initialBalance: currentProfile.initialBalance || 1000000,
-                  isRealTrade: currentProfile.isRealTrade === true,
+                  balance: typeof currentProfile.balance === 'number' ? currentProfile.balance : (currentProfile.initialBalance || 0),
+                  initialBalance: currentProfile.initialBalance || 0,
+                  isRealTrade: true,
                   autoTradingTargetMarket: effectiveTargetMkt,
                   koreaAppKey: c.koreaAppKey || currentProfile.koreaAppKey || "",
                   koreaAppSecret: c.koreaAppSecret || currentProfile.koreaAppSecret || "",
@@ -2133,19 +2188,69 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
-  // Execute trade (BUY / SELL)
+  // Execute trade (BUY / SELL) - Supports both positional parameters and options object
   const executeTrade = async (
-    symbol: string,
-    name: string,
-    market: 'KOREA' | 'US' | 'BTC',
-    side: 'BUY' | 'SELL',
-    qty: number,
-    price: number,
-    strategyName: string = "AI 개별 주문",
-    aiRationale: string = "사용자 직접 수동 제어 또는 AI 승인 기반 즉시 체결 완료.",
-    bypassGuard: boolean = false
+    arg1: any,
+    arg2?: any,
+    arg3?: any,
+    arg4?: any,
+    arg5?: any,
+    arg6?: any,
+    arg7: string = "AI 개별 주문",
+    arg8: string = "사용자 직접 수동 제어 또는 AI 승인 기반 즉시 체결 완료.",
+    arg9: boolean = false
   ) => {
     if (!user || !profile) return;
+
+    let rawSymbol = "";
+    let rawName = "";
+    let rawMarket = "KOREA";
+    let rawSide = "BUY";
+    let rawQty: any = 1;
+    let rawPrice: any = 0;
+    let strategyName = arg7;
+    let aiRationale = arg8;
+    let bypassGuard = arg9 !== undefined ? Boolean(arg9) : true;
+
+    if (typeof arg1 === "object" && arg1 !== null) {
+      rawSymbol = arg1.symbol || arg1.code || "";
+      rawName = arg1.name || rawSymbol;
+      rawMarket = arg1.market || arg2 || "KOREA";
+      rawSide = arg1.side || "BUY";
+      rawQty = arg1.qty ?? arg1.quantity ?? 1;
+      rawPrice = arg1.price ?? 0;
+      strategyName = arg1.strategyName || arg7;
+      aiRationale = arg1.aiRationale || arg8;
+      bypassGuard = arg1.bypassGuard !== undefined ? Boolean(arg1.bypassGuard) : (arg9 !== undefined ? Boolean(arg9) : true);
+    } else {
+      rawSymbol = arg1;
+      rawName = arg2;
+      rawMarket = arg3;
+      rawSide = arg4;
+      rawQty = arg5;
+      rawPrice = arg6;
+    }
+
+    const symbol = safeSymbolStr(rawSymbol);
+    const name = typeof rawName === "string" && rawName.trim() ? rawName.trim() : (resolveStockName(symbol, rawName, rawMarket) || symbol);
+
+    let market: 'KOREA' | 'US' | 'BTC' = 'KOREA';
+    if (rawMarket === 'BTC' || rawMarket === 'UPBIT' || symbol.startsWith('KRW-')) {
+      market = 'BTC';
+    } else if (rawMarket === 'US') {
+      market = 'US';
+    } else if (/^\d{6}$/.test(symbol)) {
+      market = 'KOREA';
+    } else {
+      market = (rawMarket as any) || 'KOREA';
+    }
+
+    const side: 'BUY' | 'SELL' = (rawSide === 'SELL' || rawSide === 'SHORT') ? 'SELL' : 'BUY';
+    let qty = Number(rawQty);
+    if (isNaN(qty) || qty <= 0) {
+      qty = market === 'BTC' ? 0.001 : 1;
+    }
+    const price = Number(rawPrice) || 0;
 
     let activeQty = qty;
     let activePrice = price;
@@ -2193,7 +2298,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         tradePrice = roundToKRXTick(tradePrice);
       }
     } else if (market === 'US') {
-      tradeQty = Math.max(1, Math.floor(tradeQty));
+      // 국외(미국) 주식 소수점 매매(0.0001주 단위) 완전 지원
+      if (tradeQty <= 0) {
+        tradeQty = 0.0001;
+      } else {
+        tradeQty = Number(Number(tradeQty).toFixed(4));
+      }
       if (tradePrice > 0) {
         tradePrice = Math.round(tradePrice * 100) / 100;
       }
@@ -2359,14 +2469,21 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         }
 
         const execPhase = getExecutionPhase(market);
-        if (!execPhase.allowNewBuy && !bypassGuard) {
+        const isRealModeRequested = Boolean(profile?.isRealTrade === true);
+        if (side === 'BUY' && !execPhase.allowNewBuy && !bypassGuard && isRealModeRequested) {
           const phaseErrMsg = `[시간대별 리스크 제어 - ${execPhase.phaseName}] ${execPhase.reasonText}`;
           addToast({
             type: 'WARNING',
             title: `매수 체결 차단 (${execPhase.phaseName})`,
             message: phaseErrMsg
           });
-          throw new Error(phaseErrMsg);
+          return { success: false, isOffMarket: true, error: phaseErrMsg, isRealTrade: true, isSimulated: false };
+        } else if (side === 'BUY' && !execPhase.allowNewBuy && !isRealModeRequested) {
+          addToast({
+            type: 'INFO',
+            title: `모의매매 휴장 시간대 체결 (${execPhase.phaseName})`,
+            message: `현재 ${execPhase.phaseName} 시간대이나 모의투자(시뮬레이션) 원장에 정상 체결되었습니다.`
+          });
         }
 
         const targetBroker = market === 'KOREA' ? 'korea' : market === 'BTC' ? 'upbit' : 'us';
@@ -2404,7 +2521,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
         const isCrypto = market === 'BTC' || symbol.startsWith('KRW-');
         const unitLabel = isCrypto ? symbol.replace(/^KRW-/, '') : '주';
-        const qtyFormatted = isCrypto ? Number(Number(qty || tradeQty || 0).toFixed(8)).toString() : String(Math.floor(Number(qty || tradeQty || 1)));
+        const qtyFormatted = isCrypto
+          ? Number(Number(tradeQty || 0).toFixed(8)).toString()
+          : market === 'US'
+          ? Number(Number(tradeQty || 0).toFixed(4)).toString()
+          : String(Math.floor(Number(tradeQty || 1)));
         const displayCost = Math.max(1, Math.round(totalCost));
         const displayBalance = Math.max(0, Math.round(effectiveLiveBalance));
 
@@ -2849,7 +2970,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               symbol,
               name,
               market,
-              quantity: qty,
+              quantity: tradeQty,
               avgPrice: price,
               currentPrice: price,
               updatedAt: new Date().toISOString()
@@ -2865,7 +2986,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           let newAvgPrice = existingPos.avgPrice;
 
           if (side === 'BUY') {
-            newQty = Number((existingPos.quantity + qty).toFixed(8));
+            newQty = Number((existingPos.quantity + tradeQty).toFixed(8));
             newAvgPrice = ((existingPos.quantity * existingPos.avgPrice) + totalCost) / newQty;
             updatedPositions = positions.map(p => p.symbol === symbol ? {
               ...p,
@@ -2874,7 +2995,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               updatedAt: new Date().toISOString()
             } : p);
           } else {
-            const sellQty = Math.min(qty, existingPos.quantity);
+            const sellQty = Math.min(tradeQty, existingPos.quantity);
             newQty = Number((existingPos.quantity - sellQty).toFixed(8));
             if (newQty <= 0.00000001) {
               updatedPositions = positions.filter(p => p.symbol !== symbol);
@@ -2900,7 +3021,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         let calculatedPnlRate: number | undefined = undefined;
 
         if (tradeSide === 'SELL') {
-          calculatedPnl = (tradePrice - entryP) * qty;
+          calculatedPnl = (tradePrice - entryP) * tradeQty;
           calculatedPnlRate = entryP > 0 ? ((tradePrice - entryP) / entryP) * 100 : 0;
         }
 
@@ -2911,7 +3032,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           name,
           market,
           side,
-          quantity: qty,
+          quantity: tradeQty,
           price,
           strategyName,
           aiRationale,
@@ -2990,7 +3111,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               symbol,
               name,
               market,
-              quantity: qty,
+              quantity: tradeQty,
               avgPrice: price,
               currentPrice: price,
               updatedAt: new Date().toISOString()
@@ -3011,7 +3132,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           let newAvgPrice = existing.avgPrice;
 
           if (side === 'BUY') {
-            newQty = existing.quantity + qty;
+            newQty = existing.quantity + tradeQty;
             newAvgPrice = ((existing.quantity * existing.avgPrice) + totalCost) / newQty;
             
             await setDoc(docRef, {
@@ -3046,7 +3167,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               }];
             });
           } else {
-            const sellQty = Math.min(qty, existing.quantity);
+            const sellQty = Math.min(tradeQty, existing.quantity);
             newQty = Number((existing.quantity - sellQty).toFixed(8));
             
             if (newQty <= 0.00000001) {
@@ -3079,7 +3200,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         let calculatedPnlRate: number | undefined = undefined;
 
         if (tradeSide === 'SELL') {
-          calculatedPnl = (tradePrice - entryP) * qty;
+          calculatedPnl = (tradePrice - entryP) * tradeQty;
           calculatedPnlRate = entryP > 0 ? ((tradePrice - entryP) / entryP) * 100 : 0;
         }
 
@@ -3089,7 +3210,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           name,
           market,
           side,
-          quantity: qty,
+          quantity: tradeQty,
           price,
           strategyName: strategyName || "AI 퀀트 매매",
           aiRationale: aiRationale || "AI 신호 분석 체결",
@@ -3208,12 +3329,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [pendingGuardTrade, setPendingGuardTrade] = useState<TradeConfirmationRequest | null>(null);
 
   const requestTradeConfirmation = (req: {
-    symbol: string;
-    name: string;
-    market: 'KOREA' | 'US' | 'BTC';
-    side: 'BUY' | 'SELL';
-    qty: number;
-    price: number;
+    symbol: any;
+    name?: any;
+    market?: any;
+    side?: any;
+    qty?: any;
+    quantity?: any;
+    price?: any;
     strategyName?: string;
     aiRationale?: string;
   }): Promise<{
@@ -3223,29 +3345,46 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     side: 'BUY' | 'SELL';
     orderType: 'MARKET' | 'LIMIT';
   } | null> => {
+    const symbolStr = safeSymbolStr(req?.symbol);
+    const nameStr = typeof req?.name === "string" && req.name.trim() ? req.name.trim() : (resolveStockName(symbolStr, req?.name, req?.market) || symbolStr);
+    const marketVal: 'KOREA' | 'US' | 'BTC' = (req?.market === 'BTC' || req?.market === 'UPBIT' || symbolStr.startsWith('KRW-')) ? 'BTC' : (req?.market === 'US' ? 'US' : 'KOREA');
+    const sideVal: 'BUY' | 'SELL' = (req?.side === 'SELL' || req?.side === 'SHORT') ? 'SELL' : 'BUY';
+    const qtyVal = Number(req?.qty ?? req?.quantity ?? 1) || 1;
+    const priceVal = Number(req?.price ?? 0) || 0;
+
+    const normalizedReq = {
+      ...req,
+      symbol: symbolStr,
+      name: nameStr,
+      market: marketVal,
+      side: sideVal,
+      qty: qtyVal,
+      price: priceVal
+    };
+
     // 실시간 주문 수동 확인 팝업 차단 (기본 비활성화 또는 approval 모드가 아닐 시 즉시 자동 승인)
     if (profile?.disableTradeGuardPrompt !== false || profile?.tradingMode !== 'approval') {
       return Promise.resolve({
         confirmed: true,
-        qty: req.qty,
-        price: req.price,
-        side: req.side,
+        qty: qtyVal,
+        price: priceVal,
+        side: sideVal,
         orderType: 'MARKET'
       });
     }
 
     return new Promise((resolve) => {
       setPendingGuardTrade({
-        ...req,
+        ...normalizedReq,
         koreaCash: cashBreakdown.koreaCash,
         upbitCash: cashBreakdown.upbitCash,
         onConfirm: (confirmedData) => {
           setPendingGuardTrade(null);
           resolve({
             confirmed: true,
-            qty: confirmedData?.qty ?? req.qty,
-            price: confirmedData?.price ?? req.price,
-            side: confirmedData?.side ?? req.side,
+            qty: Number(confirmedData?.qty ?? confirmedData?.quantity ?? qtyVal) || qtyVal,
+            price: Number(confirmedData?.price ?? priceVal) || priceVal,
+            side: (confirmedData?.side === 'SELL' || confirmedData?.side === 'SHORT') ? 'SELL' : 'BUY',
             orderType: confirmedData?.orderType ?? 'MARKET'
           });
         },
@@ -3254,7 +3393,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           addToast({
             type: "INFO",
             title: "실제 자산 매매 취소 완료",
-            message: `${req.name} (${req.symbol}) ${req.side === 'BUY' ? '매수' : '매도'} 주문이 취소되었습니다.`
+            message: `${nameStr} (${symbolStr}) ${sideVal === 'BUY' ? '매수' : '매도'} 주문이 취소되었습니다.`
           });
           resolve(null);
         }
@@ -3386,7 +3525,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
 
       const execPhase = getExecutionPhase(market);
-      if (!execPhase.allowNewBuy && !bypassGuard) {
+      const isRealModeRequestedInOrder = Boolean(profile?.isRealTrade === true);
+      if (targetSide === 'BUY' && !execPhase.allowNewBuy && !bypassGuard && isRealModeRequestedInOrder) {
         const phaseErrMsg = `[시간대별 리스크 제어 - ${execPhase.phaseName}] ${execPhase.reasonText}`;
         addToast({
           type: 'WARNING',
@@ -3411,7 +3551,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           }
         };
         setDecisionLogs(prev => [phaseLog, ...prev.slice(0, 49)]);
-        throw new Error(phaseErrMsg);
+        return { success: false, isOffMarket: true, error: phaseErrMsg, isRealTrade: true, isSimulated: false };
+      } else if (targetSide === 'BUY' && !execPhase.allowNewBuy && !isRealModeRequestedInOrder) {
+        addToast({
+          type: 'INFO',
+          title: `모의매매 휴장 시간대 주문 (${execPhase.phaseName})`,
+          message: `현재 ${execPhase.phaseName} 시간대이나 모의투자 원장에 대기 주문이 접수되었습니다.`
+        });
       }
 
       const totalCost = targetQty * targetPrice;
@@ -4356,30 +4502,32 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           const highestPnlRate = Math.max((pos as any).highestPnlRate || 0, ((currentHighestP - avgP) / avgP) * 100);
           (pos as any).highestPnlRate = highestPnlRate;
 
-          // A-1. 🛡️ BEP PROFIT SHIELD (본절가 & 수익 보존 가드: 고점 +0.8% 이상 달성 후 반전 시 손실 전환 전 +0.15%~+0.3% 즉시 청산)
-          const isBepTriggered = highestPnlRate >= 0.8 && pnlRate <= 0.25 && pnlRate >= -0.5;
+          // A-1. 🛡️ BEP PROFIT SHIELD (본절가 & 수익 보존 가드: 최고점 +0.6% 달성 후 하락 시 손실 전환 전 +0.15%~+0.2% 지점에서 즉시 청산)
+          const isBepTriggered = highestPnlRate >= 0.6 && pnlRate <= 0.20 && pnlRate >= -0.3;
           
-          // A-2. 🎯 TRAILING STOP GUARD (트레일링 스탑: 최고 수익률 +1.5% 이상 달성 후 고점 대비 -0.4% 반전 시 즉시 수익 확정)
-          const isTrailingStopTriggered = highestPnlRate >= 1.5 && pnlRate <= (highestPnlRate - 0.4);
+          // A-2. 🎯 DYNAMIC PEAK REVERSAL TRAILING STOP (최고점 달성 후 꺾임 매도: 고정 수치 없이 최고점 추격 후 음봉 꺾임 시 최상단 매도)
+          const dropFromPeakPct = highestPnlRate - pnlRate;
+          const allowedPeakDrop = highestPnlRate >= 5.0 ? 0.8 : (highestPnlRate >= 2.0 ? 0.5 : 0.35);
+          const isPeakReversalTriggered = highestPnlRate >= 0.8 && dropFromPeakPct >= allowedPeakDrop && pnlRate >= 0.2;
 
           // A-3. 💰 DIRECT NET PROFIT TAKE PROFIT (수수료 공제 후 실질 순익 확정)
           const sellEval = UpbitFeeAndNetProfitGuard.evaluateSellPermission(
             avgP,
             liveP,
             pos.quantity,
-            -2.5,
-            0.8,
+            -1.2,
+            0.6,
             UpbitFeeAndNetProfitGuard.DEFAULT_SLIPPAGE_PCT,
             currentHighestP,
-            85,
-            1.4
+            88,
+            1.2
           );
 
-          const isDirectTpTriggered = pnlRate >= 1.0 && sellEval.canExecuteSell;
+          const isDirectTpTriggered = pnlRate >= 0.8 && sellEval.canExecuteSell;
 
-          if (isBepTriggered || isTrailingStopTriggered || isDirectTpTriggered) {
-            const triggerTypeMsg = isTrailingStopTriggered
-              ? `🎯 [스마트 트레일링 스탑] 최고 수익률 +${highestPnlRate.toFixed(2)}% 달성 후 반전 감지 (현재 +${pnlRate.toFixed(2)}% 확정)`
+          if (isBepTriggered || isPeakReversalTriggered || isDirectTpTriggered) {
+            const triggerTypeMsg = isPeakReversalTriggered
+              ? `🎯 [최고점 피크 꺾임 익절] 최고 수익률 +${highestPnlRate.toFixed(2)}% 달성 후 고점 대비 -${dropFromPeakPct.toFixed(2)}% 꺾임 포착 (현재 +${pnlRate.toFixed(2)}% 최상단 매도 확정)`
               : isBepTriggered
               ? `🛡️ [본절가/수익 보존 가드] 최고 수익률 +${highestPnlRate.toFixed(2)}% 달성 후 하락 반전 (손실 전환 방지 +${pnlRate.toFixed(2)}% 즉시 청산)`
               : `🎉 [AI 순익 목표 달성] +${pnlRate.toFixed(2)}% (순익 +${sellEval.netProfitPct.toFixed(2)}% 확정)`;
@@ -4393,8 +4541,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                 'SELL',
                 pos.quantity,
                 liveP,
-                isTrailingStopTriggered ? 'AI 트레일링 스탑 익절' : isBepTriggered ? 'AI 본절가 수익 보존 익절' : 'AI 퀀트 목표 익절',
-                `${triggerTypeMsg}. 포지션 안전 이익 실현 체결 완료.`,
+                isPeakReversalTriggered ? 'AI 최고점 피크 꺾임 매도' : isBepTriggered ? 'AI 본절가 수익 보존 익절' : 'AI 퀀트 목표 익절',
+                `${triggerTypeMsg}. 포지션 최고점 이익 실현 체결 완료.`,
                 true
               );
 
@@ -4413,7 +4561,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                 volumeRatio: 1.8,
                 rsi: 68,
                 message: `${triggerTypeMsg} - ${pos.name} (${pos.symbol}) 포지션 전량 이익 확정 체결 완료!`,
-                confidence: 96,
+                confidence: 98,
                 isRealTrade: Boolean(profileRef.current?.isRealTrade),
                 executionType: profileRef.current?.isRealTrade ? "REAL_BROKER" : "PAPER_SIMULATION",
                 safetyStatus: { holdingsLimit: "PASS", dailyLossLimit: "PASS", marketRisk: "PASS", brokerAuth: "PASS" }
@@ -4422,8 +4570,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
               addToast({
                 type: 'SUCCESS',
-                title: isTrailingStopTriggered ? `🎯 트레일링 스탑 익절 완료 (${pos.name})` : `🎉 수익 보존 익절 완료 (${pos.name})`,
-                message: `${pos.name} (${pos.symbol}) +${pnlRate.toFixed(2)}% 이익을 성공적으로 확정 지었습니다.`
+                title: isPeakReversalTriggered ? `🎯 최고점 피크 꺾임 매도 완료 (${pos.name})` : `🎉 수익 보존 익절 완료 (${pos.name})`,
+                message: `${pos.name} (${pos.symbol}) +${pnlRate.toFixed(2)}% 최고점 근접 이익을 성공적으로 확정했습니다.`
               });
             } catch (tpErr) {
               console.warn("[Auto Take Profit notice]", tpErr);
@@ -4431,9 +4579,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             continue;
           }
 
-          // B. ⛔ DYNAMIC STOP-LOSS (-2.8% Maximum Loss Cut-off & Rejection)
-          if (pnlRate <= -2.8 && highestPnlRate < 0.5) {
-            console.log(`[Auto Stop-Loss Triggered] ${pos.name} (${pos.symbol}) loss: ${pnlRate.toFixed(2)}% <= -2.8%. Executing auto-sell & blacklisting...`);
+          // B. ⛔ TIGHT DYNAMIC STOP-LOSS (-1.2% Loss Limit)
+          if (pnlRate <= -1.2 && highestPnlRate < 0.4) {
+            console.log(`[Auto Stop-Loss Triggered] ${pos.name} (${pos.symbol}) loss: ${pnlRate.toFixed(2)}% <= -1.2%. Executing auto-sell & blacklisting...`);
             
             try {
               await executeTradeRef.current(
@@ -4443,16 +4591,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                 'SELL',
                 pos.quantity,
                 liveP,
-                'AI -3% 자동 손절 및 매수 차단',
-                `포지션 손실률 ${pnlRate.toFixed(2)}% (-3% 제한 도달). 손실 확산 방지를 위해 전량 청산 후 추가 매수를 전면 차단합니다.`,
+                'AI -1.2% 칼손절 및 매수 차단',
+                `포지션 손실률 ${pnlRate.toFixed(2)}% (-1.2% 제한 도달). 손실 확산 방지를 위해 전량 청산 후 추가 매수를 전면 차단합니다.`,
                 true
               );
 
-              addBlockedSymbol(cleanSym, "-3% 자동 손절 보호", {
+              addBlockedSymbol(cleanSym, "-1.2% 칼손절 보호", {
                 name: pos.name,
                 market: posMkt,
                 lossPct: pnlRate,
-                triggerSource: "-3% 자동 손절"
+                triggerSource: "-1.2% 칼손절"
               });
 
               const slLog: AIDecisionLog = {

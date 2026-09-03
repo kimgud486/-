@@ -121,7 +121,7 @@ export const KRX_AND_GLOBAL_MASTER_UNIVERSE: MasterStockRecord[] = [
   { symbol: "061970", name: "알에프텍", market: "KOSDAQ", capCategory: "SMALL", sector: "5G 안테나/필러/보톡스", aliases: ["알에프텍", "ㅇㅇㅍㅌ"], themeTags: ["히알루론산필러", "보툴리눔톡신", "5G안테나"] },
   { symbol: "065060", name: "지엔씨에너지", market: "KOSDAQ", capCategory: "SMALL", sector: "비상발전기/IDC 전력", aliases: ["지엔씨", "지엔씨에너지"], themeTags: ["데이터센터비상발전", "바이오가스"] },
   { symbol: "032820", name: "우리기술", market: "KOSDAQ", capCategory: "SMALL", sector: "원전 제어계측/DCS", aliases: ["우리기술", "ㅇㄹㄱㅅ"], themeTags: ["체코원전", "원전핵심제어", "철도스크린도어"] },
-  { symbol: "452880", name: "우진엔텍", market: "KOSDAQ", capCategory: "SMALL", sector: "원전 정비/해체", aliases: ["우진엔텍", "ㅇㅈㅇㅌ"], themeTags: ["원전정비", "SMR계측", "체코원전"] },
+  { symbol: "457550", name: "우진엔텍", market: "KOSDAQ", capCategory: "SMALL", sector: "원전 정비/해체", aliases: ["우진엔텍", "ㅇㅈㅇㅌ"], themeTags: ["원전정비", "SMR계측", "체코원전"] },
   { symbol: "083650", name: "비에이치아이", market: "KOSDAQ", capCategory: "SMALL", sector: "HRSG/원전 보조기기", aliases: ["비에이치아이", "BHI"], themeTags: ["HRSG배열회수보일러", "복합화력", "원전BOP"] },
   { symbol: "138360", name: "에이비엘바이오", market: "KOSDAQ", capCategory: "SMALL", sector: "이중항체/BBB 셔틀", aliases: ["에이비엘", "ABL"], themeTags: ["그랩바디", "사노피기술수출", "파킨슨병"] },
   { symbol: "056080", name: "유진로봇", market: "KOSDAQ", capCategory: "SMALL", sector: "자율주행 물류로봇", aliases: ["유진로봇", "고카트"], themeTags: ["SLAM라이다", "스마트물류", "LG유플러스협력"] },

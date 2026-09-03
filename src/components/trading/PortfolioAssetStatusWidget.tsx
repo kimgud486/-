@@ -213,6 +213,12 @@ export const PortfolioAssetStatusWidget: React.FC<PortfolioAssetStatusWidgetProp
   const totalHoldingsPnlRate = totalHoldingsCost > 0 ? (totalHoldingsPnl / totalHoldingsCost) * 100 : 0;
   const mockTotalAssets = mockCash + totalHoldingsEval;
 
+  // Genuine Mock Holdings Breakdown by Market/Broker
+  const mockKoreaHoldings = holdingsData.filter(h => isKoreaPos(h)).reduce((acc, h) => acc + h.evalKrw, 0);
+  const mockUsHoldings = holdingsData.filter(h => isUsPos(h)).reduce((acc, h) => acc + h.evalKrw, 0);
+  const mockTossHoldings = holdingsData.filter(h => isTossPos(h)).reduce((acc, h) => acc + h.evalKrw, 0);
+  const mockUpbitHoldings = holdingsData.filter(h => isUpbitPos(h)).reduce((acc, h) => acc + h.evalKrw, 0);
+
   // Active metrics depending on active tab
   const displayTotalAssets = activeAssetView === "REAL" ? realGrandTotal : mockTotalAssets;
   const displayCash = activeAssetView === "REAL" ? realTotalCash : mockCash;
@@ -494,20 +500,20 @@ export const PortfolioAssetStatusWidget: React.FC<PortfolioAssetStatusWidgetProp
             <div className="font-mono">
               <div className="text-[10px] text-slate-400">계좌 총자산</div>
               <div className="text-sm font-black text-slate-900 dark:text-white">
-                {activeAssetView === "REAL" ? kisRealTotal.toLocaleString() : Math.round(mockTotalAssets * 0.4).toLocaleString()}원
+                {activeAssetView === "REAL" ? kisRealTotal.toLocaleString() : (mockKoreaHoldings + mockCash).toLocaleString()}원
               </div>
             </div>
             <div className="grid grid-cols-2 gap-1 text-[11px] font-mono pt-1 border-t border-slate-200/60 dark:border-slate-700">
               <div>
                 <span className="text-[10px] text-slate-400 block font-sans">예수금</span>
                 <span className="font-bold text-slate-700 dark:text-slate-300">
-                  {activeAssetView === "REAL" ? koreaRealCash.toLocaleString() : Math.round(mockCash * 0.4).toLocaleString()}원
+                  {activeAssetView === "REAL" ? koreaRealCash.toLocaleString() : mockCash.toLocaleString()}원
                 </span>
               </div>
               <div className="text-right">
                 <span className="text-[10px] text-slate-400 block font-sans">보유주식</span>
                 <span className="font-bold text-slate-700 dark:text-slate-300">
-                  {activeAssetView === "REAL" ? koreaRealInvested.toLocaleString() : Math.round(mockHoldingsEval * 0.4).toLocaleString()}원
+                  {activeAssetView === "REAL" ? koreaRealInvested.toLocaleString() : mockKoreaHoldings.toLocaleString()}원
                 </span>
               </div>
             </div>
@@ -527,9 +533,9 @@ export const PortfolioAssetStatusWidget: React.FC<PortfolioAssetStatusWidgetProp
             <div className="font-mono">
               <div className="text-[10px] text-slate-400">총 평가 ($ / ₩)</div>
               <div className="text-sm font-black text-slate-900 dark:text-white">
-                ${activeAssetView === "REAL" ? (usRealTotalKrw / fxRate).toFixed(1) : ((mockTotalAssets * 0.2) / fxRate).toFixed(1)}
+                ${activeAssetView === "REAL" ? (usRealTotalKrw / fxRate).toFixed(1) : (mockUsHoldings / fxRate).toFixed(1)}
                 <span className="text-[11px] font-normal text-slate-500 ml-1">
-                  (₩{activeAssetView === "REAL" ? Math.round(usRealTotalKrw).toLocaleString() : Math.round(mockTotalAssets * 0.2).toLocaleString()})
+                  (₩{activeAssetView === "REAL" ? Math.round(usRealTotalKrw).toLocaleString() : mockUsHoldings.toLocaleString()})
                 </span>
               </div>
             </div>
@@ -537,13 +543,13 @@ export const PortfolioAssetStatusWidget: React.FC<PortfolioAssetStatusWidgetProp
               <div>
                 <span className="text-[10px] text-slate-400 block font-sans">달러 예수금</span>
                 <span className="font-bold text-slate-700 dark:text-slate-300">
-                  ${activeAssetView === "REAL" ? usRealCash.toLocaleString() : Math.round((mockCash * 0.2) / fxRate).toLocaleString()}
+                  ${activeAssetView === "REAL" ? usRealCash.toLocaleString() : "0"}
                 </span>
               </div>
               <div className="text-right">
                 <span className="text-[10px] text-slate-400 block font-sans">해외주식</span>
                 <span className="font-bold text-slate-700 dark:text-slate-300">
-                  ₩{activeAssetView === "REAL" ? usRealInvested.toLocaleString() : Math.round(mockHoldingsEval * 0.2).toLocaleString()}
+                  ₩{activeAssetView === "REAL" ? usRealInvested.toLocaleString() : mockUsHoldings.toLocaleString()}
                 </span>
               </div>
             </div>
@@ -578,20 +584,20 @@ export const PortfolioAssetStatusWidget: React.FC<PortfolioAssetStatusWidgetProp
             <div className="font-mono">
               <div className="text-[10px] text-slate-400">계좌 총자산</div>
               <div className="text-sm font-black text-slate-900 dark:text-white">
-                {activeAssetView === "REAL" ? tossRealTotal.toLocaleString() : Math.round(mockTotalAssets * 0.15).toLocaleString()}원
+                {activeAssetView === "REAL" ? tossRealTotal.toLocaleString() : mockTossHoldings.toLocaleString()}원
               </div>
             </div>
             <div className="grid grid-cols-2 gap-1 text-[11px] font-mono pt-1 border-t border-slate-200/60 dark:border-slate-700">
               <div>
                 <span className="text-[10px] text-slate-400 block font-sans">예수금</span>
                 <span className="font-bold text-slate-700 dark:text-slate-300">
-                  {activeAssetView === "REAL" ? tossRealCash.toLocaleString() : Math.round(mockCash * 0.15).toLocaleString()}원
+                  {activeAssetView === "REAL" ? tossRealCash.toLocaleString() : "0"}원
                 </span>
               </div>
               <div className="text-right">
                 <span className="text-[10px] text-slate-400 block font-sans">보유주식</span>
                 <span className="font-bold text-slate-700 dark:text-slate-300">
-                  {activeAssetView === "REAL" ? tossRealInvested.toLocaleString() : "0원"}
+                  {activeAssetView === "REAL" ? tossRealInvested.toLocaleString() : mockTossHoldings.toLocaleString()}원
                 </span>
               </div>
             </div>
@@ -626,20 +632,20 @@ export const PortfolioAssetStatusWidget: React.FC<PortfolioAssetStatusWidgetProp
             <div className="font-mono">
               <div className="text-[10px] text-slate-400">계좌 총자산</div>
               <div className="text-sm font-black text-slate-900 dark:text-white">
-                {activeAssetView === "REAL" ? upbitRealTotal.toLocaleString() : Math.round(mockTotalAssets * 0.25).toLocaleString()}원
+                {activeAssetView === "REAL" ? upbitRealTotal.toLocaleString() : mockUpbitHoldings.toLocaleString()}원
               </div>
             </div>
             <div className="grid grid-cols-2 gap-1 text-[11px] font-mono pt-1 border-t border-slate-200/60 dark:border-slate-700">
               <div>
                 <span className="text-[10px] text-slate-400 block font-sans">원화 잔고</span>
                 <span className="font-bold text-slate-700 dark:text-slate-300">
-                  {activeAssetView === "REAL" ? upbitRealCash.toLocaleString() : Math.round(mockCash * 0.25).toLocaleString()}원
+                  {activeAssetView === "REAL" ? upbitRealCash.toLocaleString() : "0"}원
                 </span>
               </div>
               <div className="text-right">
                 <span className="text-[10px] text-slate-400 block font-sans">가상자산</span>
                 <span className="font-bold text-slate-700 dark:text-slate-300">
-                  {activeAssetView === "REAL" ? upbitRealInvested.toLocaleString() : Math.round(mockHoldingsEval * 0.25).toLocaleString()}원
+                  {activeAssetView === "REAL" ? upbitRealInvested.toLocaleString() : mockUpbitHoldings.toLocaleString()}원
                 </span>
               </div>
             </div>

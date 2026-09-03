@@ -488,7 +488,12 @@ export const TransactionHistory: React.FC = () => {
                       </td>
                       <td className="p-3.5 font-bold font-mono text-zinc-800">{formattedPrice}</td>
                       <td className="p-3.5 font-bold font-mono text-zinc-800">
-                        {t.quantity.toLocaleString(undefined, { maximumFractionDigits: 4 })}
+                        <span>{t.quantity.toLocaleString(undefined, { maximumFractionDigits: 4 })}</span>
+                        {t.market === "US" && (t.quantity < 1 || t.quantity % 1 !== 0) && (
+                          <span className="ml-1.5 text-[9px] px-1.5 py-0.5 rounded bg-cyan-100 text-cyan-800 border border-cyan-200 font-sans font-bold">
+                            소수점
+                          </span>
+                        )}
                       </td>
                       <td className="p-3.5 text-right font-black font-mono text-zinc-950">{formattedTotal}</td>
                       <td className="p-3.5">

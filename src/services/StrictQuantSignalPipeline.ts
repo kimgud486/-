@@ -17,6 +17,7 @@ import { PatternUpgradeEngine, PatternUpgradeEvaluation } from "./PatternUpgrade
 import { UserFilterSettingsStore } from "./UserFilterSettingsStore";
 import { AntiDowntrendEngineV5, AntiDowntrendEvaluation } from "./AntiDowntrendEngineV5";
 import { UpbitFeeAndNetProfitGuard, FeeAndProfitAnalysis } from "./UpbitFeeAndNetProfitGuard";
+import { UnifiedMasterDecisionEngine, UnifiedMasterDecision } from "./unifiedMasterDecisionEngine";
 
 function generateSimulatedCandles(currentPrice: number, count: number = 50, symbol: string = "STOCK"): Candle[] {
   const candles: Candle[] = [];
@@ -73,11 +74,13 @@ export interface PipelineEvaluationResult {
     patternUpgradeGate?: boolean;
     antiDowntrendV5Gate?: boolean;
     userFilterGate?: boolean;
+    unifiedMasterGate?: boolean;
   };
   gateChecks?: { gateName: string; passed: boolean; reason?: string }[];
   patternUpgrade?: PatternUpgradeEvaluation;
   antiDowntrendEval?: AntiDowntrendEvaluation;
   feeAnalysis?: FeeAndProfitAnalysis;
+  unifiedDecision?: UnifiedMasterDecision;
   primaryRationale: string;
   gateRejectionReason?: string;
   matchedStrategies: string[];
@@ -215,7 +218,11 @@ export class StrictQuantSignalPipeline {
     const hasPassedUserAiScore = (brainEval.approvedCount >= 13) && (smcResult.institutionalScore >= (userFilters.minAiConsensusScore - 15));
     const hasPassedUserFilters = hasPassedTargetProfit && hasPassedUserAiScore;
 
-    // Final Approval Decision: All gates must pass simultaneously
+    // Gate 9 (UNIFIED STRATEGY ENGINE): 단일 통합 AI 마스터 브레인 일치 검증
+    const unifiedDecision = UnifiedMasterDecisionEngine.analyze(symbol, name, livePrice, changeRate, market);
+    const hasPassedUnifiedMaster = unifiedDecision.finalVerdict === "STRONG_BUY" || unifiedDecision.finalVerdict === "BUY_ON_DIP";
+
+    // Final Approval Decision: All gates must pass simultaneously (including Unified Master Brain)
     const isApproved = hasBullishSMC && 
       hasEngineConsensus && 
       hasHealthyRR && 
@@ -223,27 +230,21 @@ export class StrictQuantSignalPipeline {
       hasHealthyPattern && 
       hasPassedPatternUpgrade && 
       hasPassedAntiDowntrend && 
-      hasPassedUserFilters;
+      hasPassedUserFilters &&
+      hasPassedUnifiedMaster;
 
     // Calculate Comprehensive Confidence Score
-    let confidenceScore = 65;
-    if (hasBullishSMC) confidenceScore += 10;
-    if (brainEval.approvedCount >= 14) confidenceScore += 8;
-    if (rrRatio >= 2.5) confidenceScore += 5;
-    if (volRatio >= 1.5) confidenceScore += 4;
-    if (hasPassedPatternUpgrade) confidenceScore += 8;
-    if (patternUpgrade.trapRisk === "VERY_LOW") confidenceScore += 4;
-    if (hasPassedAntiDowntrend) confidenceScore += 5;
-    if (['BTC', 'ETH', '005930', '000660', 'NVDA', 'AAPL', 'TSLA'].includes(symbol.replace(/^KRW-/, ''))) {
-      confidenceScore += 3;
-    }
-    confidenceScore = Math.min(99, confidenceScore);
+    let confidenceScore = Math.round((unifiedDecision.masterScore * 0.6) + (brainEval.approvedCount / 16 * 40));
+    confidenceScore = Math.min(99, Math.max(50, confidenceScore));
 
     // Determine Verdict & Rejection Reason
     let verdict: PipelineEvaluationResult["verdict"] = "APPROVED_BUY";
     let gateRejectionReason = "";
 
-    if (!hasPassedAntiDowntrend) {
+    if (!hasPassedUnifiedMaster) {
+      verdict = "REJECTED_DOWNTREND_V5_TRAP";
+      gateRejectionReason = `[통합 AI 브레인 판정] ${unifiedDecision.verdictKorean} (마스터 점수 ${unifiedDecision.masterScore}점 - 관망/매도 권고)`;
+    } else if (!hasPassedAntiDowntrend) {
       verdict = "REJECTED_DOWNTREND_V5_TRAP";
       gateRejectionReason = `[하락봉 v5 감지] ${antiDowntrendEval.patternNameKr} (${antiDowntrendEval.rejectionReason})`;
     } else if (!hasBullishSMC) {
@@ -270,6 +271,7 @@ export class StrictQuantSignalPipeline {
     }
 
     const matchedStrategies: string[] = [];
+    if (hasPassedUnifiedMaster) matchedStrategies.push(`👑 통합 AI 마스터 브레인 [${unifiedDecision.verdictKorean}]`);
     if (hasBullishSMC) matchedStrategies.push("SMC Bullish Order Block 반등");
     if (hasEngineConsensus) matchedStrategies.push(`16대 퀀트 뇌엔진 ${brainEval.approvedCount}개 합의`);
     if (hasHealthyRR) matchedStrategies.push(`손익비 ${rrRatio}:1 최적 파동`);
@@ -278,7 +280,7 @@ export class StrictQuantSignalPipeline {
     if (smcResult.liquiditySweeps.length > 0) matchedStrategies.push("SSL 세력 유동성 흡수");
 
     const primaryRationale = isApproved
-      ? `[SMC + 16대 뇌엔진 + 하락봉v5 + 4대 패턴강화 100% 승인] SMC 구조 돌파 및 오더블록 안착, MTF 상위추세 정배열 + CVD 순매수 델타(+${patternUpgrade.volumeDelta.volumeDeltaRatio}%), 하락봉 v5 안전 통과, 16대 뇌엔진 ${brainEval.approvedCount}개 합의, 손익비 ${rrRatio}:1 (목표가 +${expectedGainPct}%, 손절가 -${maxLossPct}%) 충족`
+      ? `[👑 단일 통합 AI 마스터 브레인 + SMC + 16대 뇌엔진 100% 일치 승인] 통합 판정: ${unifiedDecision.verdictKorean} (마스터 점수 ${unifiedDecision.masterScore}점), SMC 구조 돌파 및 오더블록 안착, MTF 상위추세 정배열 + CVD 순매수 델타(+${patternUpgrade.volumeDelta.volumeDeltaRatio}%), 하락봉 v5 안전 통과, 16대 뇌엔진 ${brainEval.approvedCount}개 합의, 손익비 ${rrRatio}:1 (목표가 +${expectedGainPct}%, 손절가 -${maxLossPct}%) 충족`
       : `[AI 파이프라인 매수 기각] ${gateRejectionReason}`;
 
     return {
@@ -306,9 +308,11 @@ export class StrictQuantSignalPipeline {
         chartPatternGate: hasHealthyPattern,
         patternUpgradeGate: hasPassedPatternUpgrade,
         antiDowntrendV5Gate: hasPassedAntiDowntrend,
-        userFilterGate: hasPassedUserFilters
+        userFilterGate: hasPassedUserFilters,
+        unifiedMasterGate: hasPassedUnifiedMaster
       },
       gateChecks: [
+        { gateName: "👑 단일 통합 AI 마스터 브레인", passed: hasPassedUnifiedMaster },
         { gateName: "SMC 기관 수급 구조", passed: hasBullishSMC },
         { gateName: "16대 퀀트 뇌엔진 합의", passed: hasEngineConsensus },
         { gateName: "손익비(RR Ratio) 1:2+", passed: hasHealthyRR },
@@ -321,6 +325,7 @@ export class StrictQuantSignalPipeline {
       patternUpgrade,
       antiDowntrendEval,
       feeAnalysis: UpbitFeeAndNetProfitGuard.analyzeProfitAndFees(livePrice, targetPrice, 1, 0.15, userFilters.minTargetProfitRate || 1.0),
+      unifiedDecision,
       primaryRationale,
       gateRejectionReason: isApproved ? undefined : gateRejectionReason,
       matchedStrategies

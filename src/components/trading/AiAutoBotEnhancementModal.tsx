@@ -361,8 +361,8 @@ export const AiAutoBotEnhancementModal: React.FC<AiAutoBotEnhancementModalProps>
                   버튼을 누르면 AI가 시장 구조 및 수급 패턴을 분석하여 30대 봇 파라미터를 자동 최적화합니다.
                 </div>
               ) : (
-                logs.map((log) => (
-                  <div key={log.id} className="flex items-start gap-2 border-b border-slate-800/60 pb-1.5 last:border-0">
+                logs.map((log, idx) => (
+                  <div key={`${log.id}_${idx}`} className="flex items-start gap-2 border-b border-slate-800/60 pb-1.5 last:border-0">
                     <span className="text-slate-500 shrink-0">{log.time}</span>
                     <span className={`px-1.5 py-0.2 rounded text-[9px] font-bold shrink-0 ${
                       log.category === "SMC" ? "bg-purple-950 text-purple-300 border border-purple-800" :

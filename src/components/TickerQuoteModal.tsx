@@ -70,12 +70,12 @@ const PRESET_STOCKS: Record<string, QuoteDetail> = {
     name: "삼성전자",
     market: "KOSPI",
     currency: "KRW",
-    currentPrice: 281500,
-    changeAmount: 10500,
-    changePct: 3.87,
-    highPrice: 285000,
-    lowPrice: 266000,
-    openPrice: 267000,
+    currentPrice: 74800,
+    changeAmount: 2000,
+    changePct: 2.80,
+    highPrice: 75500,
+    lowPrice: 73200,
+    openPrice: 73500,
     prevClose: 271000,
     volume: 27672192,
     volumeValue: 7682300000000,
@@ -302,7 +302,7 @@ export const TickerQuoteModal: React.FC<TickerQuoteModalProps> = ({
         if (data && (data.price || cPrice)) {
           const isUs = data.market === "US" || cMarket === "US" || cMarket === "NASDAQ";
           const isCrypto = data.market === "BTC" || cMarket === "BTC" || q.startsWith("KRW-");
-          const p = data.price || cPrice || (isUs ? 150 : 281500);
+          const p = data.price || cPrice || (isUs ? 150 : isCrypto ? 95000000 : 50000);
           const chgPct = data.changePct ?? cChangePct ?? 0;
           const chgAmt = data.change || Math.round(p * (chgPct / 100));
           const nameVal = data.name || cName || q;

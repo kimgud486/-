@@ -1061,7 +1061,7 @@ export const HomeRealtimeProfitBoard: React.FC<HomeRealtimeProfitBoardProps> = (
         {/* Active Positions List */}
         {activePositionsList.length > 0 ? (
           <div className="space-y-1.5 max-h-[240px] overflow-y-auto pr-0.5">
-            {activePositionsList.map((pos) => {
+            {activePositionsList.map((pos, idx) => {
               const curPrice = Number(pos.currentPrice || pos.avgPrice || 0) || 0;
               const qty = Number(pos.quantity || 0) || 0;
               const avgPrice = Number(pos.avgPrice || 0) || 0;
@@ -1083,7 +1083,7 @@ export const HomeRealtimeProfitBoard: React.FC<HomeRealtimeProfitBoardProps> = (
 
               return (
                 <div
-                  key={pos.id || pos.symbol}
+                  key={`${pos.id || pos.symbol}_${idx}`}
                   className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/40 hover:bg-slate-100/90 dark:hover:bg-slate-800 border border-slate-200/80 dark:border-slate-700 transition flex items-center justify-between text-xs font-sans"
                 >
                   <div className="flex items-center gap-2.5">

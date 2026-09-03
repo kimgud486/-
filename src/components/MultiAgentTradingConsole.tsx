@@ -30,8 +30,8 @@ const INITIAL_PRESET_STOCKS = [
   { symbol: "005930", name: "삼성전자", market: "KOREA" as const, price: 74800, changePct: 2.8, tradingValue: 1250, rvol: 2.7, executionPower: 145, sector: "반도체/AI" },
   { symbol: "NVDA", name: "엔비디아", market: "US" as const, price: 132.5, changePct: 4.2, tradingValue: 3400, rvol: 3.4, executionPower: 162, sector: "AI반도체" },
   { symbol: "BTC", name: "비트코인", market: "BTC" as const, price: 92400000, changePct: 1.9, tradingValue: 4100, rvol: 2.1, executionPower: 128, sector: "가상자산" },
-  { symbol: "450880", name: "우진엔텍", market: "KOREA" as const, price: 28500, changePct: 11.4, tradingValue: 820, rvol: 4.8, executionPower: 188, sector: "원전/에너지" },
-  { symbol: "086510", name: "제주반도체", market: "KOREA" as const, price: 21500, changePct: 6.5, tradingValue: 610, rvol: 3.1, executionPower: 151, sector: "온디바이스AI" },
+  { symbol: "457550", name: "우진엔텍", market: "KOREA" as const, price: 28500, changePct: 11.4, tradingValue: 820, rvol: 4.8, executionPower: 188, sector: "원전/에너지" },
+  { symbol: "080220", name: "제주반도체", market: "KOREA" as const, price: 21500, changePct: 6.5, tradingValue: 610, rvol: 3.1, executionPower: 151, sector: "온디바이스AI" },
   { symbol: "021050", name: "서원", market: "KOREA" as const, price: 1112, changePct: -1.33, tradingValue: 180, rvol: 2.3, executionPower: 135, sector: "구리/신소재" },
   { symbol: "000660", name: "SK하이닉스", market: "KOREA" as const, price: 194800, changePct: 2.67, tradingValue: 2800, rvol: 2.5, executionPower: 155, sector: "메모리/HBM" }
 ];

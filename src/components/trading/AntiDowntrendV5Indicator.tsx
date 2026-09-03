@@ -121,9 +121,9 @@ export const AntiDowntrendV5Indicator: React.FC = () => {
                     최근 1시간 동안 감지된 위험 하락봉이 없습니다.
                   </div>
                 ) : (
-                  status.recentTraps.map(trap => (
+                  status.recentTraps.map((trap, idx) => (
                     <div
-                      key={trap.id}
+                      key={`${trap.id}_${idx}`}
                       className="p-3 bg-slate-950/60 border border-slate-800 rounded-xl flex items-start justify-between gap-3 hover:border-slate-700 transition"
                     >
                       <div className="space-y-1">

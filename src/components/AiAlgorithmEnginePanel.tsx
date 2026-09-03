@@ -102,7 +102,7 @@ export const AiAlgorithmEnginePanel: React.FC = () => {
   const [selectedSymbol, setSelectedSymbol] = useState("005930");
   const [selectedName, setSelectedName] = useState("삼성전자");
   const [selectedMarket, setSelectedMarket] = useState("KOREA");
-  const [stockPrice, setStockPrice] = useState(281500);
+  const [stockPrice, setStockPrice] = useState(74800);
   const [totalCapital, setTotalCapital] = useState(50000000);
   
   const [isSimulating, setIsSimulating] = useState(false);
@@ -110,7 +110,7 @@ export const AiAlgorithmEnginePanel: React.FC = () => {
   const [activeAlgTab, setActiveAlgTab] = useState<string>("ALL");
 
   const stockPresets = [
-    { symbol: "005930", name: "삼성전자", price: 281500, market: "KOREA" },
+    { symbol: "005930", name: "삼성전자", price: 74800, market: "KOREA" },
     { symbol: "000660", name: "SK하이닉스", price: 188500, market: "KOREA" },
     { symbol: "035420", name: "NAVER", price: 172000, market: "KOREA" },
     { symbol: "005380", name: "현대차", price: 245000, market: "KOREA" },

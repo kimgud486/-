@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { stockSyncService } from "../services/stockSyncService";
+import { safeSymbolStr } from "../lib/stockDictionary";
 import { realtimeMarketFeedService } from "../services/realtimeMarketFeedService";
 
 export type BrokerageSource = "KIS" | "UPBIT";
@@ -158,9 +159,9 @@ export function useMarketDataBridge(initialSymbol: string = "000660"): UseMarket
 
   // Search and switch symbol
   const searchAndSubscribe = useCallback(
-    async (symbol: string, name?: string) => {
-      if (!symbol) return;
-      const cleanSym = symbol.trim().toUpperCase();
+    async (symbol: any, name?: string) => {
+      const cleanSym = safeSymbolStr(symbol).toUpperCase();
+      if (!cleanSym) return;
       setActiveSymbol(cleanSym);
 
       // Dispatch global sync event
