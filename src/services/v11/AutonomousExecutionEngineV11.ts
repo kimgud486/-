@@ -4,6 +4,8 @@
 import { ExecutionStateMachine, OrderState, TradingMode, OrderSignal, PositionContext, StateMachineStatus } from "./ExecutionStateMachine";
 import { ExecutionRiskEngine, RiskConfig, RiskMetrics, RiskEvaluationResult } from "./ExecutionRiskEngine";
 import { KISBrokerAdapter, KISOrderResult, KISPosition, KISBalance } from "./KISBrokerAdapter";
+import { AdaptiveExitDecisionEngine, MarketBarSnapshot } from "./AdaptiveExitDecisionEngine";
+import { SafeKISBrokerAdapter } from "./SafeKISBrokerAdapter";
 
 export interface ExecutionEngineLog {
   id: string;
@@ -265,35 +267,48 @@ export class AutonomousExecutionEngineV11 {
   }
 
   // 4. Adaptive Exit AI Evaluation for Active Position
-  private async evaluateAdaptiveExit(position: PositionContext) {
-    // Simulate slight price fluctuation in demo mode
-    const priceDelta = (Math.random() - 0.42) * (position.buyPrice * 0.004);
-    const updatedPrice = Math.round((position.currentPrice + priceDelta) * 100) / 100;
-    this.stateMachine.updatePositionPrice(updatedPrice);
+  private adaptiveExitEngine = new AdaptiveExitDecisionEngine();
 
-    const currentPnlPct = position.unrealizedPnLPct;
+  public async evaluateAdaptiveExit(position: PositionContext) {
+    const bar: MarketBarSnapshot = {
+      open: position.currentPrice,
+      high: Math.max(position.highPriceSinceBuy, position.currentPrice),
+      low: position.currentPrice,
+      close: position.currentPrice,
+      volume: 100000,
+      vwap: position.buyPrice * 0.998,
+      ema5: position.buyPrice * 0.995,
+      ema20: position.buyPrice * 0.985,
+      macdHist: 0.5,
+      rsi: 55,
+      dmiPlus: 25,
+      dmiMinus: 15,
+      buyVolumeRatio: 0.6,
+      sellVolumeRatio: 0.4,
+      isCompletedBar: true
+    };
+    await this.evaluateAdaptiveExitWithBar(position, bar);
+  }
 
-    let shouldSell = false;
-    let sellReason = "";
+  public async evaluateAdaptiveExitWithBar(position: PositionContext, bar: MarketBarSnapshot) {
+    this.stateMachine.updatePositionPrice(bar.close);
 
-    // Exit Condition 1: Trailing Stop Hit (1.5% drop from peak)
-    if (updatedPrice <= position.trailingExitPrice && currentPnlPct > 0.5) {
-      shouldSell = true;
-      sellReason = `Adaptive Exit: 트레일링 스탑 이탈 (고점 대비 -1.5% 하락, 현재 수익률: +${currentPnlPct}%)`;
-    }
-    // Exit Condition 2: Hard Stop Loss (-2.5%)
-    else if (currentPnlPct <= -2.5) {
-      shouldSell = true;
-      sellReason = `Adaptive Exit: 하드 손절선 이탈 (손실률: ${currentPnlPct}%)`;
-    }
-    // Exit Condition 3: Profit Target Reached (+5.0%)
-    else if (currentPnlPct >= 5.0) {
-      shouldSell = true;
-      sellReason = `Adaptive Exit: AI 목표 수익률 달성 (+5.0% 익절)`;
-    }
+    const posV12 = {
+      symbol: position.symbol,
+      name: position.name,
+      market: position.market,
+      buyPrice: position.buyPrice,
+      currentPrice: bar.close,
+      qty: position.qty,
+      buyTimestamp: position.buyTimestamp,
+      highPriceSinceBuy: Math.max(position.highPriceSinceBuy, bar.high),
+      trailingExitPrice: position.trailingExitPrice
+    };
 
-    if (shouldSell) {
-      await this.executeSellOrder(position, sellReason);
+    const result = this.adaptiveExitEngine.evaluateExit(posV12, bar);
+
+    if (result.shouldExit) {
+      await this.executeSellOrder(position, result.primaryReason);
     }
   }
 

@@ -131,7 +131,7 @@ class AiTradingOrchestratorEngine {
 
   public executeInstantAiAutoBuy() {
     const stock = DEFAULT_STOCK;
-    
+
     // 1. AI Profit Supervisory Quality Gate Evaluation
     const qualityGate = aiProfitSupervisoryEngine.evaluateEntryQuality({
       symbol: stock.symbol,
@@ -151,29 +151,25 @@ class AiTradingOrchestratorEngine {
       return;
     }
 
-    const analysis = analyzeStockWith30Agents(stock);
-    const qty = 20;
-    const rules = aiProfitSupervisoryEngine.getState().rules;
-    const shieldPrice = Math.round(stock.price * (1 - rules.hardStopLossPct / 100));
-
-    this.state.activePosition = {
-      symbol: stock.symbol,
-      name: stock.name,
-      qty,
-      buyPrice: stock.price,
-      currentPrice: stock.price,
-      pnlAmount: 0,
-      pnlPct: 0.0,
-      trailingShieldPrice: shieldPrice,
-      isShieldActive: true
-    };
-
-    this.addLog(
-      "AI_BUY",
-      `⚡ AI 1초 즉시 자율 매수 체결 (관리감독 승인)`,
-      `30개 봇 ${analysis.decisionMaster.setupQualityScore}점 S+급 주도주 ${stock.name} ${qty}주 체결. 손절선 ₩${shieldPrice.toLocaleString()} (-${rules.hardStopLossPct}%) 자동 셋업 완료.`
-    );
-    this.notify();
+    // 2. Delegate to v12 Unified Trading Pipeline (Single Gate Master)
+    import("./v12/UnifiedTradingPipelineV12").then(({ UnifiedTradingPipelineV12 }) => {
+      const pipeline = UnifiedTradingPipelineV12.getInstance();
+      pipeline.processCandidateBuyOrder({
+        symbol: stock.symbol,
+        name: stock.name,
+        market: stock.market,
+        price: stock.price,
+        score: 92,
+        setupPattern: "SMC_LIQUIDITY",
+        aiReason: "Unified Master Decision AI 시그널"
+      }).then(res => {
+        if (res.success) {
+          this.addLog("AI_BUY", `⚡ v12 Unified Trading Pipeline 체결 승인`, res.message);
+        } else {
+          this.addLog("SHIELD", `🛡️ v12 Pipeline 차단`, res.message);
+        }
+      });
+    });
   }
 
   public checkPositionGovernance() {
