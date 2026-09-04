@@ -2352,7 +2352,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       // 1. API Key 존재 여부 사전 검증 (실거래 모드 활성화 시에만 엄격 적용)
       // -------------------------------------------------------------
       const isRealModeRequested = Boolean(profile?.isRealTrade === true);
-      const isRealForThisMarket = isRealModeRequested;
+      let isRealForThisMarket = isRealModeRequested;
 
       const hasBrokerKeys = market === 'KOREA' || market === 'US'
         ? Boolean(profile?.koreaAppKey && profile?.koreaAppSecret)
@@ -2379,15 +2379,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         });
         window.dispatchEvent(new CustomEvent("open-api-connect-modal", { detail: targetBrokerKey }));
 
-        if (bypassGuard) {
-          addToast({
-            type: 'WARNING',
-            title: '모의투자 모드 자동 전환 체결',
-            message: `${brokerName} API Key 미등록 상태이므로 매매 안전을 위해 이번 주문은 [모의투자 모드]로 체결되었습니다. [증권사 API 연동] 설정 메뉴에서 API Key를 연동해 주세요.`
-          });
-        } else {
-          throw new Error(`[${brokerName} API Key 미등록] 설정 메뉴에서 ${brokerName} API Key를 등록 및 검증 후 다시 시도해 주세요 (또는 모의투자 모드로 전환).`);
-        }
+        addToast({
+          type: 'WARNING',
+          title: '🛡️ 모의투자 가상 체결 모드 전환',
+          message: `${brokerName} API Key 미등록 상태이므로 안전을 위해 이번 주문은 [모의투자 모드]로 안전하게 체결되었습니다. [증권사 API 연동] 메뉴에서 API Key를 연동해 주세요.`
+        });
+
+        // Fallback to paper simulation so the trade executes smoothly
+        isRealForThisMarket = false;
       }
 
       // -------------------------------------------------------------

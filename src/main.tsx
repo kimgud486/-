@@ -36,31 +36,22 @@ import App from "./App.tsx";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import "./index.css";
 
-// Register Service Worker only in production to prevent caching Vite dev modules in preview iframe
+// Register Service Worker for PWA offline capabilities and installation
 if ("serviceWorker" in navigator) {
-  if (import.meta.env.PROD) {
-    window.addEventListener("load", () => {
-      try {
-        navigator.serviceWorker
-          .register("/sw.js")
-          .then((reg) => {
-            console.log("[PWA] Service Worker registered:", reg?.scope);
-          })
-          .catch((err) => {
-            console.warn("[PWA] Service Worker registration skipped:", err);
-          });
-      } catch (e) {
-        console.warn("[PWA] Service Worker init:", e);
-      }
-    });
-  } else {
-    // Unregister any active service worker in development preview
-    navigator.serviceWorker.getRegistrations().then((registrations) => {
-      for (const reg of registrations) {
-        reg.unregister();
-      }
-    }).catch(() => {});
-  }
+  window.addEventListener("load", () => {
+    try {
+      navigator.serviceWorker
+        .register("/sw.js")
+        .then((reg) => {
+          console.log("[PWA] Service Worker registered:", reg?.scope);
+        })
+        .catch((err) => {
+          console.warn("[PWA] Service Worker registration skipped:", err);
+        });
+    } catch (e) {
+      console.warn("[PWA] Service Worker init:", e);
+    }
+  });
 }
 
 createRoot(document.getElementById("root")!).render(

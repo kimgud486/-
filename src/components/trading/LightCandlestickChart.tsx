@@ -54,7 +54,7 @@ export const LightCandlestickChart: React.FC<LightCandlestickChartProps> = ({
     VWAP: true,
     VP: true,
     SR: true,
-    EXIT_3STEP: true
+    EXIT_3STEP: false
   });
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -405,7 +405,7 @@ export const LightCandlestickChart: React.FC<LightCandlestickChartProps> = ({
     candles.forEach((c, idx) => {
       const cx = margin.left + idx * spacing + spacing / 2;
       const isBull = c.close >= c.open;
-      const color = isBull ? "#10B981" : "#EF4444"; // Korean/Crypto Bull=Green/Red toggle standard or Green=Bull
+      const color = isBull ? "#059669" : "#DC2626";
 
       // Wick
       const hy = toY(c.high);
@@ -429,14 +429,14 @@ export const LightCandlestickChart: React.FC<LightCandlestickChartProps> = ({
       // Volume Bar (middle zone)
       const vyTop = margin.top + priceH + 8;
       const vh = (c.volume / (maxVol || 1)) * (volH - 12);
-      ctx.fillStyle = isBull ? "rgba(16, 185, 129, 0.35)" : "rgba(239, 68, 68, 0.35)";
+      ctx.fillStyle = isBull ? "rgba(5, 150, 105, 0.35)" : "rgba(220, 38, 38, 0.35)";
       ctx.fillRect(cx - candleW / 2, vyTop + volH - vh, candleW, vh);
     });
 
-    // 2. Draw Moving Average Curves (MA 5, MA 20, MA 60)
-    // MA 5 (Orange)
-    ctx.strokeStyle = "#F59E0B";
-    ctx.lineWidth = 1.2;
+    // 2. Draw Moving Average Curves (EMA 5, EMA 20, EMA 60) & VWAP
+    // EMA 5 (Highlight Blue)
+    ctx.strokeStyle = "#2563EB";
+    ctx.lineWidth = 1.6;
     ctx.beginPath();
     candles.forEach((c, i) => {
       const cx = margin.left + i * spacing + spacing / 2;
@@ -446,9 +446,9 @@ export const LightCandlestickChart: React.FC<LightCandlestickChartProps> = ({
     });
     ctx.stroke();
 
-    // MA 20 (Cyan/Blue)
-    ctx.strokeStyle = "#0EA5E9";
-    ctx.lineWidth = 1.2;
+    // EMA 20 (Purple)
+    ctx.strokeStyle = "#7C3AED";
+    ctx.lineWidth = 1.4;
     ctx.beginPath();
     candles.forEach((c, i) => {
       const cx = margin.left + i * spacing + spacing / 2;
@@ -458,8 +458,8 @@ export const LightCandlestickChart: React.FC<LightCandlestickChartProps> = ({
     });
     ctx.stroke();
 
-    // MA 60 (Rose/Purple)
-    ctx.strokeStyle = "#8B5CF6";
+    // EMA 60 (Emerald)
+    ctx.strokeStyle = "#059669";
     ctx.lineWidth = 1.2;
     ctx.beginPath();
     candles.forEach((c, i) => {
@@ -469,6 +469,27 @@ export const LightCandlestickChart: React.FC<LightCandlestickChartProps> = ({
       else ctx.lineTo(cx, my);
     });
     ctx.stroke();
+
+    // VWAP Line (Deep Slate/Navy)
+    if (toggles.VWAP) {
+      ctx.strokeStyle = "#0F172A";
+      ctx.lineWidth = 2.0;
+      ctx.beginPath();
+      let cumV = 0;
+      let cumVP = 0;
+      candles.forEach((c, i) => {
+        const cx = margin.left + i * spacing + spacing / 2;
+        const tp = (c.high + c.low + c.close) / 3;
+        const v = c.volume || 1000;
+        cumV += v;
+        cumVP += tp * v;
+        const vwap = cumV > 0 ? cumVP / cumV : c.close;
+        const vy = toY(vwap);
+        if (i === 0) ctx.moveTo(cx, vy);
+        else ctx.lineTo(cx, vy);
+      });
+      ctx.stroke();
+    }
 
     // 3. Draw RSI Sub-chart line (Bottom zone)
     const rsiTop = margin.top + priceH + volH + 4;

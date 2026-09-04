@@ -26,6 +26,7 @@ import {
 import { useApp } from "../context/AppContext";
 import { StockCandleChartModal } from "./StockCandleChartModal";
 import { realtimeMarketFeedService } from "../services/realtimeMarketFeedService";
+import { v11ExecutionEngine } from "./AistockV11ExecutionConsole";
 
 export interface ScannedTileItem {
   id: string;
@@ -319,6 +320,19 @@ export const RealtimeScannerTileBoard: React.FC = () => {
   // Handle 1-Click Quick Order Execution
   const handleQuickBuy = async (tile: ScannedTileItem) => {
     try {
+      // 1. Trigger v11 Autonomous Execution Engine Pipeline
+      const v11Res = await v11ExecutionEngine.processCandidateOrder({
+        symbol: tile.symbol,
+        name: tile.name,
+        market: tile.market,
+        price: tile.currentPrice,
+        scannerScore: tile.aiScore,
+        unifiedShape: tile.signalLabel,
+        rvol: tile.rvol,
+        executionPower: tile.volumeAccel
+      });
+
+      // 2. Trigger AppContext Quick Order Sync
       await executeQuickOrder({
         symbol: tile.symbol,
         name: tile.name,
@@ -326,14 +340,14 @@ export const RealtimeScannerTileBoard: React.FC = () => {
         side: "BUY",
         quantity: tile.market === "BTC" ? 0.005 : tile.market === "US" ? 2 : 10,
         price: tile.currentPrice,
-        strategyName: `실시간 스캐너 [${tile.signalLabel}]`,
+        strategyName: `v10 스캐너 + v11 자율엔진 [${tile.signalLabel}]`,
         aiRationale: tile.rationale
       });
 
       addToast({
         type: "SUCCESS",
-        title: `⚡ 1-Click AI 매수 즉시 실행`,
-        message: `${tile.name} (${tile.symbol}) @ ${(tile.currentPrice ?? 0).toLocaleString()} 주문이 접수되었습니다.`
+        title: `🟢 [v11 자율매수] ${tile.name} LONG 포지션 체결`,
+        message: `${tile.name} (${tile.symbol}) @ ${(tile.currentPrice ?? 0).toLocaleString()} 주문이 자율 가동 및 체결 승인되었습니다. (${v11Res.message || "Risk Gate 통과"})`
       });
     } catch (err: any) {
       addToast({

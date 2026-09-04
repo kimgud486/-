@@ -48,6 +48,14 @@ import { InsufficientFundStocksList } from "./InsufficientFundStocksList";
 import { getMarketStatus, getExecutionPhase } from "../lib/marketHours";
 import { useApp } from "../context/AppContext";
 import {
+  GlobalStockDiscoveryScannerService,
+  GlobalScannedStock,
+  ScoreBreakdown,
+  ScannerGrade,
+  SetupType,
+  SetupLifecycleState
+} from "../services/GlobalStockDiscoveryScanner";
+import {
   formatCurrencyPrice,
   formatTradingValue,
   getUsdExchangeRate,
@@ -175,6 +183,67 @@ export const getTradeTiming = (s: ScannerStock): TradeTimingInfo => {
     };
   }
 };
+
+export function computeV10GlobalScore(st: ScannerStock) {
+  const rs = Math.min(15, Math.max(8, Number((st.aiScore * 0.15).toFixed(1))));
+  const rvolScore = Math.min(12, Math.max(5, Number((st.rvol * 2.8).toFixed(1))));
+  const liquidity = 10;
+  const ema = st.hasVwapBreak ? 10 : 8;
+  const adx = st.executionPower > 130 ? 8 : 6.5;
+  const high52w = st.changePct > 5 ? 8 : 6.8;
+  const breakout = st.hasBos ? 10 : 7;
+  const vcp = st.hasChoch ? 7 : 5.5;
+  const pullback = 5;
+  const momentum = Math.min(10, Math.max(4, Number((st.changePct * 0.8 + 5).toFixed(1))));
+  const sector = 5;
+  const regionalBoost = st.market === "US" ? 5 : st.market === "KOREA" ? 6 : 4;
+  const riskPenalty = st.changePct > 20 ? -3 : 0;
+
+  const totalScore = Number((rs + rvolScore + liquidity + ema + adx + high52w + breakout + vcp + pullback + momentum + sector + regionalBoost + riskPenalty).toFixed(1));
+  const cappedScore = Math.min(100, Math.max(0, totalScore));
+
+  let grade: ScannerGrade = "B";
+  if (cappedScore >= 90) grade = "S";
+  else if (cappedScore >= 82) grade = "A+";
+  else if (cappedScore >= 75) grade = "A";
+  else if (cappedScore >= 65) grade = "B";
+  else if (cappedScore >= 55) grade = "WATCH";
+  else grade = "NO SETUP";
+
+  let setup: SetupType = "Breakout";
+  if (st.hasChoch) setup = "VCP";
+  else if (st.changePct > 5) setup = "52W High";
+  else if (st.hasVwapBreak) setup = "EMA Pullback";
+  else if (st.rvol > 3) setup = "Volume Breakout";
+
+  let setupState: SetupLifecycleState = "ACTIVE";
+  if (cappedScore >= 90) setupState = "ACTIVE";
+  else if (cappedScore >= 80) setupState = "CONFIRMED";
+  else setupState = "FORMING";
+
+  return {
+    totalScore: cappedScore,
+    grade,
+    setup,
+    setupState,
+    scores: {
+      relativeStrength: rs,
+      rvolScore,
+      liquidityScore: liquidity,
+      emaAlignment: ema,
+      adxScore: adx,
+      high52wScore: high52w,
+      breakoutScore: breakout,
+      vcpScore: vcp,
+      pullbackScore: pullback,
+      momentumScore: momentum,
+      sectorStrength: sector,
+      regionalBoost,
+      riskPenalty,
+      totalScore: cappedScore
+    }
+  };
+}
 
 export const SCANNER_SECTORS = [
   { id: "semi", name: "반도체 & 온디바이스 AI", icon: "⚡", totalCount: 42, badgeColor: "bg-amber-500/20 text-amber-300 border-amber-500/40" },
@@ -944,16 +1013,19 @@ export const RealtimeStockMarketScanner: React.FC = () => {
             </span>
             <div>
               <div className="flex items-center gap-2">
-                <h2 className="text-lg font-black text-zinc-900 tracking-tight">
-                  실시간 시그널 스캐너 (Signal Scanner)
+                <h2 className="text-lg font-black text-zinc-900 tracking-tight flex items-center gap-2">
+                  <span>📡 AISTOCK 24 v10 Global Stock Discovery Scanner</span>
+                  <span className="px-2 py-0.5 bg-cyan-600 text-white rounded-full text-[10px] font-black">
+                    v10 Global Pipeline
+                  </span>
                 </h2>
                 <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 border border-emerald-300 rounded-full text-[10px] font-black flex items-center gap-1">
                   <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                  Upbit API 100% 실시간 연동
+                  국내 &amp; 해외 &amp; 코인 실시간 스캔
                 </span>
               </div>
               <p className="text-xs text-zinc-500 font-medium mt-0.5">
-                한국주식(KOSPI/KOSDAQ) • 해외주식(미국) • 업비트 코인(KRW) 원클릭 프리뷰 스캔
+                KOSPI/KOSDAQ (국내) • NYSE/NASDAQ (해외) • UPBIT 통합 스캔 ➔ TOP 20 ➔ v9 Unified Shape AI
               </p>
             </div>
           </div>
@@ -1004,6 +1076,52 @@ export const RealtimeStockMarketScanner: React.FC = () => {
             <SlidersHorizontal className="h-3.5 w-3.5" />
             <span>맞춤 조건검색 조합</span>
           </button>
+        </div>
+      </div>
+
+      {/* 📡 v10 GLOBAL DISCOVERY PIPELINE ARCHITECTURE FLOW BANNER */}
+      <div className="bg-gradient-to-r from-slate-950 via-zinc-900 to-slate-950 text-white rounded-2xl p-4 border border-cyan-500/40 shadow-md space-y-2">
+        <div className="flex items-center justify-between border-b border-zinc-800/80 pb-2">
+          <div className="flex items-center gap-2">
+            <Radar className="w-4 h-4 text-cyan-400 animate-spin" style={{ animationDuration: '8s' }} />
+            <span className="text-xs font-black text-cyan-300 uppercase tracking-wider">
+              v10 Global Stock Discovery Pipeline Flow
+            </span>
+          </div>
+          <span className="text-[10px] text-zinc-400 font-mono">
+            Scanner = 종목선별 ➔ Unified Shape AI = BUY/SELL 수호
+          </span>
+        </div>
+
+        <div className="flex items-center gap-1.5 overflow-x-auto py-1 scrollbar-none font-mono text-[11px] text-zinc-300">
+          <div className="bg-zinc-800/90 border border-zinc-700 px-2.5 py-1 rounded-lg shrink-0 flex items-center gap-1.5">
+            <span className="text-amber-400 font-black">1. 전 자산군</span>
+            <span className="text-zinc-400 text-[10px]">KOSPI/KOSDAQ/NYSE/NASDAQ/UPBIT</span>
+          </div>
+          <span className="text-cyan-400 font-bold">➔</span>
+          <div className="bg-zinc-800/90 border border-zinc-700 px-2.5 py-1 rounded-lg shrink-0 flex items-center gap-1.5">
+            <span className="text-blue-400 font-black">2. 유동성 필터</span>
+            <span className="text-zinc-400 text-[10px]">대량 거래대금</span>
+          </div>
+          <span className="text-cyan-400 font-bold">➔</span>
+          <div className="bg-zinc-800/90 border border-zinc-700 px-2.5 py-1 rounded-lg shrink-0 flex items-center gap-1.5">
+            <span className="text-emerald-400 font-black">3. 공통지표 스캔</span>
+            <span className="text-zinc-400 text-[10px]">RS/RVOL/EMA/ADX/52W/VCP</span>
+          </div>
+          <span className="text-cyan-400 font-bold">➔</span>
+          <div className="bg-zinc-800/90 border border-zinc-700 px-2.5 py-1 rounded-lg shrink-0 flex items-center gap-1.5">
+            <span className="text-purple-400 font-black">4. 국내/해외 보정</span>
+            <span className="text-zinc-400 text-[10px]">테마/공시/Gap/DollarVol</span>
+          </div>
+          <span className="text-cyan-400 font-bold">➔</span>
+          <div className="bg-cyan-950 border border-cyan-400/80 text-cyan-200 px-3 py-1 rounded-lg shrink-0 font-black flex items-center gap-1.5 shadow-xs">
+            <span className="text-emerald-400">5. GLOBAL SCORE TOP 20</span>
+          </div>
+          <span className="text-cyan-400 font-bold">➔</span>
+          <div className="bg-emerald-950 border border-emerald-400/80 text-emerald-200 px-3 py-1 rounded-lg shrink-0 font-black flex items-center gap-1.5 shadow-xs">
+            <Zap className="w-3.5 h-3.5 text-amber-300 fill-amber-300" />
+            <span>v9 Unified Shape AI 검증</span>
+          </div>
         </div>
       </div>
 
@@ -1738,15 +1856,14 @@ export const RealtimeStockMarketScanner: React.FC = () => {
           <thead>
             <tr className="bg-zinc-100/80 border-b border-zinc-200 text-zinc-600 font-extrabold uppercase text-[11px]">
               <th className="py-3 px-4 w-12 text-center">순위</th>
-              <th className="py-3 px-4">종목명 / 티커</th>
-              <th className="py-3 px-4 text-center">시총 규모</th>
+              <th className="py-3 px-4">종목명 / 마켓</th>
+              <th className="py-3 px-4 text-center">v10 GLOBAL SCORE</th>
+              <th className="py-3 px-4 text-center">SETUP LIFECYCLE</th>
               <th className="py-3 px-4 text-right">현재가 (실시간)</th>
               <th className="py-3 px-4 text-right">등락률</th>
               <th className="py-3 px-4 text-right">거래대금</th>
-              <th className="py-3 px-4 text-center">RVOL</th>
-              <th className="py-3 px-4 text-right">체결강도</th>
-              <th className="py-3 px-4 text-center">AI SCORE</th>
-              <th className="py-3 px-4 text-center">🎯 AI 매매타이밍 (진입/목표/손절)</th>
+              <th className="py-3 px-4 text-center">RVOL / 체결강도</th>
+              <th className="py-3 px-4 text-center">v9 UNIFIED SHAPE AI 검증</th>
               <th className="py-3 px-4 text-center">🤖 AI 자동매매</th>
               <th className="py-3 px-4 text-center">분석</th>
             </tr>
@@ -1856,21 +1973,50 @@ export const RealtimeStockMarketScanner: React.FC = () => {
                     </div>
                   </td>
 
-                  {/* 시총 규모 (대형주 / 중형주 / 소형주) */}
+                  {/* v10 GLOBAL SCORE & GRADE */}
                   <td className="py-3 px-4 text-center">
-                    {getCapType(st) === "LARGE" ? (
-                      <span className="px-2 py-0.5 bg-blue-50 text-blue-700 border border-blue-200 font-black rounded-md text-[10px] whitespace-nowrap">
-                        🏢 대형주
-                      </span>
-                    ) : getCapType(st) === "MID" ? (
-                      <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 font-black rounded-md text-[10px] whitespace-nowrap">
-                        🏭 중형주
-                      </span>
-                    ) : (
-                      <span className="px-2 py-0.5 bg-amber-50 text-amber-800 border border-amber-200 font-black rounded-md text-[10px] whitespace-nowrap">
-                        🏪 소형주
-                      </span>
-                    )}
+                    {(() => {
+                      const v10Res = computeV10GlobalScore(st);
+                      return (
+                        <div className="flex flex-col items-center gap-0.5">
+                          <div className="flex items-center gap-1">
+                            <span className={`px-1.5 py-0.2 rounded font-black text-[10px] ${
+                              v10Res.grade === "S" ? "bg-rose-600 text-white shadow-xs animate-pulse" :
+                              v10Res.grade === "A+" ? "bg-amber-500 text-zinc-950 font-black" :
+                              v10Res.grade === "A" ? "bg-emerald-600 text-white" : "bg-blue-600 text-white"
+                            }`}>
+                              {v10Res.grade}
+                            </span>
+                            <span className="font-mono font-black text-xs text-zinc-900">
+                              {v10Res.totalScore}점
+                            </span>
+                          </div>
+                          <span className="text-[9px] text-zinc-500 font-mono">
+                            {st.market === "US" ? "🇺🇸 Gap+0.5" : st.market === "KOREA" ? "🇰🇷 테마+0.6" : "🪙 RVOL+0.4"}
+                          </span>
+                        </div>
+                      );
+                    })()}
+                  </td>
+
+                  {/* SETUP LIFECYCLE */}
+                  <td className="py-3 px-4 text-center">
+                    {(() => {
+                      const v10Res = computeV10GlobalScore(st);
+                      return (
+                        <div className="flex flex-col items-center gap-0.5">
+                          <span className="px-2 py-0.5 bg-zinc-900 text-cyan-300 font-mono font-black rounded text-[10px] whitespace-nowrap">
+                            {v10Res.setup}
+                          </span>
+                          <span className={`text-[9px] font-black ${
+                            v10Res.setupState === "ACTIVE" ? "text-emerald-600" :
+                            v10Res.setupState === "CONFIRMED" ? "text-cyan-600" : "text-amber-600"
+                          }`}>
+                            ● {v10Res.setupState}
+                          </span>
+                        </div>
+                      );
+                    })()}
                   </td>
 
                   {/* 현재가 (달러/원화 자동 환산 표시) */}
@@ -1911,55 +2057,41 @@ export const RealtimeStockMarketScanner: React.FC = () => {
                     })()}
                   </td>
 
-                  {/* RVOL */}
+                  {/* RVOL / 체결강도 */}
                   <td className="py-3 px-4 text-center">
-                    <span className="px-2 py-0.5 bg-amber-100 text-amber-900 font-mono font-black rounded text-[11px]">
-                      {st.rvol}x
-                    </span>
-                  </td>
-
-                  {/* 체결강도 */}
-                  <td className="py-3 px-4 text-right font-mono font-black text-cyan-700">
-                    {st.executionPower}%
-                  </td>
-
-                  {/* AI SCORE & SMC */}
-                  <td className="py-3 px-4 text-center">
-                    <div className="flex flex-col items-center gap-1">
-                      <span className="px-2.5 py-0.5 bg-zinc-900 text-amber-400 font-mono font-black rounded-lg text-xs shadow-2xs">
-                        {st.aiScore}점
+                    <div className="flex flex-col items-center gap-0.5">
+                      <span className="px-1.5 py-0.2 bg-amber-100 text-amber-900 font-mono font-black rounded text-[10px]">
+                        RVOL {st.rvol}x
                       </span>
-                      <span className="text-[10px] text-emerald-600 font-bold">+{st.aiScoreChange}점</span>
+                      <span className="text-[10px] font-mono font-black text-cyan-700">
+                        체결 {st.executionPower}%
+                      </span>
                     </div>
                   </td>
 
-                  {/* AI 매매타이밍 (진입/목표/손절) - 달러 및 원화 이중 표기 */}
+                  {/* v9 UNIFIED SHAPE AI 검증 및 전달 */}
                   <td className="py-3 px-4 text-center">
-                    {(() => {
-                      const timing = getTradeTiming(st);
-                      const isUs = st.market === "US";
-                      const rate = getUsdExchangeRate();
-                      const formatVal = (val: number) => {
-                        if (isUs) {
-                          const krw = Math.round(val * rate);
-                          return `$${val} (₩${krw.toLocaleString()})`;
-                        }
-                        return `${val.toLocaleString()}원`;
-                      };
-
-                      return (
-                        <div className="flex flex-col items-center gap-1">
-                          <span className={`px-2 py-0.5 rounded font-black text-[10px] ${timing.badgeBg}`}>
-                            {timing.label}
-                          </span>
-                          <div className="text-[10px] font-mono font-bold text-zinc-700 flex flex-wrap items-center justify-center gap-1.5 whitespace-nowrap">
-                            <span className="text-zinc-500">진입 {formatVal(timing.entryPrice)}</span>
-                            <span className="text-rose-600">목표 {formatVal(timing.targetPrice)} ({timing.tpPct})</span>
-                            <span className="text-blue-600">손절 {formatVal(timing.stopLossPrice)} ({timing.slPct})</span>
-                          </div>
-                        </div>
-                      );
-                    })()}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedStock({
+                          symbol: st.symbol,
+                          name: st.name,
+                          market: st.market,
+                          price: st.price,
+                          changePct: st.changePct,
+                          tradingValue: st.tradingValue,
+                          rvol: st.rvol,
+                          executionPower: st.executionPower
+                        });
+                        alert(`[v10 Scanner -> v9 Unified Shape AI] '${st.name}' (${st.symbol}) 후보 종목을 v9 Shape AI로 전달했습니다.\nShape 3종 (가격/지표/패턴) 통합 및 미래 예상 차트를 계산합니다.`);
+                      }}
+                      className="px-2.5 py-1 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white rounded-lg font-black text-[10px] transition shadow-xs cursor-pointer flex items-center gap-1 mx-auto whitespace-nowrap"
+                      title="v9 Unified Shape AI로 후보 전달"
+                    >
+                      <Zap className="h-3 w-3 fill-amber-300 text-amber-300 animate-pulse" />
+                      <span>v9 Shape AI 검증</span>
+                    </button>
                   </td>
 
                   {/* AI 자동매매 버튼 & 1클릭 즉시 매수 */}

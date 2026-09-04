@@ -17,17 +17,30 @@ export type PatternCategory =
   | "BOLLINGER_BREAKOUT" 
   | "RSI_DIVERGENCE";
 
+export type PatternLifecycleState = 
+  | "FORMING"        // 패턴 수렴/형성 중
+  | "CONFIRMED"      // 돌파/지점 확정
+  | "ACTIVE"         // 목표가를 향해 추세 진행 중 (유효 신호)
+  | "TARGET_REACHED" // 이미 목표가 도달/상승 완료 (매수 신호 제외)
+  | "INVALIDATED"    // 지지/저항 무효화 또는 손절선 이탈
+  | "EXPIRED";       // 유효 시간/가격대 초과 만료
+
 export interface DetectedPattern {
   id: string;
   name: string;
   koreanName: string;
-  category: "DOUBLE_BOTTOM" | "HEAD_AND_SHOULDERS" | "ASCENDING_TRIANGLE" | "BOLLINGER_BREAKOUT" | "RSI_DIVERGENCE";
+  category: PatternCategory;
   type: "BULLISH" | "BEARISH";
   confidence: number;
   description: string;
   targetPrice: number;
   stopLossPrice: number;
   necklinePrice?: number;
+  // Lifecycle evaluation
+  state: PatternLifecycleState;
+  stateLabel: string;
+  stateDescription: string;
+  isValidForSignal: boolean; // Only true if ACTIVE, CONFIRMED, or FORMING and target not surpassed
   // Chart vector coordinates
   points: { x: number; y: number; label: string; price: number }[];
   necklineCoords?: { x1: number; y1: number; x2: number; y2: number };
@@ -43,6 +56,122 @@ interface Pivot {
   high: number;
   low: number;
   isHigh: boolean;
+}
+
+/**
+ * Evaluate precise pattern lifecycle state against current live price
+ */
+export function evaluatePatternLifecycle(
+  type: "BULLISH" | "BEARISH",
+  currPrice: number,
+  targetPrice: number,
+  stopLossPrice: number,
+  necklinePrice?: number
+): {
+  state: PatternLifecycleState;
+  stateLabel: string;
+  stateDescription: string;
+  isValidForSignal: boolean;
+  adjustedTargetPrice: number;
+} {
+  let adjustedTarget = targetPrice;
+
+  if (type === "BULLISH") {
+    // If targetPrice was calculated lower than current price (e.g. historical pattern formed at lower base),
+    // or if current price has already surpassed targetPrice:
+    if (currPrice >= targetPrice) {
+      return {
+        state: "TARGET_REACHED",
+        stateLabel: "✅ TARGET REACHED (목표달성)",
+        stateDescription: `현재가(${currPrice.toLocaleString()})가 패턴 목표가(${targetPrice.toLocaleString()})에 이미 도달/초과하여 완료됨 (신규 진입 제외)`,
+        isValidForSignal: false,
+        adjustedTargetPrice: targetPrice,
+      };
+    }
+
+    // Invalidated if price drops below stop loss
+    if (currPrice <= stopLossPrice) {
+      return {
+        state: "INVALIDATED",
+        stateLabel: "❌ INVALIDATED (손절 무효화)",
+        stateDescription: `현재가가 손절 지지선(${stopLossPrice.toLocaleString()}) 아래로 이탈하여 패턴 무효화됨`,
+        isValidForSignal: false,
+        adjustedTargetPrice: targetPrice,
+      };
+    }
+
+    // Active if above neckline and aiming for target
+    if (necklinePrice && currPrice >= necklinePrice * 0.995) {
+      return {
+        state: "ACTIVE",
+        stateLabel: "🟢 ACTIVE (목표 추적 중)",
+        stateDescription: `넥라인(${necklinePrice.toLocaleString()}) 돌파 후 목표가(${targetPrice.toLocaleString()}) 향해 상승 추세 진행 중`,
+        isValidForSignal: true,
+        adjustedTargetPrice: targetPrice,
+      };
+    }
+
+    // Forming if approaching neckline
+    if (necklinePrice && currPrice < necklinePrice * 0.995) {
+      return {
+        state: "FORMING",
+        stateLabel: "🟡 FORMING (수렴 형성 중)",
+        stateDescription: `넥라인(${necklinePrice.toLocaleString()}) 돌파를 시도하며 저점 수렴 중`,
+        isValidForSignal: true,
+        adjustedTargetPrice: targetPrice,
+      };
+    }
+
+    return {
+      state: "ACTIVE",
+      stateLabel: "🟢 ACTIVE (상승 추적)",
+      stateDescription: `상승 패턴 유효 (목표가: ${targetPrice.toLocaleString()})`,
+      isValidForSignal: true,
+      adjustedTargetPrice: targetPrice,
+    };
+  } else {
+    // BEARISH Pattern (Head & Shoulders)
+    // Invalidated if price breaks above stopLossPrice (right shoulder / head)
+    if (currPrice >= stopLossPrice) {
+      return {
+        state: "INVALIDATED",
+        stateLabel: "❌ INVALIDATED (상방 돌파 무효화)",
+        stateDescription: `현재가가 고점 저항선(${stopLossPrice.toLocaleString()})을 넘어서 하락 패턴 무효화됨`,
+        isValidForSignal: false,
+        adjustedTargetPrice: targetPrice,
+      };
+    }
+
+    // Target reached if price reached down to targetPrice or below
+    if (currPrice <= targetPrice) {
+      return {
+        state: "TARGET_REACHED",
+        stateLabel: "✅ TARGET REACHED (하락목표 완료)",
+        stateDescription: `현재가가 하락 목표가(${targetPrice.toLocaleString()})까지 도달하여 조정 완료됨`,
+        isValidForSignal: false,
+        adjustedTargetPrice: targetPrice,
+      };
+    }
+
+    // Active if below neckline
+    if (necklinePrice && currPrice <= necklinePrice * 1.005) {
+      return {
+        state: "ACTIVE",
+        stateLabel: "🔴 ACTIVE (하락 진행)",
+        stateDescription: `넥라인(${necklinePrice.toLocaleString()}) 하향 이탈 후 하락 목표가(${targetPrice.toLocaleString()}) 추적 중`,
+        isValidForSignal: true,
+        adjustedTargetPrice: targetPrice,
+      };
+    }
+
+    return {
+      state: "FORMING",
+      stateLabel: "🟡 FORMING (패턴 수렴)",
+      stateDescription: `넥라인 경계선 부근 하락 수렴 진행 중`,
+      isValidForSignal: true,
+      adjustedTargetPrice: targetPrice,
+    };
+  }
 }
 
 export function detectAllChartPatterns(
@@ -119,6 +248,10 @@ export function detectAllChartPatterns(
               const breakoutX = getX(breakoutIdx);
               const breakoutY = getY(neckline);
 
+              const rawTarget = targetPrice;
+              const rawStop = stopLossPrice;
+              const lifecycle = evaluatePatternLifecycle("BULLISH", currPrice, rawTarget, rawStop, neckline);
+
               patterns.push({
                 id: "db-1",
                 name: "Double Bottom",
@@ -126,10 +259,14 @@ export function detectAllChartPatterns(
                 category: "DOUBLE_BOTTOM",
                 type: "BULLISH",
                 confidence: Math.min(94, Math.round(82 + (1 - priceDiff / 0.045) * 12)),
-                description: `바닥 1 (${l1.price.toLocaleString()})과 바닥 2 (${l2.price.toLocaleString()})의 지지 확인 후 넥라인(${neckline.toLocaleString()}) 돌파 상승 추세 추적`,
-                targetPrice,
-                stopLossPrice,
+                description: `바닥 1 (${l1.price.toLocaleString()})과 바닥 2 (${l2.price.toLocaleString()}) 지지 후 넥라인(${neckline.toLocaleString()}) 돌파 추적`,
+                targetPrice: rawTarget,
+                stopLossPrice: rawStop,
                 necklinePrice: neckline,
+                state: lifecycle.state,
+                stateLabel: lifecycle.stateLabel,
+                stateDescription: lifecycle.stateDescription,
+                isValidForSignal: lifecycle.isValidForSignal,
                 points: [
                   { x: startX, y: startY, label: "시작", price: Math.round(neckline * 1.01) },
                   { x: l1X, y: l1Y, label: "바닥 1", price: l1.price },
@@ -145,9 +282,9 @@ export function detectAllChartPatterns(
                 },
                 targetLineCoords: {
                   x1: breakoutX,
-                  y1: getY(targetPrice),
+                  y1: getY(rawTarget),
                   x2: chartWidth - 10,
-                  y2: getY(targetPrice)
+                  y2: getY(rawTarget)
                 },
                 breakoutPoint: { x: breakoutX, y: breakoutY, label: "돌파 매수점" },
                 polygonArea: [
@@ -178,7 +315,12 @@ export function detectAllChartPatterns(
     const peakPrice = Math.max(...candles.slice(l1Idx, peakIdx + 1).map(c => c.high));
     const l2Price = candles[l2Idx].low;
     const neckline = peakPrice;
-    const targetPrice = +(neckline + (neckline - Math.min(l1Price, l2Price))).toFixed(2);
+    
+    // Ensure fallback target is relative to current price or pattern height
+    let targetPrice = +(neckline + (neckline - Math.min(l1Price, l2Price))).toFixed(2);
+    const stopLossPrice = +(Math.min(l1Price, l2Price) * 0.98).toFixed(2);
+    
+    const lifecycle = evaluatePatternLifecycle("BULLISH", currPrice, targetPrice, stopLossPrice, neckline);
 
     patterns.push({
       id: "db-fallback",
@@ -189,8 +331,12 @@ export function detectAllChartPatterns(
       confidence: 86,
       description: `W자 바닥 지지 후 넥라인(${neckline.toLocaleString()}) 돌파 상승 목표가 추적`,
       targetPrice,
-      stopLossPrice: +(Math.min(l1Price, l2Price) * 0.98).toFixed(2),
+      stopLossPrice,
       necklinePrice: neckline,
+      state: lifecycle.state,
+      stateLabel: lifecycle.stateLabel,
+      stateDescription: lifecycle.stateDescription,
+      isValidForSignal: lifecycle.isValidForSignal,
       points: [
         { x: getX(l1Idx - 3), y: getY(neckline), label: "진입", price: neckline },
         { x: getX(l1Idx), y: getY(l1Price), label: "바닥 1", price: l1Price },
@@ -233,6 +379,8 @@ export function detectAllChartPatterns(
           const targetPrice = +(neckline - (head.price - neckline)).toFixed(2);
           const stopLossPrice = +(rShoulder.price * 1.015).toFixed(2);
 
+          const lifecycle = evaluatePatternLifecycle("BEARISH", currPrice, targetPrice, stopLossPrice, neckline);
+
           patterns.push({
             id: "hs-1",
             name: "Head & Shoulders",
@@ -244,6 +392,10 @@ export function detectAllChartPatterns(
             targetPrice,
             stopLossPrice,
             necklinePrice: neckline,
+            state: lifecycle.state,
+            stateLabel: lifecycle.stateLabel,
+            stateDescription: lifecycle.stateDescription,
+            isValidForSignal: lifecycle.isValidForSignal,
             points: [
               { x: getX(lShoulder.idx), y: getY(lShoulder.price), label: "좌측 어깨", price: lShoulder.price },
               { x: getX(head.idx), y: getY(head.price), label: "머리 (고점)", price: head.price },
@@ -281,6 +433,9 @@ export function detectAllChartPatterns(
     const rsPrice = Math.round(hPrice * 0.955);
     const neckline = Math.round(hPrice * 0.91);
     const targetPrice = +(neckline - (hPrice - neckline)).toFixed(2);
+    const stopLossPrice = +(rsPrice * 1.02).toFixed(2);
+
+    const lifecycle = evaluatePatternLifecycle("BEARISH", currPrice, targetPrice, stopLossPrice, neckline);
 
     patterns.push({
       id: "hs-fallback",
@@ -291,8 +446,12 @@ export function detectAllChartPatterns(
       confidence: 84,
       description: `헤드앤숄더 3봉 패턴 완성 및 넥라인(${neckline.toLocaleString()}) 지지선 이탈 경계`,
       targetPrice,
-      stopLossPrice: +(rsPrice * 1.02).toFixed(2),
+      stopLossPrice,
       necklinePrice: neckline,
+      state: lifecycle.state,
+      stateLabel: lifecycle.stateLabel,
+      stateDescription: lifecycle.stateDescription,
+      isValidForSignal: lifecycle.isValidForSignal,
       points: [
         { x: getX(lsIdx), y: getY(lsPrice), label: "좌측 어깨", price: lsPrice },
         { x: getX(hIdx), y: getY(hPrice), label: "머리 (고점)", price: hPrice },
@@ -328,7 +487,12 @@ export function detectAllChartPatterns(
 
     // Check if lows are ascending
     const isAscending = midLow >= startLow * 0.99 && endLow >= midLow * 0.99;
-    const targetPrice = +(resistanceCeiling + (resistanceCeiling - startLow) * 0.75).toFixed(2);
+    
+    // Ensure Ascending Triangle target is above resistance ceiling
+    const targetPrice = +(resistanceCeiling + Math.max(currPrice * 0.03, (resistanceCeiling - startLow) * 0.75)).toFixed(2);
+    const stopLossPrice = +(startLow * 0.98).toFixed(2);
+
+    const lifecycle = evaluatePatternLifecycle("BULLISH", currPrice, targetPrice, stopLossPrice, resistanceCeiling);
 
     patterns.push({
       id: "at-1",
@@ -339,8 +503,12 @@ export function detectAllChartPatterns(
       confidence: isAscending ? 89 : 78,
       description: `저항선(${resistanceCeiling.toLocaleString()}) 천장과 우상향 지지선 수렴 후 상방 폭발 돌파 준비`,
       targetPrice,
-      stopLossPrice: +(startLow * 0.98).toFixed(2),
+      stopLossPrice,
       necklinePrice: resistanceCeiling,
+      state: lifecycle.state,
+      stateLabel: lifecycle.stateLabel,
+      stateDescription: lifecycle.stateDescription,
+      isValidForSignal: lifecycle.isValidForSignal,
       points: [
         { x: getX(n - 25), y: getY(resistanceCeiling), label: "저항선", price: resistanceCeiling },
         { x: getX(n - 25), y: getY(startLow), label: "저점 1", price: startLow },
@@ -378,6 +546,9 @@ export function detectAllChartPatterns(
     const lastUpper = bbValues.upper[bbValues.upper.length - 1];
     if (lastUpper && currPrice >= lastUpper * 0.985) {
       const target = +(currPrice * 1.055).toFixed(2);
+      const stop = +(lastUpper * 0.96).toFixed(2);
+      const lifecycle = evaluatePatternLifecycle("BULLISH", currPrice, target, stop, lastUpper);
+
       patterns.push({
         id: "bb-1",
         name: "Bollinger Band Breakout",
@@ -387,7 +558,11 @@ export function detectAllChartPatterns(
         confidence: 91,
         description: `변동성 수축 구간 종료 후 볼린저 밴드 상단(${lastUpper.toLocaleString()}) 관통 돌파 가속`,
         targetPrice: target,
-        stopLossPrice: +(lastUpper * 0.96).toFixed(2),
+        stopLossPrice: stop,
+        state: lifecycle.state,
+        stateLabel: lifecycle.stateLabel,
+        stateDescription: lifecycle.stateDescription,
+        isValidForSignal: lifecycle.isValidForSignal,
         points: [
           { x: getX(n - 1), y: getY(currPrice), label: "밴드 관통봉", price: currPrice }
         ],
@@ -415,6 +590,9 @@ export function detectAllChartPatterns(
     // Price makes lower low (or equal), but RSI makes higher low
     if (l2.price <= l1.price * 1.01 && rsi2 > rsi1 + 2) {
       const target = +(currPrice * 1.06).toFixed(2);
+      const stop = +(l2.price * 0.98).toFixed(2);
+      const lifecycle = evaluatePatternLifecycle("BULLISH", currPrice, target, stop);
+
       patterns.push({
         id: "rsi-div-1",
         name: "RSI Bullish Divergence",
@@ -424,7 +602,11 @@ export function detectAllChartPatterns(
         confidence: 92,
         description: `가격은 저점(${l2.price.toLocaleString()})을 갱신하였으나 RSI 보조지표(${rsi2})는 저점을 높이며 강력한 추세 반전 신호 발생`,
         targetPrice: target,
-        stopLossPrice: +(l2.price * 0.98).toFixed(2),
+        stopLossPrice: stop,
+        state: lifecycle.state,
+        stateLabel: lifecycle.stateLabel,
+        stateDescription: lifecycle.stateDescription,
+        isValidForSignal: lifecycle.isValidForSignal,
         points: [
           { x: getX(l1.idx), y: getY(l1.price), label: "가격 저점 1", price: l1.price },
           { x: getX(l2.idx), y: getY(l2.price), label: "가격 저점 2", price: l2.price },
@@ -443,4 +625,213 @@ export function detectAllChartPatterns(
   }
 
   return patterns;
+}
+
+export interface UnifiedMarketShape {
+  priceShape: {
+    label: string;
+    description: string;
+    status: "BULLISH" | "BEARISH" | "NEUTRAL";
+  };
+  patternShape: {
+    label: string;
+    description: string;
+    validActiveCount: number;
+    expiredCount: number;
+    invalidatedCount: number;
+    bullishValidRatio: number; // 0 ~ 100
+  };
+  emaShape: {
+    label: string;
+    description: string;
+    alignment: "PERFECT_BULLISH" | "BULLISH" | "BEARISH" | "NEUTRAL";
+  };
+  rsiShape: {
+    label: string;
+    description: string;
+    rsiValue: number;
+    momentumState: "ACCELERATING" | "HEALTHY" | "OVERBOUGHT" | "WEAK";
+  };
+  macdShape: {
+    label: string;
+    description: string;
+    histDirection: "EXPANDING_UP" | "CONTRACTING" | "BEARISH_EXPANSION";
+  };
+  stochShape: {
+    label: string;
+    description: string;
+  };
+  volumeShape: {
+    label: string;
+    description: string;
+    isSurge: boolean;
+  };
+  overallShapeScore: number; // 0 ~ 100
+  overallShapeLabel: string;
+  overallTrend: "BULLISH_EXPANSION" | "BULLISH_CONSOLIDATION" | "BEARISH_CONTRACTION" | "NEUTRAL";
+}
+
+export function computeUnifiedMarketShape(params: {
+  candles: ChartCandle[];
+  patterns: DetectedPattern[];
+  ema5?: number;
+  ema20?: number;
+  ema60?: number;
+  rsi?: number;
+  macdHist?: number;
+  stochK?: number;
+  stochD?: number;
+}): UnifiedMarketShape {
+  const { candles, patterns, ema5, ema20, ema60, rsi = 60, macdHist = 0, stochK = 65, stochD = 60 } = params;
+  if (!candles || candles.length < 5) {
+    return {
+      priceShape: { label: "저점 형성 중", description: "초기 봉 데이터 분석 중", status: "NEUTRAL" },
+      patternShape: { label: "패턴 탐지 대기", description: "최소 봉 수집 중", validActiveCount: 0, expiredCount: 0, invalidatedCount: 0, bullishValidRatio: 50 },
+      emaShape: { label: "MA 정배열 대기", description: "이동평균 산출 중", alignment: "NEUTRAL" },
+      rsiShape: { label: `RSI ${rsi}`, description: "RSI 모멘텀 분석 중", rsiValue: rsi, momentumState: "HEALTHY" },
+      macdShape: { label: "MACD 0선 근접", description: "히스토그램 분석 중", histDirection: "EXPANDING_UP" },
+      stochShape: { label: `Stoch K:${stochK}`, description: "스토캐스틱 분석 중" },
+      volumeShape: { label: "보통 거래량", description: "평균 거래량 수준", isSurge: false },
+      overallShapeScore: 75,
+      overallShapeLabel: "UNIFIED NEUTRAL SHAPE",
+      overallTrend: "NEUTRAL"
+    };
+  }
+
+  const lastC = candles[candles.length - 1];
+  const currPrice = lastC.close;
+
+  // 1. PRICE SHAPE ANALYSIS (Low/High Higher Structure)
+  const recent5 = candles.slice(-5);
+  const isHigherLow = recent5[recent5.length - 1].low >= recent5[0].low;
+  const isCloseAboveOpen = lastC.close >= lastC.open;
+  
+  let priceShapeLabel = "저점 형성 → 급등 → 눌림 → 재상승 구조";
+  let priceStatus: "BULLISH" | "BEARISH" | "NEUTRAL" = "BULLISH";
+  if (isHigherLow && isCloseAboveOpen) {
+    priceShapeLabel = "우상향 Higher Low 지지 & 돌파형 구조";
+    priceStatus = "BULLISH";
+  } else if (!isHigherLow && !isCloseAboveOpen) {
+    priceShapeLabel = "고점 낮아짐 Lower High & 눌림목 구조";
+    priceStatus = "BEARISH";
+  } else {
+    priceShapeLabel = "횡보 수렴 박스권 매공 구간";
+    priceStatus = "NEUTRAL";
+  }
+
+  // 2. PATTERN SHAPE ANALYSIS (Filtering ONLY Valid & Active Patterns!)
+  const validActivePatterns = patterns.filter(p => p.isValidForSignal);
+  const expiredPatterns = patterns.filter(p => p.state === "TARGET_REACHED" || p.state === "EXPIRED");
+  const invalidatedPatterns = patterns.filter(p => p.state === "INVALIDATED");
+
+  const bullishValid = validActivePatterns.filter(p => p.type === "BULLISH");
+
+  const totalValid = validActivePatterns.length;
+  const bullishValidRatio = totalValid > 0 ? Math.round((bullishValid.length / totalValid) * 100) : 50;
+
+  const validNames = validActivePatterns.map(p => `${p.koreanName}(${p.state})`).join(", ");
+  const expiredNames = expiredPatterns.map(p => `${p.koreanName}(목표달성)`).join(", ");
+
+  let patternDesc = totalValid > 0 
+    ? `유효 패턴 ${totalValid}개 탐지 [${validNames}]`
+    : "유효 진행 중인 신규 패턴 없음";
+  if (expiredPatterns.length > 0) {
+    patternDesc += ` | 만료/달성: ${expiredNames}`;
+  }
+
+  // 3. EMA SHAPE ANALYSIS
+  const e5 = ema5 || currPrice;
+  const e20 = ema20 || currPrice * 0.99;
+  const e60 = ema60 || currPrice * 0.98;
+
+  let emaAlignment: "PERFECT_BULLISH" | "BULLISH" | "BEARISH" | "NEUTRAL" = "BULLISH";
+  let emaLabel = "MA20 ↗ / MA60 ↗ (가격 > MA)";
+  if (currPrice > e5 && e5 > e20 && e20 > e60) {
+    emaAlignment = "PERFECT_BULLISH";
+    emaLabel = "MA5 > MA20 > MA60 완벽 정배열 ↗";
+  } else if (currPrice < e5 && e5 < e20) {
+    emaAlignment = "BEARISH";
+    emaLabel = "MA5 < MA20 역배열 하향 Press ↘";
+  }
+
+  // 4. RSI SHAPE
+  let rsiState: "ACCELERATING" | "HEALTHY" | "OVERBOUGHT" | "WEAK" = "HEALTHY";
+  let rsiDesc = `RSI ${rsi.toFixed(1)} - 건전한 상승 구간`;
+  if (rsi > 70) {
+    rsiState = "OVERBOUGHT";
+    rsiDesc = `RSI ${rsi.toFixed(1)} - 과매수 진입 (분할 매도 주의)`;
+  } else if (rsi >= 58) {
+    rsiState = "ACCELERATING";
+    rsiDesc = `RSI ${rsi.toFixed(1)} - 강한 추세 모멘텀 확장`;
+  } else if (rsi < 45) {
+    rsiState = "WEAK";
+    rsiDesc = `RSI ${rsi.toFixed(1)} - 약세 구간 유지`;
+  }
+
+  // 5. MACD SHAPE
+  let macdDir: "EXPANDING_UP" | "CONTRACTING" | "BEARISH_EXPANSION" = "EXPANDING_UP";
+  let macdDesc = "Histogram 양수 확대 ↗";
+  if (macdHist > 0) {
+    macdDir = "EXPANDING_UP";
+    macdDesc = `MACD Hist +${macdHist.toFixed(2)} 양수 모멘텀 확장`;
+  } else if (macdHist > -0.2) {
+    macdDir = "CONTRACTING";
+    macdDesc = `MACD Hist ${macdHist.toFixed(2)} 음수 축소 / 양전 임박`;
+  } else {
+    macdDir = "BEARISH_EXPANSION";
+    macdDesc = `MACD Hist ${macdHist.toFixed(2)} 음수 확장 경계`;
+  }
+
+  // 6. STOCHASTIC SHAPE
+  const stochDesc = `Stochastic K:${stochK.toFixed(1)} D:${stochD.toFixed(1)} ${stochK > stochD ? "골든크로스 상승" : "눌림목 조정"}`;
+
+  // 7. VOLUME SHAPE
+  const avgVol = candles.slice(-10).reduce((a, c) => a + c.volume, 0) / 10;
+  const isSurge = lastC.volume > avgVol * 1.3;
+  const volumeDesc = isSurge 
+    ? `돌파 거래량 ${Math.round((lastC.volume / avgVol) * 100)}% 급증 (수급 유입)`
+    : `거래량 평균 수준 유지 (${Math.round((lastC.volume / avgVol) * 100)}%)`;
+
+  // OVERALL COMPOSITE SHAPE SCORE (0 ~ 100)
+  let shapeScore = 50;
+  if (priceStatus === "BULLISH") shapeScore += 12;
+  if (emaAlignment === "PERFECT_BULLISH") shapeScore += 18;
+  else if (emaAlignment === "BULLISH") shapeScore += 10;
+  if (rsiState === "ACCELERATING" || rsiState === "HEALTHY") shapeScore += 12;
+  if (macdDir === "EXPANDING_UP") shapeScore += 12;
+  if (isSurge) shapeScore += 10;
+  if (bullishValidRatio > 60) shapeScore += 15;
+  else if (bullishValidRatio < 40) shapeScore -= 15;
+
+  shapeScore = Math.min(99, Math.max(10, shapeScore));
+
+  let overallTrend: "BULLISH_EXPANSION" | "BULLISH_CONSOLIDATION" | "BEARISH_CONTRACTION" | "NEUTRAL" = "BULLISH_EXPANSION";
+  let overallLabel = "🔥 UNIFIED BULLISH EXPANSION SHAPE";
+
+  if (shapeScore >= 78) {
+    overallTrend = "BULLISH_EXPANSION";
+    overallLabel = "🔥 UNIFIED BULLISH EXPANSION SHAPE (강력 상승 세이프)";
+  } else if (shapeScore >= 60) {
+    overallTrend = "BULLISH_CONSOLIDATION";
+    overallLabel = "⚡ BULLISH CONSOLIDATION (상승 수렴 세이프)";
+  } else if (shapeScore <= 40) {
+    overallTrend = "BEARISH_CONTRACTION";
+    overallLabel = "⚠️ BEARISH CONTRACTION (하락 압력 세이프)";
+  } else {
+    overallTrend = "NEUTRAL";
+    overallLabel = "➡️ UNIFIED NEUTRAL SHAPE (횡보 세이프)";
+  }
+
+  return {
+    priceShape: { label: priceShapeLabel, description: "저점/고점 구조 파동", status: priceStatus },
+    patternShape: { label: `유효 패턴 ${totalValid}개 (${bullishValidRatio}% 상승 합의)`, description: patternDesc, validActiveCount: totalValid, expiredCount: expiredPatterns.length, invalidatedCount: invalidatedPatterns.length, bullishValidRatio },
+    emaShape: { label: emaLabel, description: "이동평균 배열 구조", alignment: emaAlignment },
+    rsiShape: { label: `RSI ${rsi.toFixed(1)} SHAPE`, description: rsiDesc, rsiValue: rsi, momentumState: rsiState },
+    macdShape: { label: `MACD SHAPE`, description: macdDesc, histDirection: macdDir },
+    stochShape: { label: `STOCH SHAPE`, description: stochDesc },
+    volumeShape: { label: `VOLUME SHAPE`, description: volumeDesc, isSurge },
+    overallShapeScore: shapeScore,
+    overallShapeLabel: overallLabel,
+    overallTrend,
+  };
 }

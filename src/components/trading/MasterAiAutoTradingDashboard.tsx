@@ -36,10 +36,14 @@ import {
   FolderLock,
   Sun,
   Moon,
-  Coins
+  Coins,
+  Radar,
+  Sparkles
 } from "lucide-react";
 import { useApp } from "../../context/AppContext";
 import { getAllStocks, StockItem } from "../../data/stockUniverse";
+import { calculateJarvisPositionAi } from "../../services/DynamicPositionEngine";
+import { JarvisPositionAiPanel } from "./JarvisPositionAiPanel";
 
 // Existing sub-system modals to guarantee 100% preservation of every single capability
 import { StockSearchAndAddModal } from "./StockSearchAndAddModal";
@@ -54,8 +58,14 @@ import { TransactionHistory } from "../TransactionHistory";
 import { SmcMarketStructureVisualizer } from "../SmcMarketStructureVisualizer";
 import { UsScalperSuperBrainModal } from "./UsScalperSuperBrainModal";
 import { FractionalStockOrderModal } from "./FractionalStockOrderModal";
+import { UploadedStrategyFileReaderModal } from "./UploadedStrategyFileReaderModal";
+import { AistockV11ExecutionConsole } from "../AistockV11ExecutionConsole";
+import { RealtimeScannerTileBoard } from "../RealtimeScannerTileBoard";
+import { AiFutureTrendOverlayChart } from "../AiFutureTrendOverlayChart";
 import { 
   detectAllChartPatterns, 
+  computeUnifiedMarketShape,
+  UnifiedMarketShape,
   DetectedPattern, 
   PatternCategory, 
   ChartCandle 
@@ -100,12 +110,20 @@ export const MasterAiAutoTradingDashboard: React.FC<{
     rsi: boolean;
     macd: boolean;
     stoch: boolean;
+    vwap: boolean;
+    forecast: boolean;
+    atrBand: boolean;
+    srLines: boolean;
   }>({
     ma: true,
     bb: true,
     rsi: true,
     macd: true,
-    stoch: true
+    stoch: true,
+    vwap: true,
+    forecast: true,
+    atrBand: true,
+    srLines: true
   });
 
   // Watchlist search and market filter
@@ -127,6 +145,19 @@ export const MasterAiAutoTradingDashboard: React.FC<{
   const [isUsBrainModalOpen, setIsUsBrainModalOpen] = useState(false);
   const [isFractionalModalOpen, setIsFractionalModalOpen] = useState(false);
   const [isIndicatorsDropdownOpen, setIsIndicatorsDropdownOpen] = useState(false);
+  const [isStrategyFileReaderOpen, setIsStrategyFileReaderOpen] = useState(false);
+  const [customUploadedCandles, setCustomUploadedCandles] = useState<any[] | null>(null);
+
+  // Clicked Prediction Point on Candlestick Chart
+  const [clickedPredictionPoint, setClickedPredictionPoint] = useState<{
+    x: number;
+    y: number;
+    price: number;
+    predictedPrice: number;
+    changePct: number;
+    time: string;
+  } | null>(null);
+  const [showFullForecastChartModal, setShowFullForecastChartModal] = useState<boolean>(false);
 
   // Market Overview items
   const [marketIndices, setMarketIndices] = useState([
@@ -456,11 +487,51 @@ export const MasterAiAutoTradingDashboard: React.FC<{
     return { kLine, dLine };
   }, [candles]);
 
+  // Calculate VWAP (Volume Weighted Average Price)
+  const vwapValues = useMemo(() => {
+    let cumVol = 0;
+    let cumVolPrice = 0;
+    return candles.map(c => {
+      const typicalPrice = (c.high + c.low + c.close) / 3;
+      const vol = c.volume || 1000;
+      cumVol += vol;
+      cumVolPrice += typicalPrice * vol;
+      return cumVol > 0 ? cumVolPrice / cumVol : c.close;
+    });
+  }, [candles]);
+
+  // Calculate ATR (Average True Range) for Dynamic Volatility Channel
+  const atrValues = useMemo(() => {
+    return candles.map((c, i) => {
+      if (i === 0) return Math.max(10, c.high - c.low);
+      const prevClose = candles[i - 1].close;
+      const tr = Math.max(
+        c.high - c.low,
+        Math.abs(c.high - prevClose),
+        Math.abs(c.low - prevClose)
+      );
+      return tr;
+    });
+  }, [candles]);
+
+  // Calculate Dynamic Support & Resistance Levels
+  const srLevels = useMemo(() => {
+    if (candles.length === 0) return { support: 0, resistance: 0 };
+    let highest = -Infinity;
+    let lowest = Infinity;
+    candles.forEach(c => {
+      if (c.high > highest) highest = c.high;
+      if (c.low < lowest) lowest = c.low;
+    });
+    return { support: lowest, resistance: highest };
+  }, [candles]);
+
   // Current indicators values for legend
   const latestMa5 = maValues.ma5[maValues.ma5.length - 1] || 78120;
   const latestMa20 = maValues.ma20[maValues.ma20.length - 1] || 76510;
   const latestMa60 = maValues.ma60[maValues.ma60.length - 1] || 74890;
   const latestMa120 = maValues.ma120[maValues.ma120.length - 1] || 72980;
+  const latestVwap = vwapValues[vwapValues.length - 1] || currentStock.price || 75200;
   const latestBbUpper = bbValues.upper[bbValues.upper.length - 1] || 79240;
   const latestBbLower = bbValues.lower[bbValues.lower.length - 1] || 73780;
   const latestRsi = rsiValues[rsiValues.length - 1] || 62.35;
@@ -469,6 +540,17 @@ export const MasterAiAutoTradingDashboard: React.FC<{
   const latestHist = Number((macdValues.histogram[macdValues.histogram.length - 1] / 1000).toFixed(2)) || 0.25;
   const latestStochK = stochValues.kLine[stochValues.kLine.length - 1] || 72.35;
   const latestStochD = stochValues.dLine[stochValues.dLine.length - 1] || 68.21;
+
+  // Price formatting helper for Domestic KRX / Overseas US / Upbit Crypto
+  const formatPrice = (p: number) => {
+    if (currentStock.market === "US" || (currentStock.symbol.length <= 5 && !/^\d+$/.test(currentStock.symbol) && !currentStock.symbol.startsWith("KRW-"))) {
+      return `$${p.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    }
+    if (p >= 1000000) {
+      return `₩${Math.round(p).toLocaleString()}`;
+    }
+    return `₩${Math.round(p).toLocaleString()}`;
+  };
 
   // Real-time Trade Log Items matching user image
   const [tradeLogs, setTradeLogs] = useState([
@@ -564,17 +646,6 @@ export const MasterAiAutoTradingDashboard: React.FC<{
     return idx * candleSpacing + candleSpacing / 2;
   };
 
-  // Price formatting helper for Domestic KRX / Overseas US / Upbit Crypto
-  const formatPrice = (p: number) => {
-    if (currentStock.market === "US" || (currentStock.symbol.length <= 5 && !/^\d+$/.test(currentStock.symbol) && !currentStock.symbol.startsWith("KRW-"))) {
-      return `$${p.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-    }
-    if (p >= 1000000) {
-      return `₩${Math.round(p).toLocaleString()}`;
-    }
-    return `₩${Math.round(p).toLocaleString()}`;
-  };
-
   // 7 Evenly Spaced Dynamic Y-Axis Price Ticks
   const yPriceTicks = useMemo(() => {
     const ticksCount = 7;
@@ -597,6 +668,57 @@ export const MasterAiAutoTradingDashboard: React.FC<{
     );
   }, [candles, minPrice, maxPrice, rsiValues, bbValues, chartWidth, candleChartHeight]);
 
+  // Unified Market Shape computation
+  const unifiedMarketShape = useMemo(() => {
+    return computeUnifiedMarketShape({
+      candles,
+      patterns: detectedPatterns,
+      ema5: latestMa5,
+      ema20: latestMa20,
+      ema60: latestMa60,
+      rsi: latestRsi,
+      macdHist: latestHist,
+      stochK: latestStochK,
+      stochD: latestStochD,
+    });
+  }, [
+    candles,
+    detectedPatterns,
+    latestMa5,
+    latestMa20,
+    latestMa60,
+    latestRsi,
+    latestHist,
+    latestStochK,
+    latestStochD,
+  ]);
+
+  // JARVIS Dynamic Position & Target AI Engine Calculation
+  const jarvisPositionAiResult = useMemo(() => {
+    const currentStockAiScore = (currentStock as any).aiScore || (currentStock as any).score || 85;
+    return calculateJarvisPositionAi({
+      symbol: currentStock.symbol,
+      currentPrice: currentStock.price,
+      candles,
+      vwap: latestVwap,
+      rsi: latestRsi,
+      macdHist: latestHist,
+      ema5: latestMa5,
+      ema20: latestMa20,
+      buyScoreOverride: currentStockAiScore,
+      unifiedShapeScore: unifiedMarketShape.overallShapeScore,
+    });
+  }, [
+    currentStock,
+    candles,
+    latestVwap,
+    latestRsi,
+    latestHist,
+    latestMa5,
+    latestMa20,
+    unifiedMarketShape.overallShapeScore,
+  ]);
+
   // Filtered patterns by user selection
   const activePatterns = useMemo(() => {
     if (selectedPatternCategory === "ALL") return detectedPatterns;
@@ -616,7 +738,11 @@ export const MasterAiAutoTradingDashboard: React.FC<{
         targetPrice: dp.targetPrice,
         stopLossPrice: dp.stopLossPrice,
         pathData: dp.miniSvgPath,
-        description: dp.description
+        description: dp.description,
+        state: dp.state || "ACTIVE",
+        stateLabel: dp.stateLabel || "ACTIVE (진행중)",
+        stateDescription: dp.stateDescription || "목표가 추적 진행 중",
+        isValidForSignal: dp.isValidForSignal !== undefined ? dp.isValidForSignal : true,
       }));
     }
     return [
@@ -630,7 +756,11 @@ export const MasterAiAutoTradingDashboard: React.FC<{
         targetPrice: Math.round(currentStock.price * 1.05),
         stopLossPrice: Math.round(currentStock.price * 0.97),
         pathData: "M5,12 Q20,38 35,20 Q52,38 72,12 Q85,15 95,5",
-        description: "바닥 지지 확인 및 넥라인 상방 돌파"
+        description: "바닥 지지 확인 및 넥라인 상방 돌파",
+        state: "ACTIVE" as const,
+        stateLabel: "ACTIVE (진행중)",
+        stateDescription: "목표가 추적 진행 중",
+        isValidForSignal: true,
       },
       {
         id: "hs-default",
@@ -642,7 +772,11 @@ export const MasterAiAutoTradingDashboard: React.FC<{
         targetPrice: Math.round(currentStock.price * 0.95),
         stopLossPrice: Math.round(currentStock.price * 1.03),
         pathData: "M5,35 Q20,15 35,25 Q50,5 65,25 Q80,18 95,38",
-        description: "3봉 완성 후 넥라인 하향 이탈 경보"
+        description: "3봉 완성 후 넥라인 하향 이탈 경보",
+        state: "ACTIVE" as const,
+        stateLabel: "ACTIVE (진행중)",
+        stateDescription: "목표가 추적 진행 중",
+        isValidForSignal: true,
       },
       {
         id: "at-default",
@@ -654,7 +788,11 @@ export const MasterAiAutoTradingDashboard: React.FC<{
         targetPrice: Math.round(currentStock.price * 1.06),
         stopLossPrice: Math.round(currentStock.price * 0.975),
         pathData: "M5,35 L95,8 M5,8 L95,8",
-        description: "수렴 꼭짓점 돌파 시 강력한 변동성 폭발"
+        description: "수렴 꼭짓점 돌파 시 강력한 변동성 폭발",
+        state: "ACTIVE" as const,
+        stateLabel: "ACTIVE (진행중)",
+        stateDescription: "목표가 추적 진행 중",
+        isValidForSignal: true,
       }
     ];
   }, [detectedPatterns, currentStock.price]);
@@ -730,7 +868,7 @@ export const MasterAiAutoTradingDashboard: React.FC<{
           {/* Quick Integration Hub buttons for 100% full feature retention */}
           <button
             onClick={() => setIsBalanceModalOpen(true)}
-            className={`hidden lg:flex items-center gap-1.5 px-2.5 py-1 rounded-lg ${isWhiteTheme ? "bg-slate-100 hover:bg-slate-200 border-slate-300 text-slate-700" : "bg-[#0e1d35] hover:bg-[#152a4e] border-slate-700/80 text-slate-200"} border text-xs transition`}
+            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg ${isWhiteTheme ? "bg-slate-100 hover:bg-slate-200 border-slate-300 text-slate-700" : "bg-[#0e1d35] hover:bg-[#152a4e] border-slate-700/80 text-slate-200"} border text-xs transition cursor-pointer`}
             title="실계좌 잔고 및 포지션 상세"
           >
             <DollarSign className="w-3.5 h-3.5 text-emerald-500" />
@@ -739,7 +877,7 @@ export const MasterAiAutoTradingDashboard: React.FC<{
 
           <button
             onClick={() => setIsBotFleetModalOpen(true)}
-            className={`hidden xl:flex items-center gap-1.5 px-2.5 py-1 rounded-lg ${isWhiteTheme ? "bg-slate-100 hover:bg-slate-200 border-slate-300 text-slate-700" : "bg-[#0e1d35] hover:bg-[#152a4e] border-slate-700/80 text-slate-200"} border text-xs transition`}
+            className={`hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-lg ${isWhiteTheme ? "bg-slate-100 hover:bg-slate-200 border-slate-300 text-slate-700" : "bg-[#0e1d35] hover:bg-[#152a4e] border-slate-700/80 text-slate-200"} border text-xs transition cursor-pointer`}
             title="30대 AI 봇 플릿 제어"
           >
             <Bot className={`w-3.5 h-3.5 ${isWhiteTheme ? "text-cyan-600" : "text-cyan-400"}`} />
@@ -751,7 +889,7 @@ export const MasterAiAutoTradingDashboard: React.FC<{
               if (onOpenConsensusModal) onOpenConsensusModal(selectedSymbol);
               else setIsConsensusModalOpen(true);
             }}
-            className={`hidden xl:flex items-center gap-1.5 px-2.5 py-1 rounded-lg ${isWhiteTheme ? "bg-slate-100 hover:bg-slate-200 border-slate-300 text-slate-700" : "bg-[#0e1d35] hover:bg-[#152a4e] border-slate-700/80 text-slate-200"} border text-xs transition`}
+            className={`hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-lg ${isWhiteTheme ? "bg-slate-100 hover:bg-slate-200 border-slate-300 text-slate-700" : "bg-[#0e1d35] hover:bg-[#152a4e] border-slate-700/80 text-slate-200"} border text-xs transition cursor-pointer`}
             title="증권사 리포트 & 멀티모델 컨센서스"
           >
             <Activity className="w-3.5 h-3.5 text-indigo-500" />
@@ -826,7 +964,40 @@ export const MasterAiAutoTradingDashboard: React.FC<{
       </header>
 
       {/* 2. THREE-COLUMN MASTER TRADING TERMINAL */}
-      <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-2 p-2 max-w-[1920px] mx-auto w-full">
+      <div className="flex-1 flex flex-col gap-3 p-2 max-w-[1920px] mx-auto w-full">
+        {/* v11 Autonomous Execution Console Header Widget */}
+        <AistockV11ExecutionConsole />
+
+        {/* v10 Global Stock Discovery Scanner TOP 20 Board */}
+        <div className={`${isWhiteTheme ? "bg-white border-slate-200 shadow-sm" : "bg-[#081222] border-[#13233c] shadow-sm"} border rounded-2xl p-4 transition-colors`}>
+          <div className="flex items-center justify-between border-b border-cyan-500/30 pb-2.5 mb-3">
+            <div className="flex items-center gap-2">
+              <span className="p-2 bg-gradient-to-tr from-cyan-600 to-blue-600 text-white rounded-xl shadow-xs">
+                <Radar className="w-5 h-5 animate-pulse" />
+              </span>
+              <div>
+                <h2 className={`text-base font-black ${isWhiteTheme ? "text-slate-900" : "text-white"} tracking-tight flex items-center gap-2`}>
+                  <span>📡 v10 Global Stock Discovery Scanner (TOP 20 발굴종목)</span>
+                  <span className="px-2 py-0.5 bg-cyan-600 text-white rounded-full text-[10px] font-bold">
+                    실시간 1초 퀀트 스캔
+                  </span>
+                </h2>
+                <p className={`text-xs ${isWhiteTheme ? "text-slate-500" : "text-slate-400"} font-medium`}>
+                  국내 KOSPI/KOSDAQ + 해외 NYSE/NASDAQ + 업비트 코인 수급·RVOL·SMC 자율 발굴 목록
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-mono text-emerald-500 font-bold flex items-center gap-1">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping inline-block" />
+                Live Feed Active
+              </span>
+            </div>
+          </div>
+          <RealtimeScannerTileBoard />
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-2 w-full">
         
         {/* ============================================================ */}
         {/* LEFT COLUMN: MARKET OVERVIEW, WATCHLIST, PERFORMANCE SUMMARY */}
@@ -1267,8 +1438,12 @@ export const MasterAiAutoTradingDashboard: React.FC<{
                   {isIndicatorsDropdownOpen && (
                     <div className={`absolute right-0 top-full mt-1 w-44 ${isWhiteTheme ? "bg-white border-slate-300 shadow-xl" : "bg-[#0a1526] border-slate-700 shadow-xl"} border rounded-xl p-2 z-40 space-y-1.5 text-xs`}>
                       {[
-                        { key: "ma", label: "이동평균선 (MA)" },
-                        { key: "bb", label: "볼린저 밴드 (BB)" },
+                        { key: "ma", label: "이동평균선 (EMA 5/20/60)" },
+                        { key: "vwap", label: "VWAP (거래량가중평균가)" },
+                        { key: "bb", label: "볼린저 밴드 (BB 20,2)" },
+                        { key: "atrBand", label: "동적 ATR 변동성 밴드" },
+                        { key: "srLines", label: "동적 지지/저항선 (S/R)" },
+                        { key: "forecast", label: "AI 미래 예상 경로" },
                         { key: "rsi", label: "RSI (14)" },
                         { key: "macd", label: "MACD (12, 26, 9)" },
                         { key: "stoch", label: "스토캐스틱 (14, 3, 3)" },
@@ -1291,6 +1466,21 @@ export const MasterAiAutoTradingDashboard: React.FC<{
                     </div>
                   )}
                 </div>
+
+                {/* File / Strategy Upload Reader Button */}
+                <button
+                  onClick={() => setIsStrategyFileReaderOpen(true)}
+                  className={`flex items-center gap-1 px-2.5 py-1 rounded ${
+                    isWhiteTheme
+                      ? "bg-purple-100 hover:bg-purple-200 border-purple-300 text-purple-900"
+                      : "bg-purple-950/60 hover:bg-purple-900/60 border-purple-700/60 text-purple-300"
+                  } border text-xs transition font-bold`}
+                  title="AISTOCK24 v8 오픈소스 전략 파일 및 CSV 캔들 데이터 업로드"
+                >
+                  <FolderLock className="w-3.5 h-3.5 text-purple-500" />
+                  <span className="hidden md:inline">오픈소스 전략 파일 업로드</span>
+                  <span className="inline md:hidden font-mono">📂 업로드</span>
+                </button>
 
                 {/* Pattern Tracking Switch */}
                 <div className={`flex items-center gap-1.5 text-xs font-mono ${isWhiteTheme ? "text-slate-700 bg-slate-100 border-slate-300" : "text-slate-300 bg-[#060e1b] border-slate-800"} px-2 py-1 rounded-lg border`}>
@@ -1348,30 +1538,50 @@ export const MasterAiAutoTradingDashboard: React.FC<{
             )}
           </div>
 
+          {/* JARVIS POSITION AI ENGINE PANEL */}
+          <JarvisPositionAiPanel
+            positionAi={jarvisPositionAiResult}
+            isWhiteTheme={isWhiteTheme}
+            formatPrice={formatPrice}
+          />
+
           {/* 2. MULTI-LEVEL CANDLESTICK & TECHNICAL INDICATORS CHART CONTAINER */}
           <div className={`${isWhiteTheme ? "bg-white border-slate-200 shadow-sm" : "bg-[#081222] border-[#13233c] shadow-sm"} border rounded-xl p-3 flex flex-col gap-2 relative overflow-hidden transition-colors`}>
             
             {/* MA & Bollinger Bands Legend Header */}
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] font-mono">
-              <span className={`flex items-center gap-1 ${isWhiteTheme ? "text-amber-700 font-semibold" : "text-amber-400"}`}>
-                <span className="w-2 h-0.5 bg-amber-500" />
-                MA 5: {formatPrice(latestMa5)}
-              </span>
-              <span className={`flex items-center gap-1 ${isWhiteTheme ? "text-cyan-700 font-semibold" : "text-cyan-400"}`}>
-                <span className="w-2 h-0.5 bg-cyan-500" />
-                MA 20: {formatPrice(latestMa20)}
-              </span>
-              <span className={`flex items-center gap-1 ${isWhiteTheme ? "text-purple-700 font-semibold" : "text-purple-400"}`}>
-                <span className="w-2 h-0.5 bg-purple-500" />
-                MA 60: {formatPrice(latestMa60)}
-              </span>
-              <span className={`flex items-center gap-1 ${isWhiteTheme ? "text-blue-700 font-semibold" : "text-blue-400"}`}>
-                <span className="w-2 h-0.5 bg-blue-500" />
-                MA 120: {formatPrice(latestMa120)}
-              </span>
-              <span className={`flex items-center gap-1 ${isWhiteTheme ? "text-slate-600" : "text-slate-400"}`}>
-                BB(20,2) 상단 <span className={isWhiteTheme ? "text-emerald-700 font-semibold" : "text-emerald-400"}>{formatPrice(latestBbUpper)}</span> 하단 <span className={isWhiteTheme ? "text-rose-700 font-semibold" : "text-rose-400"}>{formatPrice(latestBbLower)}</span>
-              </span>
+            <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 text-[11px] font-mono">
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+                <span className={`flex items-center gap-1 ${isWhiteTheme ? "text-amber-700 font-semibold" : "text-amber-400"}`}>
+                  <span className="w-2 h-0.5 bg-amber-500" />
+                  MA 5: {formatPrice(latestMa5)}
+                </span>
+                <span className={`flex items-center gap-1 ${isWhiteTheme ? "text-cyan-700 font-semibold" : "text-cyan-400"}`}>
+                  <span className="w-2 h-0.5 bg-cyan-500" />
+                  MA 20: {formatPrice(latestMa20)}
+                </span>
+                <span className={`flex items-center gap-1 ${isWhiteTheme ? "text-purple-700 font-semibold" : "text-purple-400"}`}>
+                  <span className="w-2 h-0.5 bg-purple-500" />
+                  MA 60: {formatPrice(latestMa60)}
+                </span>
+                <span className={`flex items-center gap-1 ${isWhiteTheme ? "text-blue-700 font-semibold" : "text-blue-400"}`}>
+                  <span className="w-2 h-0.5 bg-blue-500" />
+                  MA 120: {formatPrice(latestMa120)}
+                </span>
+                <span className={`flex items-center gap-1 ${isWhiteTheme ? "text-slate-600" : "text-slate-400"}`}>
+                  BB(20,2) 상단 <span className={isWhiteTheme ? "text-emerald-700 font-semibold" : "text-emerald-400"}>{formatPrice(latestBbUpper)}</span> 하단 <span className={isWhiteTheme ? "text-rose-700 font-semibold" : "text-rose-400"}>{formatPrice(latestBbLower)}</span>
+                </span>
+              </div>
+
+              <button
+                onClick={() => {
+                  setActiveIndicators(prev => ({ ...prev, forecast: true }));
+                  setShowFullForecastChartModal(true);
+                }}
+                className="px-2.5 py-1 bg-gradient-to-r from-purple-600 to-cyan-600 hover:from-purple-500 hover:to-cyan-500 text-white rounded-lg text-xs font-bold shadow-xs flex items-center gap-1.5 transition cursor-pointer"
+              >
+                <Sparkles className="w-3.5 h-3.5 animate-spin" />
+                <span>🔮 30일 미래예측 차트 상세보기</span>
+              </button>
             </div>
 
             {/* MAIN CHART SVG CANVAS */}
@@ -1379,7 +1589,39 @@ export const MasterAiAutoTradingDashboard: React.FC<{
               
               {/* Top Main Candlestick Panel */}
               <div className={`relative flex-1 ${isWhiteTheme ? "border-b border-slate-200" : "border-b border-slate-850"}`}>
-                <svg className="w-full h-full" viewBox={`0 0 ${chartWidth} ${candleChartHeight}`} preserveAspectRatio="none">
+                <svg 
+                  className="w-full h-full cursor-crosshair" 
+                  viewBox={`0 0 ${chartWidth} ${candleChartHeight}`} 
+                  preserveAspectRatio="none"
+                  onClick={(e) => {
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    const clickX = e.clientX - rect.left;
+                    const clickY = e.clientY - rect.top;
+                    
+                    const relativeY = Math.max(0, Math.min(1, clickY / rect.height));
+                    const clickedPrice = maxPrice - relativeY * (maxPrice - minPrice);
+                    const targetForecastPrice = Math.round(clickedPrice * (1 + (jarvisPositionAiResult.forecastTrend === "BEARISH_TURN" ? -0.03 : 0.048)));
+                    const diffPct = Number(((targetForecastPrice - currentStock.price) / currentStock.price * 100).toFixed(2));
+
+                    // Turn on AI forecast path indicator
+                    setActiveIndicators(prev => ({ ...prev, forecast: true }));
+
+                    setClickedPredictionPoint({
+                      x: (clickX / rect.width) * chartWidth,
+                      y: (clickY / rect.height) * candleChartHeight,
+                      price: Math.round(clickedPrice),
+                      predictedPrice: targetForecastPrice,
+                      changePct: diffPct,
+                      time: "AI 30일 미래 예상"
+                    });
+
+                    addToast?.({
+                      type: "SUCCESS",
+                      title: `🔮 AI 미래 예상 차트 오버레이 계산 완료`,
+                      message: `클릭 지점 [${formatPrice(Math.round(clickedPrice))}] ➔ 30일 목표 예상가: ${formatPrice(targetForecastPrice)} (${diffPct > 0 ? "+" : ""}${diffPct}%)`
+                    });
+                  }}
+                >
                   <defs>
                     {/* Bollinger Bands Fill Gradient */}
                     <linearGradient id="bbGradient" x1="0" y1="0" x2="0" y2="1">
@@ -1748,6 +1990,406 @@ export const MasterAiAutoTradingDashboard: React.FC<{
                       </g>
                     );
                   })}
+
+                  {/* ATR VOLATILITY CHANNEL BANDS */}
+                  {activeIndicators.atrBand && (
+                    <g className="pointer-events-none">
+                      <path
+                        fill="none"
+                        stroke={isWhiteTheme ? "rgba(217, 119, 6, 0.75)" : "rgba(251, 191, 36, 0.75)"}
+                        strokeWidth="1.2"
+                        strokeDasharray="3 3"
+                        d={candles.map((c, i) => {
+                          const x = i * candleSpacing + candleSpacing / 2;
+                          const ma20 = maValues.ma20[i] || c.close;
+                          const atr = atrValues[i] || 500;
+                          const upper = getPriceY(ma20 + atr * 1.8);
+                          return `${i === 0 ? "M" : "L"} ${x} ${upper}`;
+                        }).join(" ")}
+                      />
+                      <path
+                        fill="none"
+                        stroke={isWhiteTheme ? "rgba(217, 119, 6, 0.75)" : "rgba(251, 191, 36, 0.75)"}
+                        strokeWidth="1.2"
+                        strokeDasharray="3 3"
+                        d={candles.map((c, i) => {
+                          const x = i * candleSpacing + candleSpacing / 2;
+                          const ma20 = maValues.ma20[i] || c.close;
+                          const atr = atrValues[i] || 500;
+                          const lower = getPriceY(ma20 - atr * 1.8);
+                          return `${i === 0 ? "M" : "L"} ${x} ${lower}`;
+                        }).join(" ")}
+                      />
+                    </g>
+                  )}
+
+                  {/* JARVIS DYNAMIC POSITION & TARGET OVERLAY */}
+                  <g className="pointer-events-none">
+                    {/* Buy Zone Rect */}
+                    {(() => {
+                      const yMin = getPriceY(jarvisPositionAiResult.buyZoneMax);
+                      const yMax = getPriceY(jarvisPositionAiResult.buyZoneMin);
+                      const h = Math.max(12, yMax - yMin);
+                      return (
+                        <g>
+                          <rect
+                            x="15"
+                            y={yMin}
+                            width={chartWidth - 30}
+                            height={h}
+                            fill={isWhiteTheme ? "rgba(16, 185, 129, 0.05)" : "rgba(16, 185, 129, 0.08)"}
+                            stroke={isWhiteTheme ? "#059669" : "#10B981"}
+                            strokeWidth="0.8"
+                            strokeDasharray="3 3"
+                            rx="4"
+                          />
+                          <rect
+                            x="22"
+                            y={yMin + 2}
+                            width="145"
+                            height="14"
+                            rx="3"
+                            fill={isWhiteTheme ? "#059669" : "#10B981"}
+                          />
+                          <text
+                            x="94"
+                            y={yMin + 12}
+                            fill="#ffffff"
+                            fontSize="8"
+                            fontWeight="bold"
+                            fontFamily="monospace"
+                            textAnchor="middle"
+                          >
+                            BUY ZONE {formatPrice(jarvisPositionAiResult.buyZoneMin)} ~ {formatPrice(jarvisPositionAiResult.buyZoneMax)}
+                          </text>
+                        </g>
+                      );
+                    })()}
+
+                    {/* Current Dynamic Trailing Stop Loss Line */}
+                    {(() => {
+                      const stopY = getPriceY(jarvisPositionAiResult.currentStopPrice);
+                      return (
+                        <g>
+                          <line
+                            x1="10"
+                            y1={stopY}
+                            x2={chartWidth - 10}
+                            y2={stopY}
+                            stroke="#f43f5e"
+                            strokeWidth="1.5"
+                            strokeDasharray="5 3"
+                          />
+                          <rect
+                            x="15"
+                            y={stopY - 10}
+                            width="165"
+                            height="16"
+                            rx="3"
+                            fill="#f43f5e"
+                          />
+                          <text
+                            x="97"
+                            y={stopY + 1}
+                            fill="#ffffff"
+                            fontSize="9"
+                            fontWeight="black"
+                            fontFamily="monospace"
+                            textAnchor="middle"
+                          >
+                            🛡️ CURRENT STOP {formatPrice(jarvisPositionAiResult.currentStopPrice)}
+                          </text>
+                        </g>
+                      );
+                    })()}
+
+                    {/* Dynamic Target 1, Target 2, Target 3 Lines */}
+                    {[
+                      { label: "T1 (1.5R)", price: jarvisPositionAiResult.target1, color: "#10b981", reached: jarvisPositionAiResult.target1Reached },
+                      { label: "T2 (2.5R)", price: jarvisPositionAiResult.target2, color: "#06b6d4", reached: jarvisPositionAiResult.target2Reached },
+                      { label: "T3 (Moonshot)", price: jarvisPositionAiResult.target3, color: "#a855f7", reached: jarvisPositionAiResult.target3Reached }
+                    ].map((target, idx) => {
+                      const targetY = getPriceY(target.price);
+                      return (
+                        <g key={idx}>
+                          <line
+                            x1="10"
+                            y1={targetY}
+                            x2={chartWidth - 10}
+                            y2={targetY}
+                            stroke={target.color}
+                            strokeWidth="1"
+                            strokeDasharray="4 4"
+                          />
+                          <rect
+                            x={chartWidth - 175}
+                            y={targetY - 9}
+                            width="160"
+                            height="16"
+                            rx="3"
+                            fill={target.color}
+                          />
+                          <text
+                            x={chartWidth - 95}
+                            y={targetY + 2}
+                            fill="#ffffff"
+                            fontSize="8.5"
+                            fontWeight="bold"
+                            fontFamily="monospace"
+                            textAnchor="middle"
+                          >
+                            🎯 {target.label} {formatPrice(target.price)} {target.reached ? "✓" : ""}
+                          </text>
+                        </g>
+                      );
+                    })}
+                  </g>
+
+                  {/* DYNAMIC SUPPORT & RESISTANCE LINES */}
+                  {activeIndicators.srLines && (
+                    <g className="pointer-events-none">
+                      {/* Resistance Line */}
+                      <line
+                        x1="10"
+                        y1={getPriceY(srLevels.resistance)}
+                        x2={chartWidth - 10}
+                        y2={getPriceY(srLevels.resistance)}
+                        stroke={isWhiteTheme ? "#DC2626" : "#F43F5E"}
+                        strokeWidth="1.2"
+                        strokeDasharray="4 4"
+                      />
+                      <rect
+                        x={chartWidth - 130}
+                        y={getPriceY(srLevels.resistance) - 10}
+                        width="115"
+                        height="16"
+                        rx="3"
+                        fill={isWhiteTheme ? "#DC2626" : "#F43F5E"}
+                      />
+                      <text
+                        x={chartWidth - 72}
+                        y={getPriceY(srLevels.resistance) + 1}
+                        fill="#ffffff"
+                        fontSize="9"
+                        fontWeight="bold"
+                        fontFamily="monospace"
+                        textAnchor="middle"
+                      >
+                        RESISTANCE {formatPrice(srLevels.resistance)}
+                      </text>
+
+                      {/* Support Line */}
+                      <line
+                        x1="10"
+                        y1={getPriceY(srLevels.support)}
+                        x2={chartWidth - 10}
+                        y2={getPriceY(srLevels.support)}
+                        stroke={isWhiteTheme ? "#059669" : "#10B981"}
+                        strokeWidth="1.2"
+                        strokeDasharray="4 4"
+                      />
+                      <rect
+                        x={chartWidth - 130}
+                        y={getPriceY(srLevels.support) - 10}
+                        width="115"
+                        height="16"
+                        rx="3"
+                        fill={isWhiteTheme ? "#059669" : "#10B981"}
+                      />
+                      <text
+                        x={chartWidth - 72}
+                        y={getPriceY(srLevels.support) + 1}
+                        fill="#ffffff"
+                        fontSize="9"
+                        fontWeight="bold"
+                        fontFamily="monospace"
+                        textAnchor="middle"
+                      >
+                        SUPPORT {formatPrice(srLevels.support)}
+                      </text>
+                    </g>
+                  )}
+
+                  {/* AI FORECAST FUTURE PATH (DYNAMIC MULTI-POINT WAVE CURVE) */}
+                  {activeIndicators.forecast && candles.length > 0 && (
+                    <g className="pointer-events-none">
+                      {(() => {
+                        const lastIdx = candles.length - 1;
+                        const lastCandle = candles[lastIdx];
+                        const startX = lastIdx * candleSpacing + candleSpacing / 2;
+                        const startY = getPriceY(lastCandle.close);
+
+                        const fPoints = jarvisPositionAiResult.forecastPath || [];
+                        if (fPoints.length === 0) return null;
+
+                        const isBearish = jarvisPositionAiResult.forecastTrend === "BEARISH_TURN";
+                        const isBullish = jarvisPositionAiResult.forecastTrend === "BULLISH";
+                        
+                        const mainColor = isBearish 
+                          ? "#f43f5e" 
+                          : isBullish 
+                          ? (isWhiteTheme ? "#059669" : "#10b981") 
+                          : "#f59e0b";
+
+                        // Compute screen coordinates for forecast points
+                        const coords = fPoints.map((pt, i) => {
+                          const px = Math.min(chartWidth - 25, startX + (i + 1) * Math.max(12, candleSpacing * 1.5));
+                          const py = getPriceY(pt.price);
+                          const upperY = getPriceY(pt.upperBound);
+                          const lowerY = getPriceY(pt.lowerBound);
+                          return { ...pt, x: px, y: py, upperY, lowerY };
+                        });
+
+                        // Path string for main forecast line
+                        const linePath = `M ${startX} ${startY} ` + coords.map(c => `L ${c.x} ${c.y}`).join(" ");
+
+                        // Polygon path string for confidence band
+                        const upperLine = coords.map(c => `L ${c.x} ${c.upperY}`).join(" ");
+                        const lowerLine = coords.slice().reverse().map(c => `L ${c.x} ${c.lowerY}`).join(" ");
+                        const bandPath = `M ${startX} ${startY} ${upperLine} ${lowerLine} Z`;
+
+                        const lastCoord = coords[coords.length - 1];
+                        const midCoord = coords[Math.floor(coords.length / 2)];
+
+                        return (
+                          <g>
+                            {/* Confidence Band Polygon */}
+                            <path
+                              d={bandPath}
+                              fill={mainColor}
+                              fillOpacity={isWhiteTheme ? "0.08" : "0.15"}
+                              stroke="none"
+                            />
+
+                            {/* Main Dynamic Forecast Curve Line */}
+                            <path
+                              d={linePath}
+                              fill="none"
+                              stroke={mainColor}
+                              strokeWidth="2.5"
+                              strokeDasharray="4 3"
+                              strokeLinecap="round"
+                            />
+
+                            {/* Node Points & Milestone Badges */}
+                            {coords.map((c, idx) => {
+                              const isKeyNode = idx === 2 || idx === coords.length - 1;
+                              return (
+                                <g key={idx}>
+                                  <circle
+                                    cx={c.x}
+                                    cy={c.y}
+                                    r={isKeyNode ? 4 : 2.5}
+                                    fill={mainColor}
+                                    stroke="#ffffff"
+                                    strokeWidth={isKeyNode ? 1.5 : 0.8}
+                                  />
+
+                                  {isKeyNode && (
+                                    <g transform={`translate(${c.x}, ${c.y - 14})`}>
+                                      <rect
+                                        x="-38"
+                                        y="-9"
+                                        width="76"
+                                        height="15"
+                                        rx="3"
+                                        fill={mainColor}
+                                        fillOpacity="0.95"
+                                      />
+                                      <text
+                                        x="0"
+                                        y="2"
+                                        fill="#ffffff"
+                                        fontSize="8"
+                                        fontWeight="black"
+                                        fontFamily="monospace"
+                                        textAnchor="middle"
+                                      >
+                                        {formatPrice(c.price)} {idx === coords.length - 1 ? "예상" : ""}
+                                      </text>
+                                    </g>
+                                  )}
+                                </g>
+                              );
+                            })}
+
+                            {/* Floating Forecast Trend Label Banner */}
+                            {midCoord && (
+                              <g transform={`translate(${(startX + midCoord.x) / 2}, ${(startY + midCoord.y) / 2 - 16})`}>
+                                <rect
+                                  x="-60"
+                                  y="-9"
+                                  width="120"
+                                  height="16"
+                                  rx="4"
+                                  fill={isWhiteTheme ? "#ffffff" : "#0f172a"}
+                                  stroke={mainColor}
+                                  strokeWidth="1.2"
+                                />
+                                <text
+                                  x="0"
+                                  y="3"
+                                  fill={mainColor}
+                                  fontSize="8.5"
+                                  fontWeight="extrabold"
+                                  fontFamily="monospace"
+                                  textAnchor="middle"
+                                >
+                                  {isBearish ? "↘ AI 예상경로 하락전환" : isBullish ? "↗ AI 예상경로 상승" : "➡️ AI 예상경로 횡보"}
+                                </text>
+                              </g>
+                            )}
+                          </g>
+                        );
+                      })()}
+                    </g>
+                  )}
+
+                  {/* USER CLICKED PREDICTION TARGET OVERLAY */}
+                  {clickedPredictionPoint && (
+                    <g transform={`translate(${clickedPredictionPoint.x}, ${clickedPredictionPoint.y})`}>
+                      <circle cx="0" cy="0" r="16" fill="#a855f7" fillOpacity="0.25" className="animate-ping" />
+                      <circle cx="0" cy="0" r="7" fill="#a855f7" stroke="#ffffff" strokeWidth="2" />
+                      <circle cx="0" cy="0" r="2.5" fill="#ffffff" />
+                      
+                      {/* Prediction Banner */}
+                      <g transform={`translate(${clickedPredictionPoint.x > chartWidth - 220 ? -190 : 15}, ${clickedPredictionPoint.y < 40 ? 25 : -25})`}>
+                        <rect
+                          x="-10"
+                          y="-16"
+                          width="210"
+                          height="36"
+                          rx="8"
+                          fill={isWhiteTheme ? "#ffffff" : "#081222"}
+                          stroke="#a855f7"
+                          strokeWidth="2"
+                          filter="drop-shadow(0px 4px 10px rgba(168, 85, 247, 0.4))"
+                        />
+                        <text
+                          x="95"
+                          y="-2"
+                          fill={isWhiteTheme ? "#0f172a" : "#ffffff"}
+                          fontSize="10"
+                          fontWeight="black"
+                          fontFamily="monospace"
+                          textAnchor="middle"
+                        >
+                          🔮 클릭 지점 AI 예상: {formatPrice(clickedPredictionPoint.predictedPrice)}
+                        </text>
+                        <text
+                          x="95"
+                          y="12"
+                          fill={clickedPredictionPoint.changePct >= 0 ? "#10b981" : "#f43f5e"}
+                          fontSize="9.5"
+                          fontWeight="bold"
+                          fontFamily="monospace"
+                          textAnchor="middle"
+                        >
+                          {clickedPredictionPoint.changePct >= 0 ? "▲" : "▼"} {clickedPredictionPoint.changePct > 0 ? "+" : ""}{clickedPredictionPoint.changePct}% (30일 Shape AI)
+                        </text>
+                      </g>
+                    </g>
+                  )}
                 </svg>
 
                 {/* Right Y-Axis Dynamic Price Labels */}
@@ -2053,9 +2695,29 @@ export const MasterAiAutoTradingDashboard: React.FC<{
               </button>
             </div>
 
+            {/* Unified Market Shape Status Bar */}
+            <div className={`p-2 rounded-lg border text-[10px] font-mono leading-tight ${
+              isWhiteTheme ? "bg-slate-50 border-slate-200 text-slate-700" : "bg-[#050c18] border-[#12233c] text-slate-300"
+            }`}>
+              <div className="flex items-center justify-between font-bold mb-1">
+                <span className={isWhiteTheme ? "text-cyan-700" : "text-cyan-400"}>
+                  {unifiedMarketShape.overallShapeLabel}
+                </span>
+                <span className="text-emerald-500 font-mono font-black">
+                  점수: {unifiedMarketShape.overallShapeScore}점
+                </span>
+              </div>
+              <div className={`text-[9px] ${isWhiteTheme ? "text-slate-500" : "text-slate-400"} truncate`}>
+                {unifiedMarketShape.patternShape.description}
+              </div>
+            </div>
+
             <div className="space-y-2 max-h-72 overflow-y-auto pr-0.5 custom-scrollbar">
               {patterns.map((ptn, idx) => {
                 const isSelected = selectedPatternId === ptn.id;
+                const isTargetReached = ptn.state === "TARGET_REACHED";
+                const isInvalidated = ptn.state === "INVALIDATED";
+
                 return (
                   <div 
                     key={`${ptn.name}_${idx}`}
@@ -2063,11 +2725,14 @@ export const MasterAiAutoTradingDashboard: React.FC<{
                     className={`p-2.5 rounded-xl border cursor-pointer transition flex items-center justify-between gap-3 ${
                       isSelected
                         ? (isWhiteTheme ? "bg-cyan-50/80 border-cyan-500 shadow-xs" : "bg-[#0b1b36] border-cyan-400 shadow-md shadow-cyan-500/20")
-                        : (isWhiteTheme ? "bg-slate-50 border-slate-200 hover:border-slate-300" : "bg-[#060e1b] border-slate-800/80 hover:border-slate-700")
+                        : (!ptn.isValidForSignal 
+                            ? (isWhiteTheme ? "bg-slate-100/70 border-slate-200 opacity-80" : "bg-[#040912] border-slate-800/60 opacity-80")
+                            : (isWhiteTheme ? "bg-slate-50 border-slate-200 hover:border-slate-300" : "bg-[#060e1b] border-slate-800/80 hover:border-slate-700")
+                          )
                     }`}
                   >
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-1.5">
+                      <div className="flex items-center gap-1.5 flex-wrap">
                         <span className={`font-bold text-xs ${isWhiteTheme ? "text-slate-900" : "text-slate-100"} truncate`}>
                           {ptn.koreanName || ptn.name}
                         </span>
@@ -2077,14 +2742,26 @@ export const MasterAiAutoTradingDashboard: React.FC<{
                         }`}>
                           {ptn.type === "BULLISH" ? "상승" : "하락"}
                         </span>
+
+                        {/* Pattern Lifecycle State Badge */}
+                        <span className={`px-1 py-0.2 rounded text-[8px] font-bold font-mono ${
+                          isTargetReached ? (isWhiteTheme ? "bg-teal-100 text-teal-800 border border-teal-300" : "bg-teal-950 text-teal-300 border border-teal-800") :
+                          isInvalidated ? (isWhiteTheme ? "bg-rose-100 text-rose-800 border border-rose-300" : "bg-rose-950 text-rose-300 border border-rose-800") :
+                          ptn.state === "FORMING" ? (isWhiteTheme ? "bg-amber-100 text-amber-800 border border-amber-300" : "bg-amber-950 text-amber-300 border border-amber-800") :
+                          (isWhiteTheme ? "bg-cyan-100 text-cyan-800 border border-cyan-300" : "bg-cyan-950 text-cyan-300 border border-cyan-800")
+                        }`}>
+                          {ptn.stateLabel}
+                        </span>
                       </div>
+
                       <div className={`text-[10px] font-mono ${isWhiteTheme ? "text-slate-600" : "text-slate-400"} mt-1 flex items-center justify-between`}>
                         <span>신뢰도: <b className={isWhiteTheme ? "text-cyan-800 font-bold" : "text-cyan-300"}>{ptn.confidence}%</b></span>
-                        <span>목표가: <b className={isWhiteTheme ? "text-emerald-700 font-bold" : "text-emerald-400"}>{formatPrice(ptn.targetPrice)}</b></span>
+                        <span>목표가: <b className={`${isTargetReached ? "line-through text-slate-400" : (isWhiteTheme ? "text-emerald-700 font-bold" : "text-emerald-400")}`}>{formatPrice(ptn.targetPrice)}</b></span>
                       </div>
-                      {ptn.description && (
-                        <div className={`text-[9px] ${isWhiteTheme ? "text-slate-500" : "text-slate-500"} truncate mt-0.5 font-mono`}>
-                          {ptn.description}
+
+                      {ptn.stateDescription && (
+                        <div className={`text-[9px] ${isTargetReached ? "text-teal-600 font-semibold" : isInvalidated ? "text-rose-500 font-semibold" : (isWhiteTheme ? "text-slate-500" : "text-slate-400")} truncate mt-0.5 font-mono`}>
+                          {ptn.stateDescription}
                         </div>
                       )}
                     </div>
@@ -2107,9 +2784,9 @@ export const MasterAiAutoTradingDashboard: React.FC<{
             </div>
 
             <div className={`flex items-center justify-between pt-1 border-t ${isWhiteTheme ? "border-slate-200 text-slate-500" : "border-slate-800/60 text-slate-400"} text-[10px] font-mono`}>
-              <span>실시간 패턴 추적 엔진</span>
+              <span>생애주기 가동 패턴 엔진</span>
               <span className={`font-bold ${patternTrackingOn ? (isWhiteTheme ? "text-cyan-700" : "text-cyan-400") : "text-slate-500"}`}>
-                {patternTrackingOn ? "ACTIVE" : "OFF"}
+                {patternTrackingOn ? "ACTIVE (LIFECYCLE FILTER)" : "OFF"}
               </span>
             </div>
           </div>
@@ -2269,6 +2946,7 @@ export const MasterAiAutoTradingDashboard: React.FC<{
 
         </div>
 
+      </div>
       </div>
 
       {/* 3. BOTTOM FOOTER TICKER & STATUS BAR */}
@@ -2453,6 +3131,47 @@ export const MasterAiAutoTradingDashboard: React.FC<{
           }}
           isWhiteTheme={isWhiteTheme}
         />
+      )}
+
+      {/* Uploaded Strategy File Reader & Parser Modal */}
+      {isStrategyFileReaderOpen && (
+        <UploadedStrategyFileReaderModal
+          isOpen={isStrategyFileReaderOpen}
+          onClose={() => setIsStrategyFileReaderOpen(false)}
+          onApplyCandles={(c) => setCandles(c)}
+          formatPrice={formatPrice}
+        />
+      )}
+
+      {/* 30-DAY AI FUTURE FORECAST FULL OVERLAY MODAL */}
+      {showFullForecastChartModal && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="bg-[#081222] border border-cyan-800 rounded-2xl w-full max-w-5xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
+            <div className="p-4 border-b border-cyan-900/60 flex items-center justify-between bg-[#060c18]">
+              <div className="flex items-center gap-2">
+                <Sparkles className="w-5 h-5 text-purple-400 animate-spin" />
+                <h3 className="text-base font-black text-white font-mono">
+                  🔮 AI 30일 미래 예상 가격 추세 오버레이 차트 ({currentStock.name} - {currentStock.symbol})
+                </h3>
+              </div>
+              <button
+                onClick={() => setShowFullForecastChartModal(false)}
+                className="px-3 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs font-bold font-mono transition cursor-pointer"
+              >
+                닫기 ✕
+              </button>
+            </div>
+            <div className="p-4 overflow-y-auto flex-1">
+              <AiFutureTrendOverlayChart
+                symbol={currentStock.symbol}
+                name={currentStock.name}
+                market={currentStock.market === "US" ? "US" : currentStock.market === "UPBIT" ? "BTC" : "KOREA"}
+                livePrice={currentStock.price}
+                changeRate={currentStock.chgPct}
+              />
+            </div>
+          </div>
+        </div>
       )}
 
     </div>

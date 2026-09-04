@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useApp } from "../context/AppContext";
-import { Shield, Play, Pause, AlertTriangle, User, LogOut, BookOpen, ShieldCheck, Lock, Target, Eye, Crosshair, Building2, Zap, Sparkles, BarChart2, Sliders } from "lucide-react";
+import { Shield, Play, Pause, AlertTriangle, User, LogOut, BookOpen, ShieldCheck, Lock, Target, Eye, Crosshair, Building2, Zap, Sparkles, BarChart2, Sliders, Smartphone, Download } from "lucide-react";
 import { auth, signOut } from "../lib/firebase";
 import { RealTradeGuideModal } from "./RealTradeGuideModal";
 import { FloatingSearchBar } from "./FloatingSearchBar";
@@ -9,6 +9,7 @@ import { ConnectionHealthDashboard } from "./ConnectionHealthDashboard";
 import { MockTradingInfoModal } from "./trading/MockTradingInfoModal";
 import { AiInvestmentReportModal } from "./trading/AiInvestmentReportModal";
 import { AutoTradingFilterConfigModal } from "./trading/AutoTradingFilterConfigModal";
+import { PwaInstallModal } from "./PwaInstallModal";
 
 interface NavbarProps {
   onLock?: () => void;
@@ -20,6 +21,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onLock }) => {
   const [isMockInfoModalOpen, setIsMockInfoModalOpen] = useState(false);
   const [isAiReportModalOpen, setIsAiReportModalOpen] = useState(false);
   const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
+  const [isPwaModalOpen, setIsPwaModalOpen] = useState(false);
 
   const { isRealTrade, koreaAppKey, koreaAppSecret, upbitAccessKey, upbitSecretKey } = profile || {};
   const { brokerErrors } = useApp();
@@ -253,6 +255,17 @@ export const Navbar: React.FC<NavbarProps> = ({ onLock }) => {
               <span className="sm:hidden text-[11px]">가이드</span>
             </button>
 
+            {/* PWA App Install Button */}
+            <button
+              onClick={() => setIsPwaModalOpen(true)}
+              className="flex items-center gap-1 px-2.5 py-1.5 sm:px-3 rounded text-xs font-bold bg-gradient-to-r from-cyan-600 via-blue-600 to-indigo-600 hover:from-cyan-500 hover:to-indigo-500 text-white shadow-xs transition cursor-pointer border border-cyan-400/40"
+              title="AISTOCK 24 모바일/PC 홈 화면 앱 설치 (PWA)"
+            >
+              <Smartphone className="h-3.5 w-3.5 text-cyan-200 shrink-0" />
+              <span className="hidden sm:inline">📱 앱 설치</span>
+              <span className="sm:hidden text-[11px]">앱설치</span>
+            </button>
+
             {profile && (
               <div className="flex items-center gap-1">
                 <button
@@ -353,6 +366,12 @@ export const Navbar: React.FC<NavbarProps> = ({ onLock }) => {
       <AutoTradingFilterConfigModal
         isOpen={isFilterModalOpen}
         onClose={() => setIsFilterModalOpen(false)}
+      />
+
+      {/* PWA App Install Modal */}
+      <PwaInstallModal
+        isOpen={isPwaModalOpen}
+        onClose={() => setIsPwaModalOpen(false)}
       />
     </>
   );
