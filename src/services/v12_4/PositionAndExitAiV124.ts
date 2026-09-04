@@ -1,4 +1,4 @@
-// AISTOCK v12.4 Position AI & Dynamic Trailing Exit AI Engine
+// AISTOCK v12.4 / v13 Position AI & Dynamic Trailing Exit AI Engine
 // Independent of Scanner AI! Evaluates active position post-fill and determines dynamic trailing stop exits.
 
 export type PositionAiState =
@@ -43,7 +43,10 @@ export interface PositionAiEvaluationResult {
 export class PositionAndExitAiV124 {
   /**
    * 1. Dynamic Trailing Exit Floor Calculation
-   * Floor = max(last_higher_low, vwap_support, ema_support, atr_stop, breakout_support)
+   * Filters candidate stops below current price:
+   * candidate_stops = [lastHigherLow, vwapSupport, emaSupport, atrStop, breakoutSupport, baselineStop]
+   * valid_stops = candidate_stops.filter(s => s > 0 && s < currentPrice)
+   * dynamic_floor = Math.max(...valid_stops)
    */
   public calculateDynamicTrailingExitFloor(metrics: ActivePositionMetrics): number {
     const {
@@ -56,27 +59,25 @@ export class PositionAndExitAiV124 {
       breakoutSupport
     } = metrics;
 
-    // Default baseline stop at 2.5% below entry if no higher low yet
     const defaultBaselineStop = buyPrice * 0.975;
 
-    // Higher lows and technical supports
-    const candidateHL = lastHigherLow > 0 ? lastHigherLow : defaultBaselineStop;
-    const candidateVWAP = vwapSupport > 0 ? vwapSupport : defaultBaselineStop;
-    const candidateEMA = emaSupport > 0 ? emaSupport : defaultBaselineStop;
-    const candidateATR = atrStop > 0 ? atrStop : currentPrice - (buyPrice * 0.02);
-    const candidateBreakout = breakoutSupport > 0 ? breakoutSupport : defaultBaselineStop;
+    const candidateStops = [
+      lastHigherLow,
+      vwapSupport,
+      emaSupport,
+      atrStop,
+      breakoutSupport,
+      defaultBaselineStop
+    ];
 
-    // Return the highest support floor to lock in profits
-    const calculatedFloor = Math.max(
-      candidateHL,
-      candidateVWAP,
-      candidateEMA,
-      candidateATR,
-      candidateBreakout
-    );
+    const validStops = candidateStops.filter(s => typeof s === "number" && s > 0 && s < currentPrice);
 
-    // Floor cannot exceed current price
-    return Math.min(calculatedFloor, currentPrice * 0.99);
+    if (validStops.length === 0) {
+      return Number((currentPrice * 0.975).toFixed(2));
+    }
+
+    const maxSupport = Math.max(...validStops);
+    return Number(Math.min(maxSupport, currentPrice * 0.995).toFixed(2));
   }
 
   /**

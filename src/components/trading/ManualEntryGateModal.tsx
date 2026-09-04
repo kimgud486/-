@@ -146,6 +146,12 @@ export const ManualEntryGateModal: React.FC<ManualEntryGateModalProps> = ({
                 <span className="text-[10px] font-mono bg-blue-500/20 text-blue-300 border border-blue-500/30 px-2 py-0.5 rounded-full">
                   스캐너 밖 종목 직접 매수 검증
                 </span>
+                <span className="text-[10px] font-mono bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-2 py-0.5 rounded-full font-bold">
+                  REAL
+                </span>
+                <span className="text-[10px] font-mono bg-amber-500/20 text-amber-300 border border-amber-500/30 px-2 py-0.5 rounded-full">
+                  PAPER
+                </span>
               </div>
               <p className="text-xs text-slate-400">Scanner 미포착 사유 분석 & Pre-Scanner AI 정밀 검증 엔진</p>
             </div>
