@@ -11112,60 +11112,67 @@ async function startServer() {
   });
 
   // 24h Real-Time Live Ticker Fetch & Broadcast Stream Loop (Real Quotes Only)
+  let isTickerUpdating = false;
   setInterval(async () => {
-    for (const preset of PRESET_STOCKS) {
-      try {
-        const liveData = await fetchLiveStockData(preset);
-        let oldPrice = lastCachedPrices[preset.symbol] || liveData.price;
-        let newPrice = liveData.price;
+    if (isTickerUpdating) return;
+    isTickerUpdating = true;
+    try {
+      for (const preset of PRESET_STOCKS) {
+        try {
+          const liveData = await fetchLiveStockData(preset);
+          let oldPrice = lastCachedPrices[preset.symbol] || liveData.price;
+          let newPrice = liveData.price;
 
-        LIVE_PRICE_CACHE[preset.symbol] = liveData;
+          LIVE_PRICE_CACHE[preset.symbol] = liveData;
 
-        // Detect genuine price shift from live market data
-        if (oldPrice > 0 && oldPrice !== newPrice) {
-          const shiftPct = Math.abs((newPrice - oldPrice) / oldPrice) * 100;
-          if (shiftPct >= 0.2) {
-            const isUp = newPrice > oldPrice;
-            const alertPayload = JSON.stringify({
-              type: "PRICE_DISCREPANCY_ALERT",
-              symbol: preset.symbol,
-              name: preset.name,
-              market: preset.market,
-              oldPrice,
-              newPrice,
-              shiftPct: Math.round(shiftPct * 100) / 100,
-              timestamp: new Date().toLocaleTimeString('ko-KR'),
-              message: `⚡ [0.1초 KIS 연동 변동] ${preset.name} (${preset.symbol}) ${shiftPct.toFixed(2)}% ${isUp ? "상승" : "하락"} (${oldPrice.toLocaleString()} → ${newPrice.toLocaleString()})`
-            });
+          // Detect genuine price shift from live market data
+          if (oldPrice > 0 && oldPrice !== newPrice) {
+            const shiftPct = Math.abs((newPrice - oldPrice) / oldPrice) * 100;
+            if (shiftPct >= 0.2) {
+              const isUp = newPrice > oldPrice;
+              const alertPayload = JSON.stringify({
+                type: "PRICE_DISCREPANCY_ALERT",
+                symbol: preset.symbol,
+                name: preset.name,
+                market: preset.market,
+                oldPrice,
+                newPrice,
+                shiftPct: Math.round(shiftPct * 100) / 100,
+                timestamp: new Date().toLocaleTimeString('ko-KR'),
+                message: `⚡ [실시간 시세 변동] ${preset.name} (${preset.symbol}) ${shiftPct.toFixed(2)}% ${isUp ? "상승" : "하락"} (${oldPrice.toLocaleString()} → ${newPrice.toLocaleString()})`
+              });
 
-            activeClients.forEach(client => {
-              if (client.readyState === WebSocket.OPEN) {
-                client.send(alertPayload);
-              }
-            });
+              activeClients.forEach(client => {
+                if (client.readyState === WebSocket.OPEN) {
+                  client.send(alertPayload);
+                }
+              });
+            }
           }
-        }
 
-        lastCachedPrices[preset.symbol] = newPrice;
-      } catch (e) {
-        // Silent catch in ticker loop
+          lastCachedPrices[preset.symbol] = newPrice;
+        } catch (e) {
+          // Silent catch in ticker loop
+        }
       }
-    }
 
-    if (activeClients.size > 0) {
-      const broadcastPayload = JSON.stringify({
-        type: "TICKER_UPDATE",
-        data: Object.values(LIVE_PRICE_CACHE),
-        timestamp: Date.now()
-      });
+      if (activeClients.size > 0) {
+        const broadcastPayload = JSON.stringify({
+          type: "TICKER_UPDATE",
+          data: Object.values(LIVE_PRICE_CACHE),
+          timestamp: Date.now()
+        });
 
-      activeClients.forEach(client => {
-        if (client.readyState === WebSocket.OPEN) {
-          client.send(broadcastPayload);
-        }
-      });
+        activeClients.forEach(client => {
+          if (client.readyState === WebSocket.OPEN) {
+            client.send(broadcastPayload);
+          }
+        });
+      }
+    } finally {
+      isTickerUpdating = false;
     }
-  }, 300); // 300ms ultra-fast stream refresh for < 0.1s latency synchronization
+  }, 3000); // 3-second safe polling interval to prevent server event loop starvation
 }
 
 startServer().catch((err) => {
