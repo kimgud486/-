@@ -12,15 +12,22 @@ import { MultiModelSecuritiesConsensusModal } from "./components/MultiModelSecur
 import { MasterAiAutoTradingDashboard } from "./components/trading/MasterAiAutoTradingDashboard";
 import { AiBotCommandCenterUi } from "./components/AiBotCommandCenterUi";
 import { ErrorBoundary } from "./components/ErrorBoundary";
-import { AppLockAuthModal } from "./components/AppLockAuthModal";
 
 function MainLayout() {
   const [isConsensusModalOpen, setIsConsensusModalOpen] = useState<boolean>(false);
   const [consensusSelectedSymbol, setConsensusSelectedSymbol] = useState<string>("005930");
   const [viewMode, setViewMode] = useState<"MASTER_IMAGE_EXACT" | "ADVANCED_CLUSTER">("MASTER_IMAGE_EXACT");
-  const [isUnlocked, setIsUnlocked] = useState<boolean>(false);
 
   useEffect(() => {
+    // Clear any leftover security credentials from storage
+    try {
+      localStorage.removeItem("AISTOCK_SECURITY_PIN");
+      localStorage.removeItem("AISTOCK_SECURITY_PHONE");
+      sessionStorage.removeItem("AISTOCK_SESSION_UNLOCKED");
+    } catch (e) {
+      // ignore
+    }
+
     // Ensure document and body allow natural vertical scrolling
     document.body.style.overflow = "";
     document.body.style.position = "";
@@ -42,9 +49,6 @@ function MainLayout() {
 
   return (
     <div className="min-h-screen bg-white text-slate-800 flex flex-col font-sans relative">
-      {/* Server Access Security Lock Gate */}
-      <AppLockAuthModal onUnlocked={() => setIsUnlocked(true)} />
-
       <RealtimeMarketStreamManager />
       
       {/* MASTER AI AUTO TRADING DASHBOARD */}
