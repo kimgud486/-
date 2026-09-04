@@ -92,12 +92,11 @@ class RealtimeMarketFeedService {
       { symbol: "055550", name: "신한지주", market: "KOSPI", price: 54600, changeRate: 1.68, changeAmount: 900, tradeValue: "1,120억", volume: "205만", timestamp: new Date().toISOString() },
       { symbol: "028300", name: "HLB", market: "KOSDAQ", price: 78500, changeRate: 3.42, changeAmount: 2600, tradeValue: "2,420억", volume: "310만", timestamp: new Date().toISOString() },
       { symbol: "196170", name: "알테오젠", market: "KOSDAQ", price: 345000, changeRate: 4.86, changeAmount: 16000, tradeValue: "3,890억", volume: "112만", timestamp: new Date().toISOString() },
-      // Premier US Equities
-      { symbol: "NVDA", name: "엔비디아", market: "US", price: 128.5, changeRate: 4.25, changeAmount: 5.2, tradeValue: "$48.2B", volume: "4,200만", timestamp: new Date().toISOString() },
-      { symbol: "TSLA", name: "테슬라", market: "US", price: 218.4, changeRate: -2.30, changeAmount: -5.1, tradeValue: "$21.5B", volume: "2,800만", timestamp: new Date().toISOString() },
-      { symbol: "AAPL", name: "애플", market: "US", price: 224.2, changeRate: 0.85, changeAmount: 1.9, tradeValue: "$18.4B", volume: "3,100만", timestamp: new Date().toISOString() },
-      { symbol: "MSFT", name: "마이크로소프트", market: "US", price: 442.8, changeRate: 1.12, changeAmount: 4.9, tradeValue: "$14.2B", volume: "1,800만", timestamp: new Date().toISOString() },
-      { symbol: "GOOGL", name: "알파벳", market: "US", price: 178.6, changeRate: 1.95, changeAmount: 3.4, tradeValue: "$11.6B", volume: "1,450만", timestamp: new Date().toISOString() },
+      // Premier Korean Equities (Live Naver & Upbit Feed)
+      { symbol: "003230", name: "삼양식품", market: "KOSPI", price: 612000, changeRate: 13.1, changeAmount: 71000, tradeValue: "1,450억", volume: "24만", timestamp: new Date().toISOString() },
+      { symbol: "267260", name: "HD현대일렉트릭", market: "KOSPI", price: 312000, changeRate: 15.2, changeAmount: 41000, tradeValue: "2,120억", volume: "68만", timestamp: new Date().toISOString() },
+      { symbol: "454910", name: "두산로보틱스", market: "KOSPI", price: 78900, changeRate: 10.4, changeAmount: 7400, tradeValue: "1,180억", volume: "150만", timestamp: new Date().toISOString() },
+      { symbol: "277810", name: "레인보우로보틱스", market: "KOSDAQ", price: 162000, changeRate: 12.1, changeAmount: 17500, tradeValue: "1,320억", volume: "82만", timestamp: new Date().toISOString() },
       // Premier Crypto (Upbit Live Feed)
       { symbol: "BTC", name: "비트코인", market: "UPBIT", price: 96500000, changeRate: 2.15, changeAmount: 2030000, tradeValue: "4,820억", volume: "4,990 BTC", timestamp: new Date().toISOString() },
       { symbol: "ETH", name: "이더리움", market: "UPBIT", price: 3920000, changeRate: 1.84, changeAmount: 71000, tradeValue: "1,940억", volume: "49,500 ETH", timestamp: new Date().toISOString() },
@@ -343,7 +342,15 @@ class RealtimeMarketFeedService {
 
   public subscribe(callback: (quotes: Map<string, LiveMarketQuote>) => void): () => void {
     this.subscribers.add(callback);
-    callback(this.quotes);
+    setTimeout(() => {
+      if (this.subscribers.has(callback)) {
+        try {
+          callback(this.quotes);
+        } catch (e) {
+          console.error("Error in realtimeMarketFeedService initial callback:", e);
+        }
+      }
+    }, 0);
     this.start();
     return () => {
       this.subscribers.delete(callback);

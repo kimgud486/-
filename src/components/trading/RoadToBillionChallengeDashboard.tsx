@@ -194,23 +194,22 @@ export const RoadToBillionChallengeDashboard: React.FC = () => {
     }
   }, [challengeMode]);
 
-  // Dynamic AI Screener & Filtered Target Assets (Comprehensive KRX Domestic + Global Master Universe)
-  const [activeMarketTab, setActiveMarketTab] = useState<"ALL" | "KRX" | "US" | "UPBIT">("ALL");
+  // Dynamic AI Screener & Filtered Target Assets (Domestic KRX + Upbit Live Only)
+  const [activeMarketTab, setActiveMarketTab] = useState<"ALL" | "KRX" | "UPBIT">("ALL");
   const [filterQuery, setFilterQuery] = useState<string>("");
 
-  // Convert getAllStocks() full domestic (KOSPI/KOSDAQ) + global master universe into target asset configs
+  // Convert getAllStocks() domestic (KOSPI/KOSDAQ) + Upbit into target asset configs (foreign mock stocks excluded)
   const universeTargetAssets: TargetAssetConfig[] = useMemo(() => {
-    const fullStockUniverse = getAllStocks();
+    const fullStockUniverse = getAllStocks().filter(s => s.market !== "US");
     return fullStockUniverse.map(stock => {
       const isKRX = stock.market === "KOSPI" || stock.market === "KOSDAQ";
       const isCrypto = stock.market === "UPBIT";
-      const isUS = stock.market === "US";
       
-      const category: "CRYPTO" | "US_STOCK" | "KR_STOCK" = isCrypto ? "CRYPTO" : isUS ? "US_STOCK" : "KR_STOCK";
-      const marketType: "KOREA" | "US" | "BTC" = isCrypto ? "BTC" : isUS ? "US" : "KOREA";
-      const unit = isKRX ? "원" : "$";
-      const leverage = isCrypto ? "10x 핑퐁" : isUS ? "5x CFD" : "2.5x 미수";
-      const exchange = isCrypto ? "업비트 24H 체결" : isUS ? "미국 NASDAQ/NYSE" : `국내 KRX (${stock.market})`;
+      const category: "CRYPTO" | "US_STOCK" | "KR_STOCK" = isCrypto ? "CRYPTO" : "KR_STOCK";
+      const marketType: "KOREA" | "US" | "BTC" = isCrypto ? "BTC" : "KOREA";
+      const unit = "원";
+      const leverage = isCrypto ? "10x 핑퐁" : "2.5x 미수";
+      const exchange = isCrypto ? "업비트 24H 실시간" : `국내 KRX (${stock.market})`;
 
       return {
         symbol: stock.symbol,
@@ -224,7 +223,7 @@ export const RoadToBillionChallengeDashboard: React.FC = () => {
         strategyDesc: stock.strategy || `${stock.theme || '국내주식'} 테마 1분봉 AI 스캘핑 엔진`,
         aiScore: stock.score || 85,
         signal: stock.signal || "LONG",
-        theme: stock.theme || "KOSPI/KOSDAQ 주도 상장주식"
+        theme: stock.theme || "KOSPI/KOSDAQ 실시간 상장주식"
       };
     });
   }, []);
@@ -233,7 +232,6 @@ export const RoadToBillionChallengeDashboard: React.FC = () => {
   const filteredTargetAssets = useMemo(() => {
     return universeTargetAssets.filter(item => {
       if (activeMarketTab === "KRX" && item.category !== "KR_STOCK") return false;
-      if (activeMarketTab === "US" && item.category !== "US_STOCK") return false;
       if (activeMarketTab === "UPBIT" && item.category !== "CRYPTO") return false;
 
       if (filterQuery.trim()) {
@@ -862,72 +860,88 @@ export const RoadToBillionChallengeDashboard: React.FC = () => {
     });
   }, [activeTradeRecords, tradeLogFilter, selectedAsset]);
 
-  // Initializing simulated 1-minute chart candles
+  // Initializing genuine 1-minute chart candles from live market quotes
   useEffect(() => {
-    const initialCandles = [];
-    let base = selectedAsset.currentPrice;
-    for (let i = 0; i < 28; i++) {
-      const change = (Math.random() - 0.48) * (base * 0.004);
-      const open = base;
-      const close = base + change;
-      const high = Math.max(open, close) + Math.random() * (base * 0.002);
-      const low = Math.min(open, close) - Math.random() * (base * 0.002);
-      initialCandles.push({
-        open,
-        high,
-        low,
-        close,
-        color: close >= open ? ("GREEN" as const) : ("RED" as const)
-      });
-      base = close;
-    }
-    setChartCandles(initialCandles);
-  }, [selectedAsset]);
+    let isCancelled = false;
+    const fetchGenuineCandles = async () => {
+      try {
+        const res = await fetch(`/api/market/realtime-candles?symbol=${encodeURIComponent(selectedAsset.symbol)}&timeframe=1m&count=28`);
+        if (res.ok && !isCancelled) {
+          const data = await res.json();
+          if (Array.isArray(data.candles) && data.candles.length > 0) {
+            setChartCandles(data.candles.map(c => ({
+              open: c.open,
+              high: c.high,
+              low: c.low,
+              close: c.close,
+              color: c.close >= c.open ? ("GREEN" as const) : ("RED" as const)
+            })));
+            return;
+          }
+        }
+      } catch (err) {
+        // Fallback below
+      }
 
-  // Real-time Scalping Loop Simulation (Only in MOCK mode or simulation ticks)
+      if (!isCancelled) {
+        const liveQuote = realtimeMarketFeedService.getQuote(selectedAsset.symbol);
+        const base = liveQuote?.price && liveQuote.price > 0 ? liveQuote.price : selectedAsset.currentPrice;
+        const initialCandles = [];
+        for (let i = 0; i < 28; i++) {
+          initialCandles.push({
+            open: base,
+            high: base,
+            low: base,
+            close: base,
+            color: ("GREEN" as const)
+          });
+        }
+        setChartCandles(initialCandles);
+      }
+    };
+
+    fetchGenuineCandles();
+    return () => { isCancelled = true; };
+  }, [selectedAsset.symbol]);
+
+  // Real-time Market Sync & Scalping Engine (Throttled, Zero Artificial Randomness)
   useEffect(() => {
     if (!isAutoScalping) return;
 
-    // 🔥 Dynamic Unthrottled Scalp Interval Speed
-    // 20X = 100ms (파닥이 울트라 틱 모드 - 초당 10회 미세 스캘핑)
-    // 10X = 200ms (하치 스피드 모드 - 초당 5회 스캘핑)
-    // 5X  = 400ms (터보 모드)
-    // 3X  = 800ms (패스트 모드)
-    // 1X  = 1500ms (노멀 모드)
-    const intervalTime = scalpSpeed >= 20 ? 100 : scalpSpeed >= 10 ? 200 : scalpSpeed >= 5 ? 400 : scalpSpeed >= 3 ? 800 : 1500;
+    // Stable 3-second heartbeat to prevent React state cascading & maximum depth errors
+    const intervalTime = 3000;
     const timer = setInterval(() => {
       // 1. Update chart candles dynamically using real live market quotes
       const liveQuote = realtimeMarketFeedService.getQuote(selectedAsset.symbol) ||
         realtimeMarketFeedService.getQuote(`KRW-${selectedAsset.symbol}`) ||
         realtimeMarketFeedService.getQuote(selectedAsset.symbol.replace("KRW-", ""));
 
-      setChartCandles(prev => {
-        if (prev.length === 0) return prev;
-        const last = prev[prev.length - 1];
-        const basePrice = liveQuote?.price && liveQuote.price > 0 ? liveQuote.price : selectedAsset.currentPrice;
-        const change = (Math.random() - 0.47) * (basePrice * 0.002);
-        const newClose = liveQuote?.price && liveQuote.price > 0 ? liveQuote.price : Math.round((last.close + change) * 100) / 100;
-        const newOpen = last.close;
-        const newHigh = Math.max(newOpen, newClose) + Math.random() * (basePrice * 0.001);
-        const newLow = Math.min(newOpen, newClose) - Math.random() * (basePrice * 0.001);
+      if (liveQuote?.price && liveQuote.price > 0) {
+        const quotePrice = liveQuote.price;
+        setChartCandles(prev => {
+          if (prev.length === 0) return prev;
+          const last = prev[prev.length - 1];
+          const newOpen = last.close;
+          const newClose = quotePrice;
+          const newHigh = Math.max(last.high, newClose);
+          const newLow = Math.min(last.low, newClose);
 
-        const newCandle = {
-          open: newOpen,
-          high: newHigh,
-          low: newLow,
-          close: newClose,
-          color: newClose >= newOpen ? ("GREEN" as const) : ("RED" as const)
-        };
+          const newCandle = {
+            open: newOpen,
+            high: newHigh,
+            low: newLow,
+            close: newClose,
+            color: newClose >= newOpen ? ("GREEN" as const) : ("RED" as const)
+          };
 
-        const updated = [...prev.slice(1), newCandle];
-        return updated;
-      });
+          return [...prev.slice(1), newCandle];
+        });
+      }
 
-      // 2. Trigger automated scalping events with ASYNCHRONOUS PARALLEL SCANNING
+      // 2. Asynchronous Parallel Universe Scanner batch
       const now = new Date();
       const activePool = universeTargetAssets && universeTargetAssets.length > 0 ? universeTargetAssets : [selectedAsset];
 
-      // ⚡ ASYNCHRONOUS PARALLEL BATCH EVALUATION FOR ALL UNIVERSE ASSETS
       runAsyncParallelScanBatch(activePool, now).then((parallelResults) => {
         setParallelScanResults(parallelResults);
         setLastParallelScanTime(new Date().toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit", second: "2-digit" }));
@@ -942,186 +956,25 @@ export const RoadToBillionChallengeDashboard: React.FC = () => {
         } else if (momentumHot.length > 0) {
           const topAsset = activePool.find(a => a.symbol === momentumHot[0].symbol);
           if (topAsset) setCurrentScanningAsset(topAsset);
-        } else {
-          const nextIdx = (scanIndexRef.current + 1) % activePool.length;
-          scanIndexRef.current = nextIdx;
-          const nextScanAsset = activePool[nextIdx];
-          if (nextScanAsset) setCurrentScanningAsset(nextScanAsset);
         }
       });
 
-      // 🛑 STRICT REALISTIC MARKET HOURS FILTER: Filter assets only from markets that are CURRENTLY OPEN!
+      // 🛑 STRICT REALISTIC MARKET HOURS FILTER
       const openMarketAssets = activePool.filter(item => {
         const status = getMarketStatus(item.marketType, now);
         return status.isOpen;
       });
 
-      // Target selection based on tradingScope
       let targetToTrade: TargetAssetConfig;
       if (tradingScope === "SELECTED_ONLY") {
         targetToTrade = selectedAsset;
       } else {
-        // Multi-Asset Universe mode: Rotate and prioritize open market assets with high AI score
-        if (openMarketAssets.length > 0) {
-          // Weighted choice: pick among open market assets
-          targetToTrade = openMarketAssets[Math.floor(Math.random() * openMarketAssets.length)];
-        } else {
-          // All traditional markets closed, fallback to BTC/Crypto (24/7 open)
-          const cryptoFallback = activePool.find(a => a.marketType === "BTC") || selectedAsset;
-          targetToTrade = cryptoFallback;
-        }
+        targetToTrade = openMarketAssets.length > 0 ? openMarketAssets[0] : (activePool.find(a => a.marketType === "BTC") || selectedAsset);
       }
 
       const targetMktStatus = getMarketStatus(targetToTrade.marketType, now);
 
-      // High-Frequency execution threshold based on speed
-      const executionFilterThreshold = scalpSpeed >= 20 ? 0.05 : scalpSpeed >= 10 ? 0.15 : 0.35;
-
-      const isMockExecution = challengeMode === "MOCK" || (challengeMode === "REAL" && !hasAnyApiKey);
-
-      if (isMockExecution && Math.random() > executionFilterThreshold) {
-        // Final safety check: if target market is strictly closed, skip execution
-        if (!targetMktStatus.isOpen) {
-          return;
-        }
-
-        const isScalpingAggressive = (profile?.aiAggressivenessLevel || "BALANCED") === "SCALPING_AGGRESSIVE";
-        const isProfitOptActive = Boolean(profile?.aiProfitOptimization);
-
-        // Calculate dynamic realistic Win Rate based on Active AI Mode & Risk Engine
-        let winThreshold = 0.35; // Base 65% realistic quant win rate
-        if (isProfitOptActive && isScalpingAggressive) {
-          winThreshold = 0.22; // ⚡ ~78% win rate under dual AI optimization
-        } else if (isProfitOptActive) {
-          winThreshold = 0.28; // ~72% win rate for Profit Maximization
-        } else if (isScalpingAggressive) {
-          winThreshold = 0.25; // ~75% win rate for Scalping
-        }
-
-        const isLong = Math.random() > 0.48;
-        const isProfit = Math.random() > winThreshold;
-
-        // 🟢 REALISTIC CAPITAL & POSITION SCALING: Standardized scalp position sizing
-        const currentCapUSD = mockStartBalance + mockLivePnLDollar;
-        const capitalRatio = Math.max(0.1, currentCapUSD / 10000); // Normalized to $10,000 base
-        const parsedLeverage = parseFloat(mockLeverageVal) || (targetToTrade.leverage ? parseFloat(targetToTrade.leverage) : 2.5);
-        const leverageMult = Math.min(10, Math.max(1, parsedLeverage * 0.5));
-
-        // Realistic scalp return per trade (0.15% ~ 0.4% move per scalp)
-        let profitBase = (35 + Math.random() * 65) * capitalRatio * leverageMult; 
-        
-        if (isProfitOptActive) {
-          profitBase *= 1.35; // Realistic 1.35x optimization boost
-        }
-        if (isScalpingAggressive) {
-          profitBase *= 1.25; // Scalping momentum boost
-        }
-
-        const lossBase = (25 + Math.random() * 45) * capitalRatio * leverageMult; // Capped risk stop-loss
-
-        const pnlAmt = isProfit
-          ? Math.round(profitBase * 10) / 10
-          : -Math.round(lossBase * 10) / 10;
-
-        if (isLong) {
-          setMockLongPositionsCount(p => Math.min(8, p + 1));
-        } else {
-          setMockShortPositionsCount(p => Math.min(8, p + 1));
-        }
-
-        // Add Mock PnL (Update Dollar & Realtime KRW Challenge Balance)
-        setMockLivePnLDollar(prev => Math.round((prev + pnlAmt) * 10) / 10);
-        setMockTodayProfit(prev => Math.round((prev + Math.max(0, pnlAmt)) * 10) / 10);
-
-        const pnlKrwAmt = Math.round(pnlAmt * exchangeRateKRW);
-        const currentRsi = Math.round(isLong ? (22 + Math.random() * 12) : (68 + Math.random() * 12));
-        const modeTag = isProfitOptActive && isScalpingAggressive
-          ? "⚡ [수익 극대화 스캘핑]"
-          : isProfitOptActive
-          ? "✨ [손익비 극대화]"
-          : isScalpingAggressive
-          ? "⚡ [핑퐁 스캘핑]"
-          : "🤖 [AI 퀀트]";
-
-        const winReason = isLong
-          ? `${modeTag} [${targetToTrade.name}] 1분봉 RSI ${currentRsi} 과매도 지지선 반등 롱 익절 (+${pnlAmt}$ / 약 +${pnlKrwAmt.toLocaleString()}원)`
-          : `${modeTag} [${targetToTrade.name}] SMC 저항선 피뢰침 음봉 확인 숏 핑퐁 익절 (+${pnlAmt}$ / 약 +${pnlKrwAmt.toLocaleString()}원)`;
-        const lossReason = isLong
-          ? `[${targetToTrade.name}] 롱 진입 후 지지선 하향 이탈 0.3% 칼손절 방어 (${pnlAmt}$)`
-          : `[${targetToTrade.name}] 숏 진입 후 돌발 상방 거래량 유입 즉시 청산 손절 (${pnlAmt}$)`;
-
-        // Add Popup annotation
-        const popupText = isProfit
-          ? `${targetToTrade.name} ${isLong ? "롱" : "숏"} +$${pnlAmt.toLocaleString()} 익절 (+₩${pnlKrwAmt.toLocaleString()}원)`
-          : `${targetToTrade.name} ${isLong ? "롱" : "숏"} -$${Math.abs(pnlAmt).toLocaleString()} 칼손절`;
-
-        const newPopup = {
-          id: `p_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
-          text: popupText,
-          type: isProfit
-            ? (isLong ? ("LONG_PROFIT" as const) : ("SHORT_PROFIT" as const))
-            : ("STOP_LOSS" as const),
-          amount: pnlAmt,
-          xPct: Math.round(45 + (Math.random() - 0.5) * 55),
-          yPct: Math.round(25 + Math.random() * 45)
-        };
-
-        setActiveChartPopups(prev => [newPopup, ...prev.slice(0, 3)]);
-
-        // Log mock record with deep reason details and live real market quote
-        const liveTgtQuote = realtimeMarketFeedService.getQuote(targetToTrade.symbol) ||
-          realtimeMarketFeedService.getQuote(`KRW-${targetToTrade.symbol}`) ||
-          realtimeMarketFeedService.getQuote(targetToTrade.symbol.replace("KRW-", ""));
-        const realMarketEntryP = liveTgtQuote?.price && liveTgtQuote.price > 0 ? liveTgtQuote.price : targetToTrade.currentPrice;
-
-        const nowStr = new Date().toLocaleTimeString();
-        const newRecord: TradeTradeRecord = {
-          id: `rec_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
-          time: nowStr,
-          type: isLong ? "LONG" : "SHORT",
-          symbol: targetToTrade.symbol,
-          name: `${targetToTrade.name} ${isLong ? "롱" : "숏"}`,
-          entryPrice: Math.round(realMarketEntryP * 0.998 * 10) / 10,
-          exitPrice: Math.round(realMarketEntryP * (isProfit ? (isLong ? 1.008 : 0.992) : (isLong ? 0.996 : 1.004)) * 10) / 10,
-          pnlDollar: pnlAmt,
-          pnlPercent: Math.round((pnlAmt / 10) * 100) / 100,
-          positionSize: `1계약 (${targetToTrade.leverage})`,
-          status: pnlAmt > 0 ? "WIN" : "LOSS",
-          isReal: false,
-          reason: isProfit ? winReason : lossReason,
-          indicatorDetails: {
-            rsi: currentRsi,
-            trend: isLong ? "1분봉 5이평선 상향 반등" : "상단 밴드 저항 매도벽",
-            macdSignal: isLong ? "MACD 양봉 교차" : "MACD 데드크로스",
-            orderBookImbalance: isLong ? "매수 호가 65% 우위" : "매도 호가 72% 우위"
-          }
-        };
-        setMockTradeRecords(prev => [newRecord, ...prev.slice(0, 24)]);
-
-        // ⚡ 🔥 Padak (파닥이) Ultra-Micro Tick Stream Injection
-        const msStr = String(Math.floor(Math.random() * 900 + 100));
-        const tickTimeStr = `${new Date().toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}.${msStr}`;
-        const microPnlPct = isProfit
-          ? Math.round((0.15 + Math.random() * 0.45) * 100) / 100
-          : -Math.round((0.08 + Math.random() * 0.22) * 100) / 100;
-
-        setPadakTotalTicksCount(c => c + 1);
-        setPadakMicroTicks(prev => [
-          {
-            id: `ptick_${Date.now()}_${Math.random()}`,
-            symbol: targetToTrade.symbol,
-            name: targetToTrade.name,
-            side: isLong ? "LONG" : "SHORT",
-            price: realMarketEntryP,
-            unit: targetToTrade.unit,
-            pnlPercent: microPnlPct,
-            pnlKRW: pnlKrwAmt,
-            timeMs: tickTimeStr,
-            isWin: isProfit
-          },
-          ...prev.slice(0, 15)
-        ]);
-      } else if (challengeMode === "REAL" && hasAnyApiKey) {
+      if (challengeMode === "REAL" && hasAnyApiKey) {
         // 🏛️ REAL MODE STRICT QUANT SCALPING ENGINE (Zero Randomness, Strict 16-Brain & SMC Consensus)
         if (!targetMktStatus.isOpen) {
           return;
@@ -1461,14 +1314,14 @@ export const RoadToBillionChallengeDashboard: React.FC = () => {
       return;
     }
 
-    // 2. MOCK MODE EXECUTION (Simulation with real position creation + scaled profit)
-    const capitalRatio = Math.max(0.5, mockStartBalance / 100000000); // 1.0 for 1억원
-    const pnlAmt = Math.round((850 + Math.random() * 650) * capitalRatio * 10) / 10;
-    const pnlKrw = Math.round(pnlAmt * exchangeRateKRW);
+    // 2. MOCK MODE EXECUTION (Simulation with real position creation using live price)
+    const liveQ = realtimeMarketFeedService.getQuote(selectedAsset.symbol);
+    const unitPrice = liveQ?.price && liveQ.price > 0 ? liveQ.price : (selectedAsset.currentPrice || 70000);
+    const pnlAmt = 0;
+    const pnlKrw = 0;
 
     const isCrypto = selectedAsset.category === "CRYPTO" || selectedAsset.marketType === "BTC" || selectedAsset.symbol.startsWith("KRW-");
     const isUS = selectedAsset.category === "US_STOCK" || selectedAsset.marketType === "US";
-    const unitPrice = selectedAsset.currentPrice || (isUS ? 100 : (isCrypto ? 100000000 : 70000));
 
     let mockQty = 1;
     if (isCrypto) {
@@ -2647,7 +2500,6 @@ export const RoadToBillionChallengeDashboard: React.FC = () => {
                 {[
                   { key: "ALL", label: "전체" },
                   { key: "KRX", label: "🇰🇷 국내주식" },
-                  { key: "US", label: "🇺🇸 미국주식" },
                   { key: "UPBIT", label: "🪙 코인" }
                 ].map(tab => (
                   <button
@@ -3328,16 +3180,16 @@ export const RoadToBillionChallengeDashboard: React.FC = () => {
 
                 <button
                   onClick={() => {
-                    const nvda = universeTargetAssets.find(a => a.symbol === "NVDA");
-                    if (nvda) {
-                      setSelectedAsset(nvda);
+                    const hynix = universeTargetAssets.find(a => a.symbol === "000660");
+                    if (hynix) {
+                      setSelectedAsset(hynix);
                       triggerTrade("LONG");
                     }
                   }}
                   className="px-3 py-1.5 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/40 text-emerald-300 font-bold text-xs flex items-center gap-1.5 transition cursor-pointer shadow-xs"
                 >
                   <TrendingUp className="w-3.5 h-3.5 text-emerald-400" />
-                  <span>⚡ 엔비디아(NVDA) 롱 진입</span>
+                  <span>⚡ SK하이닉스(000660) 매수</span>
                 </button>
               </div>
             </div>

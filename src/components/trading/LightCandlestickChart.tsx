@@ -6,6 +6,8 @@ import { CandlestickPatternOverlayVisualizer } from "./CandlestickPatternOverlay
 interface LightCandlestickChartProps {
   stock: StockItem;
   onTradeClick?: (type: "BUY" | "SELL") => void;
+  externalCandles?: any[];
+  isWhiteTheme?: boolean;
 }
 
 interface CandlePoint {
@@ -23,7 +25,9 @@ interface CandlePoint {
 
 export const LightCandlestickChart: React.FC<LightCandlestickChartProps> = ({
   stock,
-  onTradeClick
+  onTradeClick,
+  externalCandles,
+  isWhiteTheme = false
 }) => {
   const safeStock = stock || {
     symbol: "005930",
@@ -63,92 +67,70 @@ export const LightCandlestickChart: React.FC<LightCandlestickChartProps> = ({
   const [livePrice, setLivePrice] = useState(safeStock.price || 73800);
   const [priceFlash, setPriceFlash] = useState<"up" | "down" | null>(null);
 
-  // Generate synthetic but realistic smooth candlestick stream for the current stock
-  const [candles, setCandles] = useState<CandlePoint[]>(() => {
-    const arr: CandlePoint[] = [];
-    const basePrice = safeStock.price || 73800;
-    let current = basePrice * 0.96;
-    const baseVol = 80000;
-    const times = [
-      "09:00", "09:15", "09:30", "09:45", "10:00", "10:15", "10:30", "10:45",
-      "11:00", "11:15", "11:30", "11:45", "12:00", "12:15", "12:30", "12:45",
-      "13:00", "13:15", "13:30", "13:45", "14:00", "14:15", "14:30", "14:45", "15:00"
-    ];
+  // Helper to map candles with genuine moving averages
+  const mapCandlesWithMAs = (rawList: any[]): CandlePoint[] => {
+    if (!Array.isArray(rawList) || rawList.length === 0) return [];
+    return rawList.map((c, idx, list) => {
+      const slice5 = list.slice(Math.max(0, idx - 4), idx + 1);
+      const ma5 = Math.round(slice5.reduce((sum, it) => sum + (it.close || 0), 0) / slice5.length);
+      const slice20 = list.slice(Math.max(0, idx - 19), idx + 1);
+      const ma20 = Math.round(slice20.reduce((sum, it) => sum + (it.close || 0), 0) / slice20.length);
+      const slice60 = list.slice(Math.max(0, idx - 59), idx + 1);
+      const ma60 = Math.round(slice60.reduce((sum, it) => sum + (it.close || 0), 0) / slice60.length);
 
-    times.forEach((t, i) => {
-      const delta = (Math.random() - 0.42) * (basePrice * 0.012);
-      const open = current;
-      const close = Math.round(open + delta);
-      const high = Math.round(Math.max(open, close) + Math.random() * (basePrice * 0.008));
-      const low = Math.round(Math.min(open, close) - Math.random() * (basePrice * 0.008));
-      const volume = Math.round(baseVol * (1 + Math.random() * 2.5));
-      current = close;
+      let tStr = "09:00";
+      if (typeof c.time === "string") {
+        tStr = c.time.includes("T") ? c.time.substring(11, 16) : c.time;
+      } else if (typeof c.time === "number") {
+        tStr = new Date(c.time * 1000).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit", hour12: false });
+      }
 
-      arr.push({
-        time: t,
-        open,
-        high,
-        low,
-        close,
-        volume,
-        ma5: close * (1 - 0.003),
-        ma20: close * (1 - 0.008),
-        ma60: close * (1 - 0.015),
-        rsi: Math.round(50 + Math.random() * 25)
-      });
+      return {
+        time: tStr,
+        open: c.open || c.close,
+        high: c.high || c.close,
+        low: c.low || c.close,
+        close: c.close,
+        volume: c.volume || 1000,
+        ma5,
+        ma20,
+        ma60,
+        rsi: 52
+      };
     });
+  };
 
-    // Make last close match livePrice
-    if (arr.length > 0) {
-      arr[arr.length - 1].close = basePrice;
-      arr[arr.length - 1].high = Math.max(arr[arr.length - 1].high, basePrice);
+  const [candles, setCandles] = useState<CandlePoint[]>(() => {
+    if (externalCandles && externalCandles.length > 0) {
+      return mapCandlesWithMAs(externalCandles);
     }
-    return arr;
+    const baseP = safeStock.price || 78500;
+    return [
+      { time: "09:00", open: baseP * 0.99, high: baseP * 0.995, low: baseP * 0.988, close: baseP * 0.992, volume: 45000, ma5: baseP * 0.99, ma20: baseP * 0.99, ma60: baseP * 0.99, rsi: 50 },
+      { time: "10:00", open: baseP * 0.992, high: baseP * 1.002, low: baseP * 0.991, close: baseP * 0.998, volume: 52000, ma5: baseP * 0.995, ma20: baseP * 0.994, ma60: baseP * 0.994, rsi: 52 },
+      { time: "11:00", open: baseP * 0.998, high: baseP * 1.005, low: baseP * 0.996, close: baseP * 1.001, volume: 48000, ma5: baseP * 0.997, ma20: baseP * 0.996, ma60: baseP * 0.996, rsi: 53 },
+      { time: "현재", open: baseP * 1.001, high: Math.max(baseP * 1.006, baseP), low: Math.min(baseP * 0.999, baseP), close: baseP, volume: 68000, ma5: baseP * 0.999, ma20: baseP * 0.998, ma60: baseP * 0.998, rsi: 55 }
+    ];
   });
 
-  // When stock prop changes, reset base candles and price
+  // Sync with externalCandles if provided
   useEffect(() => {
-    const basePrice = safeStock.price || 73800;
-    setLivePrice(basePrice);
-    const arr: CandlePoint[] = [];
-    let current = basePrice * 0.96;
-    const baseVol = 80000;
-    const times = [
-      "09:00", "09:15", "09:30", "09:45", "10:00", "10:15", "10:30", "10:45",
-      "11:00", "11:15", "11:30", "11:45", "12:00", "12:15", "12:30", "12:45",
-      "13:00", "13:15", "13:30", "13:45", "14:00", "14:15", "14:30", "14:45", "15:00"
-    ];
-
-    times.forEach((t) => {
-      const delta = (Math.random() - 0.42) * (basePrice * 0.012);
-      const open = current;
-      const close = Math.round(open + delta);
-      const high = Math.round(Math.max(open, close) + Math.random() * (basePrice * 0.008));
-      const low = Math.round(Math.min(open, close) - Math.random() * (basePrice * 0.008));
-      const volume = Math.round(baseVol * (1 + Math.random() * 2.5));
-      current = close;
-
-      arr.push({
-        time: t,
-        open,
-        high,
-        low,
-        close,
-        volume,
-        ma5: close * (1 - 0.003),
-        ma20: close * (1 - 0.008),
-        ma60: close * (1 - 0.015),
-        rsi: Math.round(50 + Math.random() * 25)
-      });
-    });
-
-    if (arr.length > 0) {
-      arr[arr.length - 1].close = basePrice;
-      arr[arr.length - 1].high = Math.max(arr[arr.length - 1].high, basePrice);
+    if (externalCandles && externalCandles.length > 0) {
+      const mapped = mapCandlesWithMAs(externalCandles);
+      setCandles(mapped);
+      if (mapped.length > 0) {
+        setLivePrice(mapped[mapped.length - 1].close);
+      }
     }
-    setCandles(arr);
+  }, [externalCandles]);
 
-    // If Crypto, fetch genuine Upbit 5-minute candles asynchronously
+  // When stock changes and no externalCandles, fetch genuine market candles
+  useEffect(() => {
+    if (externalCandles && externalCandles.length > 0) return;
+
+    const basePrice = safeStock.price || 78500;
+    setLivePrice(basePrice);
+
     const isCrypto = safeStock.market === "UPBIT" || safeStock.market === "BTC" || ["BTC", "ETH", "XRP", "SOL", "DOGE", "ADA"].includes(safeStock.symbol);
     if (isCrypto) {
       const upbitCode = safeStock.symbol.startsWith("KRW-") ? safeStock.symbol : `KRW-${safeStock.symbol}`;
@@ -156,24 +138,32 @@ export const LightCandlestickChart: React.FC<LightCandlestickChartProps> = ({
         .then(res => res.ok ? res.json() : [])
         .then(cList => {
           if (Array.isArray(cList) && cList.length > 0) {
-            const realCandles: CandlePoint[] = [...cList].reverse().map((c: any) => {
-              const tStr = (c.candle_date_time_kst || "").substring(11, 16) || "09:00";
-              return {
-                time: tStr,
-                open: c.opening_price,
-                high: c.high_price,
-                low: c.low_price,
-                close: c.trade_price,
-                volume: Math.round(c.candle_acc_trade_volume || 0),
-                ma5: c.trade_price * (1 - 0.002),
-                ma20: c.trade_price * (1 - 0.006),
-                ma60: c.trade_price * (1 - 0.012),
-                rsi: 55
-              };
-            });
-            setCandles(realCandles);
-            if (realCandles.length > 0) {
-              setLivePrice(realCandles[realCandles.length - 1].close);
+            const realCandles = [...cList].reverse().map((c: any) => ({
+              time: (c.candle_date_time_kst || "").substring(11, 16) || "09:00",
+              open: c.opening_price,
+              high: c.high_price,
+              low: c.low_price,
+              close: c.trade_price,
+              volume: Math.round(c.candle_acc_trade_volume || 0)
+            }));
+            const mapped = mapCandlesWithMAs(realCandles);
+            setCandles(mapped);
+            if (mapped.length > 0) {
+              setLivePrice(mapped[mapped.length - 1].close);
+            }
+          }
+        })
+        .catch(() => {});
+    } else {
+      // Domestic KRX or US: fetch real-time candles from server
+      fetch(`/api/market/realtime-candles?symbol=${encodeURIComponent(safeStock.symbol)}&timeframe=15m&count=30`)
+        .then(res => res.ok ? res.json() : null)
+        .then(data => {
+          if (data && Array.isArray(data.candles) && data.candles.length > 0) {
+            const mapped = mapCandlesWithMAs(data.candles);
+            setCandles(mapped);
+            if (mapped.length > 0) {
+              setLivePrice(mapped[mapped.length - 1].close);
             }
           }
         })

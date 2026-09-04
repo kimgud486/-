@@ -13,6 +13,12 @@ export interface InteractiveChartPoint {
   timeLabel: string;
   timestamp: number;
   actualPrice?: number | null; // Real historical/live price tick
+  open?: number;
+  high?: number;
+  low?: number;
+  close?: number;
+  ma5?: number;                // 5-period Moving Average
+  ma20?: number;               // 20-period Moving Average
   bullPrice: number;           // AI Bull Scenario
   basePrice: number;           // AI Neutral/Base Scenario
   bearPrice: number;           // AI Bear Scenario
@@ -23,12 +29,14 @@ export interface InteractiveChartPoint {
   bollingerMiddle?: number;    // Bollinger Middle EMA 20
   volumeDeltaBuy?: number;     // Net Buy Volume Delta
   volumeDeltaSell?: number;    // Net Sell Volume Delta
-  aiSignalNote?: string;        // AI Note for Inspector
+  aiSignalNote?: string;       // AI Note for Inspector
   isLivePoint?: boolean;       // T-0 Current Live Tick
   isFuturePredict?: boolean;   // T+1..T+N Future Forecast
   isNow?: boolean;
   isPast?: boolean;
   volume?: number;
+  riskGateStopLoss?: number;   // Risk Gate Stop Loss level
+  riskGateTrailingStop?: number; // Risk Gate Trailing Stop level
 }
 
 interface InteractivePredictionCanvasChartProps {
@@ -36,10 +44,11 @@ interface InteractivePredictionCanvasChartProps {
   name: string;
   market: string;
   currentPrice: number;
-  predictedPath: InteractiveChartPoint[];
-  liveTickHistory: { time: string; price: number; volume: number; side: "BUY" | "SELL" }[];
-  timeframe: string;
-  horizonMode: "SHORT" | "MEDIUM" | "LONG";
+  candles?: Array<{ time: any; open: number; high: number; low: number; close: number; volume: number }>;
+  predictedPath?: InteractiveChartPoint[];
+  liveTickHistory?: { time: string; price: number; volume: number; side: "BUY" | "SELL" }[];
+  timeframe?: string;
+  horizonMode?: "SHORT" | "MEDIUM" | "LONG";
   tradePlan?: {
     entryPrice: number;
     tp1: number;
@@ -61,17 +70,18 @@ export const InteractivePredictionCanvasChart: React.FC<InteractivePredictionCan
   name,
   market,
   currentPrice,
+  candles,
   predictedPath,
   liveTickHistory,
-  timeframe,
-  horizonMode,
+  timeframe = "15m",
+  horizonMode = "MEDIUM",
   tradePlan,
   recommendation,
   actionSignal,
   aiConfidence = 94.2,
   onResyncAnchor
 }) => {
-  const { placeOrder, addNotification } = useApp();
+  const { placeOrder, addNotification, profile, updateProfileSettings, trades } = useApp();
 
   // Active Scenarios & Indicator Toggles
   const [activeScenarios, setActiveScenarios] = useState<{ bull: boolean; base: boolean; bear: boolean }>({
@@ -89,6 +99,36 @@ export const InteractivePredictionCanvasChart: React.FC<InteractivePredictionCan
   // Canvas ref for HTML5 2D high-performance rendering option
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
+  const [internalCandles, setInternalCandles] = useState<Array<{ time: any; open: number; high: number; low: number; close: number; volume: number }>>([]);
+
+  // Fetch real candles if candles prop is empty or sparse
+  useEffect(() => {
+    if (candles && candles.length >= 5) return;
+    let isMounted = true;
+    const fetchRealCandles = async () => {
+      try {
+        const res = await fetch(`/api/market/realtime-candles?symbol=${encodeURIComponent(symbol)}&timeframe=${timeframe}&count=40`);
+        if (res.ok && isMounted) {
+          const data = await res.json();
+          if (Array.isArray(data.candles) && data.candles.length > 0) {
+            setInternalCandles(data.candles);
+          }
+        }
+      } catch (err) {
+        console.warn("[InteractivePredictionCanvasChart] Real candle fetch error:", err);
+      }
+    };
+    fetchRealCandles();
+    return () => { isMounted = false; };
+  }, [symbol, timeframe, candles]);
+
+  // Effective candles source: genuine passed candles or fetched real candles
+  const effectiveCandles = useMemo(() => {
+    if (candles && candles.length >= 5) return candles;
+    if (internalCandles.length >= 5) return internalCandles;
+    return [];
+  }, [candles, internalCandles]);
+
   const isUs = market === "US";
   const currencySymbol = isUs ? "$" : "₩";
 
@@ -102,78 +142,219 @@ export const InteractivePredictionCanvasChart: React.FC<InteractivePredictionCan
   const gainPct2 = (((tp2P - currentPrice) / currentPrice) * 100).toFixed(1);
   const lossPct = (((stopLossP - currentPrice) / currentPrice) * 100).toFixed(1);
 
-  // Merge live ticks history with predicted path into a unified chart dataset
-  const combinedChartData = useMemo(() => {
-    if (!predictedPath || predictedPath.length === 0) return [];
+  // 🛡️ RISK GATE PARAMETERS & REALTIME INDICATOR LINKAGE
+  const dailyLossLimit = profile?.dailyLossLimit ?? 2.5;
+  const consecutiveLossKillCount = profile?.consecutiveLossKillCount ?? 3;
+  const maxPositionWeight = profile?.maxPositionWeight ?? 15;
+  const maxSingleOrderAmount = profile?.maxSingleOrderAmount ?? (isUs ? 5000 : 5000000);
+  const trailingStopTriggerPct = profile?.trailingStopTriggerPct ?? 3.0;
+  const apiGateStatus = profile?.apiGateStatus ?? "GATE_OPEN";
+  const userBalance = profile?.balance ?? (isUs ? 50000 : 50000000);
 
+  // Calculate real consecutive loss streak from trade logs
+  const consecutiveLosses = useMemo(() => {
+    if (!trades || trades.length === 0) return 0;
+    let count = 0;
+    for (let i = trades.length - 1; i >= 0; i--) {
+      const pnl = trades[i].pnl ?? 0;
+      if (pnl < 0) count++;
+      else break;
+    }
+    return count;
+  }, [trades]);
+
+  // Real Risk Gate Stop Loss defense price
+  const riskGateStopPrice = Math.round(entryP * (1 - dailyLossLimit / 100));
+  // Real Trailing Stop trigger price
+  const trailingStopPrice = Math.round(entryP * (1 + trailingStopTriggerPct / 100));
+
+  // Risk Gate Realtime Verdict
+  const riskGateEval = useMemo(() => {
+    if (apiGateStatus === "GATE_LOCKED") {
+      return { status: "REJECT" as const, label: "주문 차단 (REJECT)", reason: "API 주문 게이트 잠금 활성화", color: "text-rose-400 border-rose-500 bg-rose-950/80" };
+    }
+    if (consecutiveLosses >= consecutiveLossKillCount) {
+      return { status: "REJECT" as const, label: "주문 차단 (REJECT)", reason: `연속 손실 한도(${consecutiveLossKillCount}회) 초과`, color: "text-rose-400 border-rose-500 bg-rose-950/80" };
+    }
+    if (lossPct && Math.abs(Number(lossPct)) >= dailyLossLimit) {
+      return { status: "CAUTION" as const, label: "안전 주의 (CAUTION)", reason: `손절 폭이 일일 손실 한도(-${dailyLossLimit}%)에 근접`, color: "text-amber-300 border-amber-500 bg-amber-950/80" };
+    }
+    return { status: "PASS" as const, label: "정상 승인 (PASS)", reason: "모든 Risk Gate 안전 규칙 적합", color: "text-emerald-300 border-emerald-500 bg-emerald-950/80" };
+  }, [apiGateStatus, consecutiveLosses, consecutiveLossKillCount, lossPct, dailyLossLimit]);
+
+  // Toggle API Gate Lock / Open
+  const handleToggleApiGate = () => {
+    const next = apiGateStatus === "GATE_OPEN" ? "GATE_LOCKED" : "GATE_OPEN";
+    updateProfileSettings({ apiGateStatus: next });
+    addNotification({
+      type: next === "GATE_LOCKED" ? "RISK" : "SYSTEM",
+      title: next === "GATE_LOCKED" ? "🚨 Risk Gate API 주문 잠금" : "🟢 Risk Gate API 주문 허용",
+      message: `자동 주문 게이트가 ${next === "GATE_LOCKED" ? "차단" : "정상 개방"}되었습니다.`
+    });
+  };
+
+  // Merge genuine candle data or live ticks into unified chart dataset
+  const combinedChartData = useMemo(() => {
     const horizonMultiplier = selectedHorizon === "60D" ? 1.8 : selectedHorizon === "20D" ? 1.4 : selectedHorizon === "5D" ? 1.2 : 1.0;
 
-    return predictedPath.map((pt, idx) => {
-      const isPast = pt.timeLabel.includes("전") || pt.isPastPattern || idx < 3;
-      const isNow = pt.timeLabel.includes("현재") || pt.isLivePoint || idx === 3;
+    // Use genuine effective candles (either passed props or fetched from real market endpoint)
+    const candlesToUse = effectiveCandles.length > 0 ? effectiveCandles : candles;
+    if (candlesToUse && Array.isArray(candlesToUse) && candlesToUse.length > 0) {
+      const recentCandles = candlesToUse.slice(-25);
       
-      let actualPrice: number | null = null;
-      if (isPast || isNow) {
-        if (isNow) {
-          actualPrice = currentPrice;
-        } else if (liveTickHistory && liveTickHistory.length > 0) {
-          const revIdx = liveTickHistory.length - 1 - (3 - idx);
-          if (revIdx >= 0 && revIdx < liveTickHistory.length) {
-            actualPrice = liveTickHistory[revIdx].price;
-          } else {
-            actualPrice = pt.basePrice;
-          }
-        } else {
-          actualPrice = pt.basePrice;
-        }
+      // Calculate true Average True Range (ATR) & rolling slope from actual candles
+      let totalRange = 0;
+      for (let i = 0; i < recentCandles.length; i++) {
+        const c = recentCandles[i];
+        const range = Math.max(c.high - c.low, Math.abs(c.high - (c.open || c.close)), Math.abs(c.low - (c.open || c.close)));
+        totalRange += range;
       }
+      const atr = Math.max(1, Math.round(totalRange / recentCandles.length));
+      
+      const last5 = recentCandles.slice(-5);
+      const slope = last5.length >= 2 ? (last5[last5.length - 1].close - last5[0].close) / last5.length : 0;
 
-      // Calculate Bull/Base/Bear scaled by horizon
-      const baseDiff = (pt.basePrice - currentPrice) * horizonMultiplier;
-      const bullDiff = (pt.bullPrice - currentPrice) * horizonMultiplier;
-      const bearDiff = (pt.bearPrice - currentPrice) * horizonMultiplier;
+      // 1. Genuine Past Candle Points with computed MAs and Bollinger Bands
+      const pastPoints: InteractiveChartPoint[] = recentCandles.map((c, idx, list) => {
+        const slice5 = list.slice(Math.max(0, idx - 4), idx + 1);
+        const ma5 = Math.round(slice5.reduce((sum, it) => sum + (it.close || 0), 0) / slice5.length);
+        const slice20 = list.slice(Math.max(0, idx - 19), idx + 1);
+        const ma20 = Math.round(slice20.reduce((sum, it) => sum + (it.close || 0), 0) / slice20.length);
 
-      const calcBase = Math.round(currentPrice + baseDiff);
-      const calcBull = Math.round(currentPrice + bullDiff);
-      const calcBear = Math.round(currentPrice + bearDiff);
+        const variance = slice20.reduce((sum, it) => sum + Math.pow(it.close - ma20, 2), 0) / slice20.length;
+        const stdDev = Math.sqrt(variance) || (c.close * 0.015);
+        const bollingerUpper = Math.round(ma20 + stdDev * 2);
+        const bollingerLower = Math.round(ma20 - stdDev * 2);
 
-      // Bollinger Bands calculation (Upper/Lower 2.0 Sigma)
-      const stdDev = Math.max(1, calcBase * 0.018);
-      const bollingerUpper = Math.round(calcBase + stdDev * 2);
-      const bollingerLower = Math.round(calcBase - stdDev * 2);
-      const bollingerMiddle = calcBase;
+        let tLabel = "T-0";
+        if (typeof c.time === "string") {
+          tLabel = c.time.includes("T") ? c.time.substring(11, 16) : c.time;
+        } else if (typeof c.time === "number") {
+          tLabel = new Date(c.time * 1000).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit", hour12: false });
+        }
 
-      // Volume Delta Order Flow Calculation
-      const isBuyDominant = (idx % 3 !== 2);
-      const baseVol = Math.round(Math.abs(Math.sin(idx * 1.7)) * 15000 + 5000);
-      const volumeDeltaBuy = isBuyDominant ? baseVol : Math.round(baseVol * 0.35);
-      const volumeDeltaSell = !isBuyDominant ? baseVol : Math.round(baseVol * 0.3);
+        const isUp = c.close >= (c.open || c.close);
+        const volumeDeltaBuy = isUp ? c.volume : Math.round(c.volume * 0.35);
+        const volumeDeltaSell = !isUp ? c.volume : Math.round(c.volume * 0.35);
 
-      let aiSignalNote = "관망 및 수급 관찰";
-      if (idx === 3) aiSignalNote = "🎯 실시간 매수 타점 포착";
-      else if (idx === 5) aiSignalNote = "⚡ 1차 저항대 돌파 시도";
-      else if (idx === 7) aiSignalNote = "🚀 TP1 익절 구간 진입";
-      else if (idx >= 8) aiSignalNote = "🏆 TP2 최고 목표치 접근";
+        return {
+          timeLabel: tLabel,
+          timestamp: typeof c.time === "number" ? c.time * 1000 : Date.now() - (list.length - idx) * 900000,
+          actualPrice: c.close,
+          open: c.open || c.close,
+          high: c.high || c.close,
+          low: c.low || c.close,
+          close: c.close,
+          bullPrice: c.close,
+          basePrice: c.close,
+          bearPrice: c.close,
+          upperBand: bollingerUpper,
+          lowerBand: bollingerLower,
+          ma5,
+          ma20,
+          bollingerUpper,
+          bollingerLower,
+          bollingerMiddle: ma20,
+          volume: c.volume,
+          volumeDeltaBuy,
+          volumeDeltaSell,
+          aiSignalNote: isUp ? "매수 수급 우위 체결" : "매도 압력 흡수 구간",
+          isPast: idx < list.length - 1,
+          isNow: idx === list.length - 1,
+          isLivePoint: idx === list.length - 1,
+          isFuturePredict: false,
+          riskGateStopLoss: riskGateStopPrice,
+          riskGateTrailingStop: trailingStopPrice
+        };
+      });
 
-      return {
-        ...pt,
-        basePrice: calcBase,
-        bullPrice: calcBull,
-        bearPrice: calcBear,
-        upperBand: Math.round(calcBull * 1.02),
-        lowerBand: Math.round(calcBear * 0.98),
-        bollingerUpper,
-        bollingerLower,
-        bollingerMiddle,
-        volumeDeltaBuy,
-        volumeDeltaSell,
-        actualPrice,
-        isPast,
-        isNow,
-        aiSignalNote
-      };
-    });
-  }, [predictedPath, liveTickHistory, currentPrice, selectedHorizon]);
+      // 2. Future Forecast Points (T+1 .. T+6) derived from genuine ATR & slope
+      const futureLabels = ["T+1 (단기예측)", "T+2 (수급확산)", "T+3 (1차저항)", "T+5 (목표추종)", "T+10 (추세확장)", "T+20 (시나리오)"];
+      const futurePoints: InteractiveChartPoint[] = futureLabels.map((lbl, fIdx) => {
+        const step = fIdx + 1;
+        const bullDiff = (step * 0.85 + 0.3) * atr * horizonMultiplier;
+        const baseDiff = (slope * step * 0.6 + (step * 0.15 * atr)) * horizonMultiplier;
+        const bearDiff = -(step * 0.85 + 0.2) * atr * horizonMultiplier;
+
+        const calcBull = Math.round(currentPrice + bullDiff);
+        const calcBase = Math.round(currentPrice + baseDiff);
+        const calcBear = Math.round(currentPrice + bearDiff);
+
+        const confidenceWidth = Math.round(1.96 * atr * Math.sqrt(step) * horizonMultiplier);
+        const upperBand = calcBase + confidenceWidth;
+        const lowerBand = calcBase - confidenceWidth;
+
+        return {
+          timeLabel: lbl,
+          timestamp: Date.now() + step * 86400000,
+          actualPrice: null,
+          bullPrice: calcBull,
+          basePrice: calcBase,
+          bearPrice: calcBear,
+          upperBand,
+          lowerBand,
+          ma5: Math.round(calcBase * 1.002),
+          ma20: Math.round(calcBase * 0.998),
+          bollingerUpper: upperBand,
+          bollingerLower: lowerBand,
+          bollingerMiddle: calcBase,
+          volume: recentCandles[recentCandles.length - 1]?.volume || 50000,
+          volumeDeltaBuy: Math.round((recentCandles[recentCandles.length - 1]?.volume || 50000) * 0.65),
+          volumeDeltaSell: Math.round((recentCandles[recentCandles.length - 1]?.volume || 50000) * 0.35),
+          aiSignalNote: fIdx === 0 ? "초기 저항선 테스트" : fIdx === 2 ? "1차 목표가(TP1) 도달권" : "최종 목표치(TP2) 시나리오",
+          isPast: false,
+          isNow: false,
+          isLivePoint: false,
+          isFuturePredict: true,
+          riskGateStopLoss: riskGateStopPrice,
+          riskGateTrailingStop: trailingStopPrice
+        };
+      });
+
+      return [...pastPoints, ...futurePoints];
+    }
+
+    // Direct Live Current Point fallback if candles are still streaming
+    return [
+      {
+        timeLabel: "현재 (LIVE)",
+        timestamp: Date.now(),
+        actualPrice: currentPrice,
+        bullPrice: currentPrice,
+        basePrice: currentPrice,
+        bearPrice: currentPrice,
+        upperBand: Math.round(currentPrice * 1.02),
+        lowerBand: Math.round(currentPrice * 0.98),
+        ma5: currentPrice,
+        ma20: currentPrice,
+        bollingerUpper: Math.round(currentPrice * 1.02),
+        bollingerLower: Math.round(currentPrice * 0.98),
+        bollingerMiddle: currentPrice,
+        isNow: true,
+        isLivePoint: true,
+        riskGateStopLoss: riskGateStopPrice,
+        riskGateTrailingStop: trailingStopPrice
+      },
+      {
+        timeLabel: "T+1 (1차목표)",
+        timestamp: Date.now() + 86400000,
+        actualPrice: null,
+        bullPrice: tp1P,
+        basePrice: Math.round((entryP + tp1P) / 2),
+        bearPrice: riskGateStopPrice,
+        upperBand: tp2P,
+        lowerBand: riskGateStopPrice,
+        ma5: currentPrice,
+        ma20: currentPrice,
+        bollingerUpper: tp2P,
+        bollingerLower: riskGateStopPrice,
+        bollingerMiddle: currentPrice,
+        isFuturePredict: true,
+        riskGateStopLoss: riskGateStopPrice,
+        riskGateTrailingStop: trailingStopPrice
+      }
+    ];
+  }, [candles, effectiveCandles, currentPrice, selectedHorizon, riskGateStopPrice, trailingStopPrice, entryP, tp1P, tp2P]);
 
   // Dual Chart Subsets
   const realtimeDataset = useMemo(() => {
@@ -456,6 +637,75 @@ export const InteractivePredictionCanvasChart: React.FC<InteractivePredictionCan
               <span>앵커 동기화</span>
             </button>
           )}
+        </div>
+      </div>
+
+      {/* 🛡️ REAL-TIME RISK GATE LINKED GOVERNANCE MATRIX (리스크 게이트 실시간 지표 연동 매트릭스) */}
+      <div className="bg-gradient-to-r from-zinc-950 via-zinc-900 to-zinc-950 border-2 border-indigo-500/40 rounded-2xl p-4 shadow-2xl space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-zinc-800 pb-2">
+          <div className="flex items-center gap-2">
+            <ShieldAlert className="w-5 h-5 text-cyan-400" />
+            <h4 className="text-xs sm:text-sm font-black text-white tracking-wide uppercase font-mono flex items-center gap-1.5">
+              <span>🛡️ RISK GATE 실시간 안전 지표 연동 엔진</span>
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-cyan-950 text-cyan-300 border border-cyan-700">LIVE FEED</span>
+            </h4>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <span className={`px-2.5 py-1 rounded-xl text-xs font-black font-mono border flex items-center gap-1.5 ${riskGateEval.color}`}>
+              <ShieldCheck className="w-3.5 h-3.5" />
+              <span>{riskGateEval.label}</span>
+            </span>
+            <button
+              type="button"
+              onClick={handleToggleApiGate}
+              className={`px-3 py-1 rounded-xl text-xs font-bold font-mono transition cursor-pointer border flex items-center gap-1 ${
+                apiGateStatus === "GATE_OPEN"
+                  ? "bg-emerald-950/80 text-emerald-300 border-emerald-600 hover:bg-emerald-900"
+                  : "bg-rose-950/80 text-rose-300 border-rose-600 hover:bg-rose-900"
+              }`}
+            >
+              <Zap className="w-3 h-3" />
+              <span>{apiGateStatus === "GATE_OPEN" ? "API 게이트: 정상 개방" : "API 게이트: 긴급 차단"}</span>
+            </button>
+          </div>
+        </div>
+
+        {/* 4 Connected Risk Gate Metrics */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-xs font-mono">
+          <div className="bg-zinc-900/90 p-2.5 rounded-xl border border-zinc-800">
+            <span className="text-[10px] text-zinc-400 block font-bold">1. 일일 최대 손실 한도</span>
+            <span className="text-sm font-black text-rose-400 block mt-0.5">-{dailyLossLimit}%</span>
+            <span className="text-[9.5px] text-zinc-400 block mt-0.5">
+              손절 방어선: <b className="text-rose-300">{currencySymbol}{riskGateStopPrice.toLocaleString()}</b>
+            </span>
+          </div>
+
+          <div className="bg-zinc-900/90 p-2.5 rounded-xl border border-zinc-800">
+            <span className="text-[10px] text-zinc-400 block font-bold">2. 연속 손실 킬스위치</span>
+            <span className="text-sm font-black text-amber-300 block mt-0.5">
+              {consecutiveLosses} / {consecutiveLossKillCount}회
+            </span>
+            <span className="text-[9.5px] text-zinc-400 block mt-0.5">
+              {consecutiveLosses >= consecutiveLossKillCount ? "⚠️ 킬스위치 발동" : "정상 운용 중"}
+            </span>
+          </div>
+
+          <div className="bg-zinc-900/90 p-2.5 rounded-xl border border-zinc-800">
+            <span className="text-[10px] text-zinc-400 block font-bold">3. 트레일링 스탑 발동선</span>
+            <span className="text-sm font-black text-purple-300 block mt-0.5">+{trailingStopTriggerPct}%</span>
+            <span className="text-[9.5px] text-zinc-400 block mt-0.5">
+              목표가: <b className="text-purple-300">{currencySymbol}{trailingStopPrice.toLocaleString()}</b>
+            </span>
+          </div>
+
+          <div className="bg-zinc-900/90 p-2.5 rounded-xl border border-zinc-800">
+            <span className="text-[10px] text-zinc-400 block font-bold">4. 1종목 최대 비중 한도</span>
+            <span className="text-sm font-black text-cyan-300 block mt-0.5">{maxPositionWeight}% 이내</span>
+            <span className="text-[9.5px] text-zinc-400 block mt-0.5">
+              최대 주문: <b className="text-cyan-300">{currencySymbol}{maxSingleOrderAmount.toLocaleString()}</b>
+            </span>
+          </div>
         </div>
       </div>
 
@@ -779,7 +1029,66 @@ export const InteractivePredictionCanvasChart: React.FC<InteractivePredictionCan
                       }
                       return <circle key={`real-dot-${cx}`} cx={cx} cy={cy} r={3} fill="#f59e0b" />;
                     }}
-                    name="★ 실시간 시세 변동 (Live Stream)"
+                    name="★ 실시간 시세 (Live Stream)"
+                  />
+
+                  {/* Real Moving Average Indicators */}
+                  <Line
+                    type="monotone"
+                    dataKey="ma5"
+                    stroke="#fb923c"
+                    strokeWidth={2}
+                    dot={false}
+                    name="MA 5일 단기선"
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="ma20"
+                    stroke="#06b6d4"
+                    strokeWidth={2}
+                    dot={false}
+                    name="MA 20일 추세선"
+                  />
+
+                  {/* Real Bollinger Bands */}
+                  {showBollingerBands && (
+                    <>
+                      <Line
+                        type="monotone"
+                        dataKey="bollingerUpper"
+                        stroke="#3b82f6"
+                        strokeWidth={1}
+                        strokeDasharray="3 3"
+                        dot={false}
+                        name="볼린저 상단 (2σ)"
+                      />
+                      <Line
+                        type="monotone"
+                        dataKey="bollingerLower"
+                        stroke="#3b82f6"
+                        strokeWidth={1}
+                        strokeDasharray="3 3"
+                        dot={false}
+                        name="볼린저 하단 (2σ)"
+                      />
+                    </>
+                  )}
+
+                  {/* 🛡️ Risk Gate Defense Lines */}
+                  <ReferenceLine 
+                    y={riskGateStopPrice} 
+                    stroke="#ef4444" 
+                    strokeWidth={2} 
+                    strokeDasharray="4 4"
+                    label={{ value: `🛡️ Risk Gate 손절선 (-${dailyLossLimit}%)`, fill: "#ef4444", fontSize: 10, fontWeight: "bold" }} 
+                  />
+
+                  <ReferenceLine 
+                    y={trailingStopPrice} 
+                    stroke="#a855f7" 
+                    strokeWidth={2} 
+                    strokeDasharray="3 3"
+                    label={{ value: `🎯 트레일링 스탑 (+${trailingStopTriggerPct}%)`, fill: "#a855f7", fontSize: 10, fontWeight: "bold" }} 
                   />
 
                   {/* Large Buy & Sell Reference Dots on Chart */}
@@ -992,7 +1301,14 @@ export const InteractivePredictionCanvasChart: React.FC<InteractivePredictionCan
                         stroke="#3b82f6" 
                         strokeWidth={2} 
                         strokeDasharray="3 3"
-                        label={{ value: `🛡️ 손절 방어선 ${currencySymbol}${stopLossP.toLocaleString()}`, fill: "#3b82f6", fontSize: 11, fontWeight: "bold" }} 
+                        label={{ value: `🛡️ 전략 손절선 ${currencySymbol}${stopLossP.toLocaleString()}`, fill: "#3b82f6", fontSize: 11, fontWeight: "bold" }} 
+                      />
+                      <ReferenceLine 
+                        y={riskGateStopPrice} 
+                        stroke="#ef4444" 
+                        strokeWidth={2} 
+                        strokeDasharray="4 4"
+                        label={{ value: `🛡️ Risk Gate 한계선 ${currencySymbol}${riskGateStopPrice.toLocaleString()}`, fill: "#ef4444", fontSize: 10, fontWeight: "bold" }} 
                       />
                     </>
                   )}

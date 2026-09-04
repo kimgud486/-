@@ -54,17 +54,17 @@ export const AiFutureTrendOverlayChart: React.FC<AiFutureTrendOverlayChartProps>
       for (let i = 14; i >= 0; i--) {
         const timeStr = new Date(now.getTime() - i * 5 * 60000).toLocaleTimeString("ko-KR", { hour: '2-digit', minute: '2-digit' });
         const variation = (Math.sin(i * 0.5) + Math.cos(i * 0.3)) * step * 0.8;
-        const open = Math.round(basePrice + variation - (Math.random() * step * 0.4));
-        const close = Math.round(basePrice + variation + (Math.random() * step * 0.5));
-        const high = Math.max(open, close) + Math.round(Math.random() * step * 0.4);
-        const low = Math.min(open, close) - Math.round(Math.random() * step * 0.4);
+        const open = Math.round(basePrice + variation - (step * 0.2 * Math.sin(i)));
+        const close = Math.round(basePrice + variation + (step * 0.25 * Math.cos(i)));
+        const high = Math.max(open, close) + Math.round(step * 0.2);
+        const low = Math.min(open, close) - Math.round(step * 0.2);
         baseHistory.push({
           time: timeStr,
           open,
           close,
           high,
           low,
-          volume: Math.round(1000 + Math.random() * 5000)
+          volume: Math.round(1500 + Math.abs(Math.sin(i * 2)) * 4000)
         });
       }
     }
@@ -121,7 +121,7 @@ export const AiFutureTrendOverlayChart: React.FC<AiFutureTrendOverlayChartProps>
         close: forecastClose,
         high: forecastHigh,
         low: forecastLow,
-        volume: Math.round(2000 + Math.random() * 4000),
+        volume: Math.round(2000 + Math.abs(Math.cos(f * 1.5)) * 3500),
         isForecast: true,
         vwap: Math.round(forecastClose * 0.997),
         forecastClose,

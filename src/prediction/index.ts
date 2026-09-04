@@ -19,28 +19,36 @@ export interface PipelineExecutionResult {
   executionTimestamp: string;
 }
 
+export interface PredictionPipelineInput {
+  symbol: string;
+  market?: "KOREA" | "US" | "CRYPTO";
+  candles?: any[];
+  indicators?: any;
+  patterns?: any;
+  sectorName?: string;
+  currentSectorExposurePct?: number;
+}
+
 /**
- * Executes full End-to-End J.A.R.V.I.S. V4.0 Stage 1 + Stage 2 Data & Prediction Pipeline
+ * Modern Prediction Pipeline accepting real market candles directly from external feeds/websockets.
  */
-export function runJarvisV4Pipeline(
-  symbol: string,
-  market: "KOREA" | "US" | "CRYPTO" = "KOREA",
-  sectorName: string = "IT / 반도체",
-  currentSectorExposurePct: number = 35.0
-): PipelineExecutionResult {
-  // 1. Stage 1 Data Collector & Transformer
-  const candles = MarketDataCollector.fetchOHLCV(symbol, market, "15m", 60);
-  const indicators = TechnicalIndicatorCalculator.calculateAll(candles);
-  const patterns = PatternDetector.detect(candles);
+export function runPredictionPipeline(input: PredictionPipelineInput): PipelineExecutionResult {
+  const symbol = input.symbol || "005930";
+  const market = input.market || "KOREA";
+  const sectorName = input.sectorName || "IT / 반도체";
+  const currentSectorExposurePct = input.currentSectorExposurePct ?? 35.0;
+
+  const candles = input.candles && input.candles.length > 0 
+    ? input.candles 
+    : MarketDataCollector.fetchOHLCV(symbol, market, "15m", 60);
+
+  const indicators = input.indicators || TechnicalIndicatorCalculator.calculateAll(candles);
+  const patterns = input.patterns || PatternDetector.detect(candles);
   const tripleBarrier = TripleBarrierLabeler.generateLabel(candles);
 
-  // 2. Stage 2 Directional Prediction
   const rawModel = LightGBMPredictionEngine.predict(candles, indicators, patterns);
-
-  // 3. Stage 2 Probability Calibration
   const calibrated = ProbabilityCalibrator.calibrate(rawModel.rawProbability, "LIGHTGBM");
 
-  // 4. Stage 2 Meta Labeling & NO_TRADE Filtering
   const metaDecision = MetaLabelingFilter.evaluate({
     symbol,
     market,
@@ -61,4 +69,23 @@ export function runJarvisV4Pipeline(
     metaDecision,
     executionTimestamp: new Date().toISOString()
   };
+}
+
+/**
+ * Executes full End-to-End J.A.R.V.I.S. V4.0 Stage 1 + Stage 2 Data & Prediction Pipeline
+ */
+export function runJarvisV4Pipeline(
+  symbol: string,
+  market: "KOREA" | "US" | "CRYPTO" = "KOREA",
+  sectorName: string = "IT / 반도체",
+  currentSectorExposurePct: number = 35.0,
+  providedCandles?: any[]
+): PipelineExecutionResult {
+  return runPredictionPipeline({
+    symbol,
+    market,
+    sectorName,
+    currentSectorExposurePct,
+    candles: providedCandles
+  });
 }

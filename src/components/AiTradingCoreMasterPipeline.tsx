@@ -49,10 +49,10 @@ export const AiTradingCoreMasterPipeline: React.FC = () => {
   const [autoTradingRunning, setAutoTradingRunning] = useState<boolean>(true);
 
   // Selected Target for Deep Pipeline Analysis
-  const [targetSymbol, setTargetSymbol] = useState<string>("NVDA");
-  const [targetName, setTargetName] = useState<string>("엔비디아 (NVIDIA)");
-  const [targetMarket, setTargetMarket] = useState<"US" | "KOREA" | "BTC">("US");
-  const [currentPrice, setCurrentPrice] = useState<number>(128.50);
+  const [targetSymbol, setTargetSymbol] = useState<string>("005930");
+  const [targetName, setTargetName] = useState<string>("삼성전자");
+  const [targetMarket, setTargetMarket] = useState<"US" | "KOREA" | "BTC">("KOREA");
+  const [currentPrice, setCurrentPrice] = useState<number>(253500);
 
   // Pre-Order 8-Step Verification Check States
   const [preCheckSteps, setPreCheckSteps] = useState([
@@ -60,33 +60,33 @@ export const AiTradingCoreMasterPipeline: React.FC = () => {
     { id: 2, label: "호가 스프레드 (Spread) 검증", status: "PASS", detail: "0.015% (기준 0.1% 미만)" },
     { id: 3, label: "슬리피지 (Slippage) 허용치 검사", status: "PASS", detail: "예상 슬리피지 0.04%" },
     { id: 4, label: "체결 거래량 / 수급 동향 확인", status: "PASS", detail: "평균 대비 142% 수급 유입" },
-    { id: 5, label: "변동성 (ATR / VIX) 안전선 검사", status: "PASS", detail: "VIX 16.4 (정상 범주)" },
+    { id: 5, label: "변동성 (ATR / VIX) 안전선 검사", status: "PASS", detail: "VKOSPI 16.4 (정상 범주)" },
     { id: 6, label: "뉴스 급변 / 긴급 속보 스캔", status: "PASS", detail: "돌발 악재 뉴스 없음 (+78 Sentiment)" },
     { id: 7, label: "보유 포지션 한도 검증", status: "PASS", detail: "현재 비중 8.5% (최대 15% 이내)" },
     { id: 8, label: "종합 Risk Limit & 손실 한도 패스", status: "PASS", detail: "일일 손실 -0.4% (한도 -2.5%)" },
   ]);
 
-  // Candidate Stocks Scanner Pipeline State
+  // Candidate Stocks Scanner Pipeline State (Genuine Domestic & Upbit Universe)
   const [scannerCandidates, setScannerCandidates] = useState([
-    { rank: 1, symbol: "NVDA", name: "엔비디아", market: "US", price: 128.50, change: +4.2, score: 91, signal: "LONG", stage: "최종 매매 후보" },
-    { rank: 2, symbol: "005930", name: "삼성전자", market: "KOREA", price: 78500, change: +2.1, score: 87, signal: "LONG", stage: "후보 10개" },
-    { rank: 3, symbol: "BTC", name: "비트코인", market: "BTC", price: 88400000, change: +1.8, score: 82, signal: "LONG", stage: "후보 10개" },
-    { rank: 4, symbol: "TSLA", name: "테슬라", market: "US", price: 218.20, change: -1.2, score: 68, signal: "WAIT", stage: "후보 30개" },
-    { rank: 5, symbol: "000660", name: "SK하이닉스", market: "KOREA", price: 189000, change: +3.5, score: 89, signal: "LONG", stage: "최종 매매 후보" },
+    { rank: 1, symbol: "005930", name: "삼성전자", market: "KOREA" as const, price: 253500, change: -2.87, score: 92, signal: "LONG", stage: "최종 매매 후보" },
+    { rank: 2, symbol: "000660", name: "SK하이닉스", market: "KOREA" as const, price: 1650000, change: -2.54, score: 89, signal: "LONG", stage: "최종 매매 후보" },
+    { rank: 3, symbol: "KRW-BTC", name: "비트코인 (Upbit)", market: "BTC" as const, price: 90200000, change: +4.7, score: 82, signal: "LONG", stage: "후보 10개" },
+    { rank: 4, symbol: "042700", name: "한미반도체", market: "KOREA" as const, price: 211500, change: -1.63, score: 88, signal: "LONG", stage: "최종 매매 후보" },
+    { rank: 5, symbol: "196170", name: "알테오젠", market: "KOREA" as const, price: 309000, change: +2.66, score: 94, signal: "LONG", stage: "후보 30개" },
   ]);
 
   // Active Position LifeCycle State
   const [activePosition, setActivePosition] = useState({
-    symbol: "NVDA",
+    symbol: "005930",
     side: "LONG",
-    entryPrice: 124.20,
-    currentPrice: 128.50,
-    pnlAmount: +344.00,
-    pnlPercent: +3.46,
-    stopLoss: 121.50,
-    tp1: 127.50,
-    tp2: 132.00,
-    tp3: 138.00,
+    entryPrice: 248000,
+    currentPrice: 253500,
+    pnlAmount: +55000,
+    pnlPercent: +2.22,
+    stopLoss: 242000,
+    tp1: 260000,
+    tp2: 275000,
+    tp3: 290000,
     tp1Hit: true,
     breakEvenMoved: true,
     trailingStopActive: true,

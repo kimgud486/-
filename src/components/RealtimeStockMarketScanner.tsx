@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   ResponsiveContainer,
   AreaChart,
@@ -606,33 +606,29 @@ export const RealtimeStockMarketScanner: React.FC = () => {
     capFilter: "ALL"
   });
 
-  // Rich initial universe of stocks across domestic, US, and Upbit markets
+  // Real initial universe of genuine domestic stocks and Upbit cryptos (no foreign mock data)
   const INITIAL_UNIVERSE: ScannerStock[] = [
     { id: "s1", rank: 1, symbol: "005930", name: "삼성전자", market: "KOREA", capType: "LARGE", price: 253500, changePct: -2.87, tradingValue: 1540, volumeStatus: "급증", rvol: 4.2, executionPower: 151, aiScore: 92, aiScoreChange: +14, hasBos: true, hasChoch: true, hasVwapBreak: true, hasNews: true },
     { id: "s2", rank: 2, symbol: "000660", name: "SK하이닉스", market: "KOREA", capType: "LARGE", price: 1650000, changePct: -2.54, tradingValue: 980, volumeStatus: "급증", rvol: 3.1, executionPower: 138, aiScore: 87, aiScoreChange: +9, hasBos: true, hasChoch: true, hasVwapBreak: true, hasNews: false },
-    { id: "s3", rank: 3, symbol: "NVDA", name: "엔비디아 (NVIDIA)", market: "US", capType: "LARGE", price: 217.44, changePct: -1.51, tradingValue: 2450, volumeStatus: "급증", rvol: 3.8, executionPower: 162, aiScore: 95, aiScoreChange: +18, hasBos: true, hasChoch: true, hasVwapBreak: true, hasNews: true },
-    { id: "s4", rank: 4, symbol: "KRW-BTC", name: "비트코인 (Upbit)", market: "BTC", capType: "LARGE", price: 90200000, changePct: 4.7, tradingValue: 1280, volumeStatus: "증가", rvol: 2.4, executionPower: 124, aiScore: 81, aiScoreChange: +6, hasBos: false, hasChoch: true, hasVwapBreak: true, hasNews: false },
-    { id: "s5", rank: 5, symbol: "035420", name: "NAVER", market: "KOREA", capType: "LARGE", price: 168000, changePct: -0.88, tradingValue: 620, volumeStatus: "증가", rvol: 2.8, executionPower: 131, aiScore: 84, aiScoreChange: +11, hasBos: true, hasChoch: false, hasVwapBreak: true, hasNews: true },
-    { id: "s6", rank: 6, symbol: "TSLA", name: "테슬라 (Tesla)", market: "US", capType: "LARGE", price: 356.09, changePct: -3.22, tradingValue: 3100, volumeStatus: "급증", rvol: 5.1, executionPower: 178, aiScore: 96, aiScoreChange: +22, hasBos: true, hasChoch: true, hasVwapBreak: true, hasNews: true },
-    { id: "s7", rank: 7, symbol: "005380", name: "현대차", market: "KOREA", capType: "LARGE", price: 245000, changePct: 1.24, tradingValue: 510, volumeStatus: "보통", rvol: 1.9, executionPower: 118, aiScore: 78, aiScoreChange: +3, hasBos: false, hasChoch: true, hasVwapBreak: true, hasNews: false },
-    { id: "s8", rank: 8, symbol: "068270", name: "셀트리온", market: "KOREA", capType: "LARGE", price: 184000, changePct: 0.55, tradingValue: 480, volumeStatus: "증가", rvol: 2.1, executionPower: 122, aiScore: 80, aiScoreChange: +7, hasBos: true, hasChoch: false, hasVwapBreak: false, hasNews: true },
-    { id: "s9", rank: 9, symbol: "086520", name: "에코프로", market: "KOREA", capType: "MID", price: 84800, changePct: -2.75, tradingValue: 890, volumeStatus: "급증", rvol: 4.8, executionPower: 168, aiScore: 91, aiScoreChange: +16, hasBos: true, hasChoch: true, hasVwapBreak: true, hasNews: true },
-    { id: "s10", rank: 10, symbol: "247540", name: "에코프로비엠", market: "KOREA", capType: "MID", price: 185000, changePct: 2.3, tradingValue: 740, volumeStatus: "급증", rvol: 3.9, executionPower: 154, aiScore: 89, aiScoreChange: +12, hasBos: true, hasChoch: true, hasVwapBreak: true, hasNews: false },
-    { id: "s11", rank: 11, symbol: "042700", name: "한미반도체", market: "KOREA", capType: "MID", price: 211500, changePct: -1.63, tradingValue: 1120, volumeStatus: "급증", rvol: 5.6, executionPower: 185, aiScore: 97, aiScoreChange: +24, hasBos: true, hasChoch: true, hasVwapBreak: true, hasNews: true },
-    { id: "s12", rank: 12, symbol: "196170", name: "알테오젠", market: "KOREA", capType: "MID", price: 309000, changePct: 2.66, tradingValue: 1350, volumeStatus: "급증", rvol: 4.9, executionPower: 172, aiScore: 94, aiScoreChange: +20, hasBos: true, hasChoch: true, hasVwapBreak: true, hasNews: true },
-    { id: "s13", rank: 13, symbol: "028300", name: "HLB", market: "KOREA", capType: "MID", price: 78500, changePct: 2.1, tradingValue: 560, volumeStatus: "증가", rvol: 2.9, executionPower: 141, aiScore: 85, aiScoreChange: +10, hasBos: false, hasChoch: true, hasVwapBreak: true, hasNews: false },
-    { id: "s14", rank: 14, symbol: "454910", name: "두산로보틱스", market: "KOREA", capType: "MID", price: 78900, changePct: 10.4, tradingValue: 680, volumeStatus: "급증", rvol: 3.7, executionPower: 159, aiScore: 88, aiScoreChange: +15, hasBos: true, hasChoch: true, hasVwapBreak: true, hasNews: true },
-    { id: "s15", rank: 15, symbol: "003230", name: "삼양식품", market: "KOREA", capType: "MID", price: 612000, changePct: 13.1, tradingValue: 920, volumeStatus: "급증", rvol: 4.5, executionPower: 176, aiScore: 93, aiScoreChange: +19, hasBos: true, hasChoch: true, hasVwapBreak: true, hasNews: true },
-    { id: "s16", rank: 16, symbol: "PLTR", name: "팔란티어 (Palantir)", market: "US", capType: "LARGE", price: 179.92, changePct: -3.47, tradingValue: 1890, volumeStatus: "급증", rvol: 3.6, executionPower: 158, aiScore: 90, aiScoreChange: +13, hasBos: true, hasChoch: true, hasVwapBreak: true, hasNews: true },
-    { id: "s17", rank: 17, symbol: "AAPL", name: "애플 (Apple)", market: "US", capType: "LARGE", price: 325.13, changePct: 2.61, tradingValue: 2100, volumeStatus: "보통", rvol: 1.8, executionPower: 114, aiScore: 76, aiScoreChange: +2, hasBos: false, hasChoch: true, hasVwapBreak: true, hasNews: false },
-    { id: "s18", rank: 18, symbol: "KRW-ETH", name: "이더리움 (Upbit)", market: "BTC", capType: "LARGE", price: 3820000, changePct: 5.8, tradingValue: 840, volumeStatus: "증가", rvol: 2.7, executionPower: 132, aiScore: 83, aiScoreChange: +8, hasBos: true, hasChoch: false, hasVwapBreak: true, hasNews: false },
-    { id: "s19", rank: 20, symbol: "KRW-SOL", name: "솔라나 (Upbit)", market: "BTC", capType: "LARGE", price: 215000, changePct: 11.6, tradingValue: 1150, volumeStatus: "급증", rvol: 4.3, executionPower: 165, aiScore: 92, aiScoreChange: +17, hasBos: true, hasChoch: true, hasVwapBreak: true, hasNews: true },
-    { id: "s20", rank: 21, symbol: "035720", name: "카카오", market: "KOREA", capType: "LARGE", price: 42500, changePct: -1.16, tradingValue: 340, volumeStatus: "보통", rvol: 1.7, executionPower: 112, aiScore: 72, aiScoreChange: +1, hasBos: false, hasChoch: false, hasVwapBreak: false, hasNews: false },
-    { id: "s21", rank: 22, symbol: "080220", name: "제주반도체", market: "KOREA", capType: "SMALL", price: 75700, changePct: -2.2, tradingValue: 420, volumeStatus: "급증", rvol: 5.2, executionPower: 188, aiScore: 94, aiScoreChange: +18, hasBos: true, hasChoch: true, hasVwapBreak: true, hasNews: true },
-    { id: "s22", rank: 23, symbol: "052690", name: "한전기술", market: "KOREA", capType: "SMALL", price: 72400, changePct: 8.9, tradingValue: 310, volumeStatus: "급증", rvol: 3.6, executionPower: 151, aiScore: 87, aiScoreChange: +12, hasBos: true, hasChoch: true, hasVwapBreak: true, hasNews: true },
-    { id: "s23", rank: 24, symbol: "457550", name: "우진엔텍", market: "KOREA", capType: "SMALL", price: 12960, changePct: -2.92, tradingValue: 380, volumeStatus: "급증", rvol: 6.1, executionPower: 195, aiScore: 97, aiScoreChange: +25, hasBos: true, hasChoch: true, hasVwapBreak: true, hasNews: true },
-    { id: "s24", rank: 25, symbol: "036200", name: "유니셈", market: "KOREA", capType: "SMALL", price: 11200, changePct: 11.4, tradingValue: 260, volumeStatus: "급증", rvol: 4.2, executionPower: 164, aiScore: 89, aiScoreChange: +14, hasBos: true, hasChoch: false, hasVwapBreak: true, hasNews: false },
-    { id: "s25", rank: 26, symbol: "440830", name: "엔젤로보틱스", market: "KOREA", capType: "SMALL", price: 58200, changePct: 14.1, tradingValue: 490, volumeStatus: "급증", rvol: 4.8, executionPower: 177, aiScore: 92, aiScoreChange: +17, hasBos: true, hasChoch: true, hasVwapBreak: true, hasNews: true }
+    { id: "s4", rank: 3, symbol: "KRW-BTC", name: "비트코인 (Upbit)", market: "BTC", capType: "LARGE", price: 90200000, changePct: 4.7, tradingValue: 1280, volumeStatus: "증가", rvol: 2.4, executionPower: 124, aiScore: 81, aiScoreChange: +6, hasBos: false, hasChoch: true, hasVwapBreak: true, hasNews: false },
+    { id: "s5", rank: 4, symbol: "035420", name: "NAVER", market: "KOREA", capType: "LARGE", price: 168000, changePct: -0.88, tradingValue: 620, volumeStatus: "증가", rvol: 2.8, executionPower: 131, aiScore: 84, aiScoreChange: +11, hasBos: true, hasChoch: false, hasVwapBreak: true, hasNews: true },
+    { id: "s7", rank: 5, symbol: "005380", name: "현대차", market: "KOREA", capType: "LARGE", price: 245000, changePct: 1.24, tradingValue: 510, volumeStatus: "보통", rvol: 1.9, executionPower: 118, aiScore: 78, aiScoreChange: +3, hasBos: false, hasChoch: true, hasVwapBreak: true, hasNews: false },
+    { id: "s8", rank: 6, symbol: "068270", name: "셀트리온", market: "KOREA", capType: "LARGE", price: 184000, changePct: 0.55, tradingValue: 480, volumeStatus: "증가", rvol: 2.1, executionPower: 122, aiScore: 80, aiScoreChange: +7, hasBos: true, hasChoch: false, hasVwapBreak: false, hasNews: true },
+    { id: "s9", rank: 7, symbol: "086520", name: "에코프로", market: "KOREA", capType: "MID", price: 84800, changePct: -2.75, tradingValue: 890, volumeStatus: "급증", rvol: 4.8, executionPower: 168, aiScore: 91, aiScoreChange: +16, hasBos: true, hasChoch: true, hasVwapBreak: true, hasNews: true },
+    { id: "s10", rank: 8, symbol: "247540", name: "에코프로비엠", market: "KOREA", capType: "MID", price: 185000, changePct: 2.3, tradingValue: 740, volumeStatus: "급증", rvol: 3.9, executionPower: 154, aiScore: 89, aiScoreChange: +12, hasBos: true, hasChoch: true, hasVwapBreak: true, hasNews: false },
+    { id: "s11", rank: 9, symbol: "042700", name: "한미반도체", market: "KOREA", capType: "MID", price: 211500, changePct: -1.63, tradingValue: 1120, volumeStatus: "급증", rvol: 5.6, executionPower: 185, aiScore: 97, aiScoreChange: +24, hasBos: true, hasChoch: true, hasVwapBreak: true, hasNews: true },
+    { id: "s12", rank: 10, symbol: "196170", name: "알테오젠", market: "KOREA", capType: "MID", price: 309000, changePct: 2.66, tradingValue: 1350, volumeStatus: "급증", rvol: 4.9, executionPower: 172, aiScore: 94, aiScoreChange: +20, hasBos: true, hasChoch: true, hasVwapBreak: true, hasNews: true },
+    { id: "s13", rank: 11, symbol: "028300", name: "HLB", market: "KOREA", capType: "MID", price: 78500, changePct: 2.1, tradingValue: 560, volumeStatus: "증가", rvol: 2.9, executionPower: 141, aiScore: 85, aiScoreChange: +10, hasBos: false, hasChoch: true, hasVwapBreak: true, hasNews: false },
+    { id: "s14", rank: 12, symbol: "454910", name: "두산로보틱스", market: "KOREA", capType: "MID", price: 78900, changePct: 10.4, tradingValue: 680, volumeStatus: "급증", rvol: 3.7, executionPower: 159, aiScore: 88, aiScoreChange: +15, hasBos: true, hasChoch: true, hasVwapBreak: true, hasNews: true },
+    { id: "s15", rank: 13, symbol: "003230", name: "삼양식품", market: "KOREA", capType: "MID", price: 612000, changePct: 13.1, tradingValue: 920, volumeStatus: "급증", rvol: 4.5, executionPower: 176, aiScore: 93, aiScoreChange: +19, hasBos: true, hasChoch: true, hasVwapBreak: true, hasNews: true },
+    { id: "s18", rank: 14, symbol: "KRW-ETH", name: "이더리움 (Upbit)", market: "BTC", capType: "LARGE", price: 3820000, changePct: 5.8, tradingValue: 840, volumeStatus: "증가", rvol: 2.7, executionPower: 132, aiScore: 83, aiScoreChange: +8, hasBos: true, hasChoch: false, hasVwapBreak: true, hasNews: false },
+    { id: "s19", rank: 15, symbol: "KRW-SOL", name: "솔라나 (Upbit)", market: "BTC", capType: "LARGE", price: 215000, changePct: 11.6, tradingValue: 1150, volumeStatus: "급증", rvol: 4.3, executionPower: 165, aiScore: 92, aiScoreChange: +17, hasBos: true, hasChoch: true, hasVwapBreak: true, hasNews: true },
+    { id: "s20", rank: 16, symbol: "035720", name: "카카오", market: "KOREA", capType: "LARGE", price: 42500, changePct: -1.16, tradingValue: 340, volumeStatus: "보통", rvol: 1.7, executionPower: 112, aiScore: 72, aiScoreChange: +1, hasBos: false, hasChoch: false, hasVwapBreak: false, hasNews: false },
+    { id: "s21", rank: 17, symbol: "080220", name: "제주반도체", market: "KOREA", capType: "SMALL", price: 75700, changePct: -2.2, tradingValue: 420, volumeStatus: "급증", rvol: 5.2, executionPower: 188, aiScore: 94, aiScoreChange: +18, hasBos: true, hasChoch: true, hasVwapBreak: true, hasNews: true },
+    { id: "s22", rank: 18, symbol: "052690", name: "한전기술", market: "KOREA", capType: "SMALL", price: 72400, changePct: 8.9, tradingValue: 310, volumeStatus: "급증", rvol: 3.6, executionPower: 151, aiScore: 87, aiScoreChange: +12, hasBos: true, hasChoch: true, hasVwapBreak: true, hasNews: true },
+    { id: "s23", rank: 19, symbol: "457550", name: "우진엔텍", market: "KOREA", capType: "SMALL", price: 12960, changePct: -2.92, tradingValue: 380, volumeStatus: "급증", rvol: 6.1, executionPower: 195, aiScore: 97, aiScoreChange: +25, hasBos: true, hasChoch: true, hasVwapBreak: true, hasNews: true },
+    { id: "s24", rank: 20, symbol: "036200", name: "유니셈", market: "KOREA", capType: "SMALL", price: 11200, changePct: 11.4, tradingValue: 260, volumeStatus: "급증", rvol: 4.2, executionPower: 164, aiScore: 89, aiScoreChange: +14, hasBos: true, hasChoch: false, hasVwapBreak: true, hasNews: false },
+    { id: "s25", rank: 21, symbol: "440830", name: "엔젤로보틱스", market: "KOREA", capType: "SMALL", price: 58200, changePct: 14.1, tradingValue: 490, volumeStatus: "급증", rvol: 4.8, executionPower: 177, aiScore: 92, aiScoreChange: +17, hasBos: true, hasChoch: true, hasVwapBreak: true, hasNews: true }
   ];
 
   const [stocks, setStocks] = useState<ScannerStock[]>(INITIAL_UNIVERSE);
@@ -643,7 +639,6 @@ export const RealtimeStockMarketScanner: React.FC = () => {
     { symbol: "058470", name: "리노공업", market: "KOREA", capType: "MID", price: 214000, changePct: 9.3, tradingValue: 480, volumeStatus: "급증", rvol: 3.9, executionPower: 153, aiScore: 89, aiScoreChange: +14, hasBos: true, hasChoch: true, hasVwapBreak: true, hasNews: false },
     { symbol: "267260", name: "HD현대일렉트릭", market: "KOREA", capType: "LARGE", price: 312000, changePct: 15.2, tradingValue: 1420, volumeStatus: "급증", rvol: 5.8, executionPower: 192, aiScore: 98, aiScoreChange: +26, hasBos: true, hasChoch: true, hasVwapBreak: true, hasNews: true },
     { symbol: "277810", name: "레인보우로보틱스", market: "KOREA", capType: "MID", price: 162000, changePct: 12.1, tradingValue: 790, volumeStatus: "급증", rvol: 4.6, executionPower: 169, aiScore: 93, aiScoreChange: +18, hasBos: true, hasChoch: true, hasVwapBreak: true, hasNews: true },
-    { symbol: "COIN", name: "코인베이스 (Coinbase)", market: "US", capType: "LARGE", price: 215.2, changePct: 13.4, tradingValue: 2200, volumeStatus: "급증", rvol: 4.7, executionPower: 174, aiScore: 94, aiScoreChange: +21, hasBos: true, hasChoch: true, hasVwapBreak: true, hasNews: true },
     { symbol: "KRW-XRP", name: "리플 (Upbit)", market: "BTC", capType: "LARGE", price: 820, changePct: 14.8, tradingValue: 1680, volumeStatus: "급증", rvol: 5.2, executionPower: 181, aiScore: 96, aiScoreChange: +23, hasBos: true, hasChoch: true, hasVwapBreak: true, hasNews: true }
   ];
 
@@ -703,52 +698,56 @@ export const RealtimeStockMarketScanner: React.FC = () => {
   }, []);
 
   // Real-Time Live API Fetcher for Key Scanner Stocks from KIS / Naver / Upbit / Yahoo
-  useEffect(() => {
-    let isMounted = true;
-    const fetchLivePrices = async () => {
-      try {
-        const symbolList = INITIAL_UNIVERSE.map(s => s.symbol).join(",");
-        const res = await fetch(`/api/stocks/search?symbols=${encodeURIComponent(symbolList)}`);
-        if (res.ok) {
-          const liveList = await res.json();
-          if (Array.isArray(liveList) && liveList.length > 0 && isMounted) {
-            setStocks((prev) =>
-              prev.map((s) => {
-                const match = liveList.find(
-                  (item: any) => item.symbol?.toUpperCase() === s.symbol?.toUpperCase() || item.name === s.name
-                );
-                if (match && match.price && match.price > 0) {
-                  const newPrice = match.price;
-                  const isUp = newPrice >= s.price;
-                  return {
-                    ...s,
-                    price: newPrice,
-                    changePct: match.changePct ?? match.changePercent ?? s.changePct,
-                    flash: newPrice !== s.price ? (isUp ? "UP" : "DOWN") : s.flash
-                  };
-                }
-                return s;
-              })
-            );
-          }
+  const fetchLivePrices = useCallback(async () => {
+    try {
+      const symbolList = INITIAL_UNIVERSE.map(s => s.symbol).join(",");
+      const res = await fetch(`/api/stocks/search?symbols=${encodeURIComponent(symbolList)}`);
+      if (res.ok) {
+        const liveList = await res.json();
+        if (Array.isArray(liveList) && liveList.length > 0) {
+          setStocks((prev) =>
+            prev.map((s) => {
+              const match = liveList.find(
+                (item: any) => item.symbol?.toUpperCase() === s.symbol?.toUpperCase() || item.name === s.name
+              );
+              if (match && match.price && match.price > 0) {
+                const newPrice = match.price;
+                const isUp = newPrice >= s.price;
+                return {
+                  ...s,
+                  price: newPrice,
+                  changePct: match.changePct ?? match.changePercent ?? s.changePct,
+                  flash: newPrice !== s.price ? (isUp ? "UP" : "DOWN") : s.flash
+                };
+              }
+              return s;
+            })
+          );
         }
-      } catch (err) {
-        // Ignore transient fetch errors
       }
-    };
+    } catch (err) {
+      // Ignore transient fetch errors
+    }
+  }, []);
 
+  useEffect(() => {
     fetchLivePrices();
     const interval = setInterval(fetchLivePrices, 3000);
     return () => {
-      isMounted = false;
       clearInterval(interval);
     };
-  }, []);
+  }, [fetchLivePrices]);
 
   // Clear flash state after 600ms
   useEffect(() => {
+    const hasFlash = stocks.some((s) => s.flash !== null && s.flash !== undefined);
+    if (!hasFlash) return;
+
     const clearTimer = setTimeout(() => {
-      setStocks((prev) => prev.map((s) => (s.flash ? { ...s, flash: null } : s)));
+      setStocks((prev) => {
+        if (!prev.some((s) => s.flash)) return prev;
+        return prev.map((s) => (s.flash ? { ...s, flash: null } : s));
+      });
     }, 600);
     return () => clearTimeout(clearTimer);
   }, [stocks]);
@@ -843,7 +842,7 @@ export const RealtimeStockMarketScanner: React.FC = () => {
       const ma5Slice = prices.slice(Math.max(0, prices.length - 5));
       const ma5 = Math.round(ma5Slice.reduce((a, b) => a + b, 0) / ma5Slice.length);
       const vwap = Math.round(baseP + (p - baseP) * 0.68);
-      const vol = Math.floor(12000 + Math.random() * 28000);
+      const vol = Math.floor((baseP > 100000 ? 5000 : 25000) * (1 + Math.sin(i * 0.5) * 0.3));
 
       points.push({ time: timeStr, price: p, ma5, vwap, volume: vol });
     }
@@ -1050,17 +1049,7 @@ export const RealtimeStockMarketScanner: React.FC = () => {
 
           {/* Dynamic Rescan Button */}
           <button
-            onClick={() => {
-              setStocks((prev) =>
-                prev.map((s) => ({
-                  ...s,
-                  price: Math.round((s.price * (1 + (Math.random() - 0.4) * 0.02)) * 100) / 100,
-                  changePct: Math.round((s.changePct + (Math.random() - 0.4) * 0.8) * 10) / 10,
-                  executionPower: Math.min(250, Math.max(90, s.executionPower + Math.floor((Math.random() - 0.3) * 6))),
-                  flash: "UP"
-                }))
-              );
-            }}
+            onClick={() => fetchLivePrices()}
             className="px-3 py-1.5 bg-zinc-900 hover:bg-zinc-800 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-xs cursor-pointer"
             title="KOSPI/KOSDAQ/해외/업비트 전종목 시세 재동기화"
           >

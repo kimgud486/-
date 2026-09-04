@@ -23,6 +23,7 @@ import {
   DollarSign
 } from "lucide-react";
 import { useApp } from "../../context/AppContext";
+import { getAllStocks } from "../../data/stockUniverse";
 
 interface BallParticle {
   id: number;
@@ -163,19 +164,26 @@ export const MirofishQuantLightDashboard: React.FC = () => {
         ctx.fill();
       });
 
-      // Spawn new ball periodically
+      // Spawn new ball periodically based on real market advance/decline ratio
       spawnTimer++;
       if (spawnTimer > 18 && balls.length < 25) {
         spawnTimer = 0;
         ballIdCounter++;
-        // Slight bias to the right (profit side: 73% green)
-        const isGreen = Math.random() < 0.738;
+        const universe = getAllStocks();
+        const positiveCount = universe.filter(s => (s.changeRate || 0) >= 0).length;
+        const krxBullRatio = universe.length > 0 ? positiveCount / universe.length : 0.65;
+        // Deterministic sequence based on counter
+        const pseudoMod = ((ballIdCounter * 37) % 100) / 100;
+        const isGreen = pseudoMod < krxBullRatio;
+        const offset = ((ballIdCounter * 17) % 12) - 6;
+        const vxVal = ((((ballIdCounter * 23) % 20) / 20) - 0.42) * 1.5;
+        const vyVal = 1.2 + (((ballIdCounter * 13) % 10) / 10) * 0.8;
         balls.push({
           id: ballIdCounter,
-          x: width / 2 + (Math.random() * 12 - 6),
+          x: width / 2 + offset,
           y: 10,
-          vx: (Math.random() - 0.42) * 1.5,
-          vy: 1.2 + Math.random() * 0.8,
+          vx: vxVal,
+          vy: vyVal,
           color: isGreen ? "#2563eb" : "#e11d48",
           value: isGreen ? 1 : -1,
           landed: false
@@ -284,20 +292,25 @@ export const MirofishQuantLightDashboard: React.FC = () => {
       { id: "MIRO_TARGET", label: "상승 타겟 (MIRO ▲)", x: width * 0.82, y: height * 0.35, type: "TARGET", radius: 20, vx: -0.1, vy: -0.05 }
     ];
 
-    // Generate random ambient nodes
-    for (let i = 0; i < 38; i++) {
-      const isBull = Math.random() > 0.3;
+    // Generate real stock universe cluster nodes
+    const stockUniverse = getAllStocks().slice(0, 36);
+    stockUniverse.forEach((stock, i) => {
+      const isBull = (stock.changeRate || 0) >= 0;
+      const angle = (i / stockUniverse.length) * Math.PI * 2;
+      const dist = 50 + (i % 4) * 35;
+      const posX = Math.max(30, Math.min(width - 40, width / 2 + Math.cos(angle) * dist));
+      const posY = Math.max(30, Math.min(height - 40, height / 2 + Math.sin(angle) * (dist * 0.65)));
       nodes.push({
-        id: `node_${i}`,
-        label: `N-${i}`,
-        x: 30 + Math.random() * (width - 60),
-        y: 20 + Math.random() * (height - 40),
+        id: stock.symbol,
+        label: stock.name.length > 4 ? stock.name.slice(0, 4) : stock.name,
+        x: posX,
+        y: posY,
         type: isBull ? "BULL" : "BEAR",
-        radius: 3 + Math.random() * 4,
-        vx: (Math.random() - 0.5) * 0.4,
-        vy: (Math.random() - 0.5) * 0.4
+        radius: 4 + (Math.abs(stock.changeRate || 1) % 3),
+        vx: ((i % 5) - 2) * 0.08,
+        vy: (((i * 3) % 5) - 2) * 0.08
       });
-    }
+    });
 
     // Links between nodes
     const links: GraphLink[] = [
@@ -307,12 +320,12 @@ export const MirofishQuantLightDashboard: React.FC = () => {
     ];
 
     for (let i = 4; i < nodes.length; i++) {
-      const targetIdx = Math.floor(Math.random() * 4);
+      const targetIdx = (i * 3) % 4;
       links.push({
         source: nodes[i].id,
         target: nodes[targetIdx].id,
         weight: 1,
-        active: Math.random() > 0.4
+        active: (i % 2) === 0
       });
     }
 

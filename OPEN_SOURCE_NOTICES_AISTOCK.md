@@ -1,37 +1,32 @@
-# Open Source Notices - AISTOCK v12
+# OPEN SOURCE NOTICES & LICENSES - AISTOCK
 
-This project utilizes ideas, architectural patterns, and algorithmic structures from open-source trading and screener projects under permissive licenses (MIT License).
-
-## Referenced Projects & Acknowledgments
-
-### 1. stock-screener-kr
-- **License**: MIT License
-- **Description**: Korean stock market (KOSPI/KOSDAQ) screener logic for volume breakout, 52-week high detection, and pullback identification.
-- **Used for**: Screening algorithms and indicators adapted in `GlobalStockDiscoveryScannerV12.ts`.
-
-### 2. Qullamaggie / EP / Momentum Screener Ideas
-- **License**: MIT License
-- **Description**: High-momentum stocks screening, Relative Strength (RS), High Tight Flag (HTF), Episodic Pivot (EP), and Volume Contraction Pattern (VCP) filters for US (NYSE/NASDAQ) markets.
-- **Used for**: Multi-market Discovery Scanner scoring rules in `GlobalStockDiscoveryScannerV12.ts`.
+This project utilizes the following open-source libraries and architectural specifications:
 
 ---
 
-## MIT License Summary
+## 1. Lightweight Charts (TradingView)
+- **Author**: TradingView, Inc.
+- **License**: Apache License 2.0
+- **Repository**: https://github.com/tradingview/lightweight-charts
+- **Usage in AISTOCK**: Real-time interactive financial candlestick and prediction overlay charts (`src/components/trading/RealTimeTradingViewChart.tsx`).
+- **License Summary**: Licensed under the Apache License, Version 2.0. You may obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+---
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+## 2. TA-Lib Principles & Mathematical Implementations
+- **Concept / Architecture**: Technical Analysis Library (TA-Lib) standard algorithms
+- **Usage in AISTOCK**: Pure TypeScript implementations of EMA, VWAP, RSI, MACD, ATR, Bollinger Bands, and Stochastic indicators (`src/realtime/IndicatorEngine.ts`).
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+---
+
+## 3. Lucide React
+- **Author**: Lucide Contributors
+- **License**: ISC License
+- **Repository**: https://github.com/lucide-icons/lucide
+- **Usage in AISTOCK**: UI icons and telemetry status indicators.
+
+---
+
+## 4. Recharts & D3
+- **License**: MIT License / ISC License
+- **Usage in AISTOCK**: Multi-dimensional quant distributions and supplementary analytics canvases.
