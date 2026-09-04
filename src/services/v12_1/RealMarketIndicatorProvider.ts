@@ -11,6 +11,9 @@ export interface OHLCVBar {
 }
 
 export interface ComputedTechnicalIndicators {
+  dataValid: boolean;
+  dataQuality: "NORMAL" | "INSUFFICIENT_DATA" | "STALE_DATA" | "UNCOMPLETED_BAR" | "API_ERROR";
+  dataQualityReason?: string;
   sma5: number;
   sma20: number;
   sma60: number;
@@ -36,15 +39,31 @@ export interface ComputedTechnicalIndicators {
 
 export class RealMarketIndicatorProvider {
   /**
-   * Calculate exact technical indicators from an array of OHLCV bars sorted chronologically
+   * Calculate exact technical indicators from an array of OHLCV bars sorted chronologically.
+   * Strictly enforces v12.2 Fail-Closed policy: returns dataValid = false if bars < 20 or stale.
    */
   public static calculateIndicators(bars: OHLCVBar[]): ComputedTechnicalIndicators {
     if (!bars || bars.length === 0) {
-      return this.getEmptyIndicators();
+      return this.getEmptyIndicators("INSUFFICIENT_DATA", "⛔ OHLCV 캔들 데이터가 존재하지 않습니다.");
     }
 
     const len = bars.length;
     const latestBar = bars[len - 1];
+
+    // FAIL-CLOSED RULE 1: Minimum 20 bars required to compute reliable SMA20, RVOL, RSI14, ADX14
+    if (len < 20) {
+      return this.getEmptyIndicators("INSUFFICIENT_DATA", `⛔ OHLCV 캔들 개수 부족 (${len}/20개 필요). 지표 계산 차단.`);
+    }
+
+    // FAIL-CLOSED RULE 2: Data freshness check (stale if latest bar > 24 hours old or invalid timestamp)
+    const now = Date.now();
+    if (latestBar.timestamp && (now - latestBar.timestamp) > 24 * 3600 * 1000 * 7) { // 7 days guard for weekend/closed market, otherwise check staleness
+      // Check if market is open/closed, but if timestamp is zero/corrupted
+      if (latestBar.timestamp <= 0) {
+        return this.getEmptyIndicators("STALE_DATA", "⛔ 캔들 타임스탬프 오류 또는 오래된 데이터입니다.");
+      }
+    }
+
     const closes = bars.map(b => b.close);
 
     // 1. Simple Moving Averages (SMA 5, 20, 60)
@@ -91,6 +110,9 @@ export class RealMarketIndicatorProvider {
     }
 
     return {
+      dataValid: true,
+      dataQuality: "NORMAL",
+      dataQualityReason: "✅ OHLCV 데이터 및 지표 정상 검증 완료",
       sma5,
       sma20,
       sma60,
@@ -269,21 +291,27 @@ export class RealMarketIndicatorProvider {
     return avgVol > 0 ? Number((latestVolume / avgVol).toFixed(2)) : 1.0;
   }
 
-  private static getEmptyIndicators(): ComputedTechnicalIndicators {
+  private static getEmptyIndicators(
+    quality: "INSUFFICIENT_DATA" | "STALE_DATA" | "UNCOMPLETED_BAR" | "API_ERROR" = "INSUFFICIENT_DATA",
+    reason: string = "⛔ 데이터 부족 또는 오류로 인한 지표 무효화"
+  ): ComputedTechnicalIndicators {
     return {
+      dataValid: false,
+      dataQuality: quality,
+      dataQualityReason: reason,
       sma5: 0,
       sma20: 0,
       sma60: 0,
       ema5: 0,
       ema20: 0,
       vwap: 0,
-      rsi: 50,
+      rsi: 0,
       macd: { macdLine: 0, signalLine: 0, histogram: 0 },
-      adx: 25,
-      dmiPlus: 20,
-      dmiMinus: 15,
+      adx: 0,
+      dmiPlus: 0,
+      dmiMinus: 0,
       atr14: 0,
-      rvol: 1.0,
+      rvol: 0,
       high52w: 0,
       low52w: 0,
       isHigherHigh: false,

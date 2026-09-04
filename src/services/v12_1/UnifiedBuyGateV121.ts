@@ -15,6 +15,9 @@ export interface CandidateBuySignalV121 {
   confirmationScore: number;
   direction: "BULLISH" | "BEARISH" | "NEUTRAL";
   aiReason: string;
+  dataValid?: boolean;
+  dataQuality?: "NORMAL" | "INSUFFICIENT_DATA" | "STALE_DATA" | "UNCOMPLETED_BAR" | "API_ERROR";
+  dataQualityReason?: string;
 }
 
 export interface BuyGateEvaluationResult {
@@ -56,6 +59,17 @@ export class UnifiedBuyGateV121 {
         riskCheckPassed: false,
         stateCheckPassed: false,
         rejectReason: `⛔ [단일 관문 차단] 현재 파이프라인이 IDLE 상태가 아닙니다 (${smStatus.currentState}). 이중 주문 방지.`
+      };
+    }
+
+    // 1.5 FAIL-CLOSED DATA QUALITY CHECK (v12.2 Mandate)
+    if (signal.dataValid === false) {
+      return {
+        passed: false,
+        scoreCheckPassed: false,
+        riskCheckPassed: false,
+        stateCheckPassed: true,
+        rejectReason: `⛔ [데이터 품질 미달 (Fail-Closed)] ${signal.dataQualityReason || "OHLCV 캔들 부족 또는 지연된 데이터로 매매가 차단되었습니다."}`
       };
     }
 

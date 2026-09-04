@@ -70,13 +70,20 @@ export class UnifiedTradingPipelinePatchV121 {
   public getStatus(): PipelinePatchStatusV121 {
     const smStatus = this.stateMachine.getStatus();
     return {
-      version: "v12.1",
+      version: "v12.2",
       mode: this.mode,
       liveTradingEnabled: this.liveTradingEnabled,
       activePosition: smStatus.activePosition,
       logs: [...this.logs],
       totalExecutions: this.totalExecutions
     };
+  }
+
+  public async reconcilePositionWithServer(): Promise<any> {
+    const smStatus = this.stateMachine.getStatus();
+    const res = await this.brokerClient.reconcilePosition(smStatus.activePosition);
+    this.addLog("RECONCILE", "🔄 [v12.2 브로커 대조] 서버 잔고 정합성 상태", res.message);
+    return res;
   }
 
   /**
@@ -115,8 +122,13 @@ export class UnifiedTradingPipelinePatchV121 {
     const latestBar = bars[bars.length - 1];
     this.stateMachine.updatePositionPrice(latestBar.close);
 
-    // Calculate real indicators from OHLCV bar series
+    // Calculate real indicators from OHLCV bar series with v12.2 fail-closed validation
     const indicators = RealMarketIndicatorProvider.calculateIndicators(bars);
+
+    if (!indicators.dataValid) {
+      this.addLog("WARN", "⚠️ [Fail-Closed] OHLCV 지표 데이터 무효화", indicators.dataQualityReason || "데이터 부족/지연");
+      return null;
+    }
 
     const completedBar: CompletedMarketBar = {
       timestamp: latestBar.timestamp,
