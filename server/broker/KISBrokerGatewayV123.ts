@@ -146,7 +146,7 @@ export class KISBrokerGatewayV123 {
         status: "REJECTED",
         filledQty: 0,
         filledAvgPrice: 0,
-        message: "⛔ [KIS 게이트웨이 차단] BTC/암호화폐는 KIS 주문 경로를 지원하지 않습니다. Upbit 전용 브로커 경로를 사용하세요.",
+        message: "⛔ [BTC_NOT_SUPPORTED_BY_KIS_GATEWAY] BTC/암호화폐는 KIS 주문 경로를 지원하지 않습니다. Upbit 전용 브로커 경로를 사용하세요.",
         trId: "NONE",
         timestamp
       };
@@ -273,7 +273,7 @@ export class KISBrokerGatewayV123 {
           status: "REJECTED",
           filledQty: 0,
           filledAvgPrice: 0,
-          message: `❌ [KIS 거절] ${data.msg1 || "ODNO 주문번호가 발급되지 않았습니다."}`,
+          message: `❌ [KIS_RESPONSE_MISSING_ODNO] ${data.msg1 || "ODNO 주문번호가 발급되지 않았습니다."}`,
           trId,
           timestamp
         };
@@ -311,7 +311,7 @@ export class KISBrokerGatewayV123 {
         filledQty: 0,
         filledAvgPrice: 0,
         status: "CANCELLED",
-        message: "⛔ [KIS 체결 조회 차단] BTC/암호화폐는 KIS 조회 대상이 아닙니다."
+        message: "⛔ [BTC_NOT_SUPPORTED_BY_KIS_GATEWAY] BTC/암호화폐는 KIS 조회 대상이 아닙니다."
       };
     }
 

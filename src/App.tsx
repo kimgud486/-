@@ -12,11 +12,13 @@ import { MultiModelSecuritiesConsensusModal } from "./components/MultiModelSecur
 import { MasterAiAutoTradingDashboard } from "./components/trading/MasterAiAutoTradingDashboard";
 import { AiBotCommandCenterUi } from "./components/AiBotCommandCenterUi";
 import { ErrorBoundary } from "./components/ErrorBoundary";
+import { AppLockAuthModal } from "./components/AppLockAuthModal";
 
 function MainLayout() {
   const [isConsensusModalOpen, setIsConsensusModalOpen] = useState<boolean>(false);
   const [consensusSelectedSymbol, setConsensusSelectedSymbol] = useState<string>("005930");
   const [viewMode, setViewMode] = useState<"MASTER_IMAGE_EXACT" | "ADVANCED_CLUSTER">("MASTER_IMAGE_EXACT");
+  const [isUnlocked, setIsUnlocked] = useState<boolean>(false);
 
   useEffect(() => {
     // Ensure document and body allow natural vertical scrolling
@@ -39,10 +41,13 @@ function MainLayout() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-white text-slate-800 flex flex-col font-sans">
+    <div className="min-h-screen bg-white text-slate-800 flex flex-col font-sans relative">
+      {/* Server Access Security Lock Gate */}
+      <AppLockAuthModal onUnlocked={() => setIsUnlocked(true)} />
+
       <RealtimeMarketStreamManager />
       
-      {/* MASTER AI AUTO TRADING DASHBOARD (EXACT MATCH TO UPLOADED IMAGE) */}
+      {/* MASTER AI AUTO TRADING DASHBOARD */}
       <ErrorBoundary>
         {viewMode === "MASTER_IMAGE_EXACT" ? (
           <MasterAiAutoTradingDashboard

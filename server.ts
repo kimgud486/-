@@ -1169,10 +1169,11 @@ app.post("/api/broker/v12/reconcile", async (req, res) => {
 
     if (!balanceRes.success) {
       return res.json({
-        matched: true,
+        matched: false,
+        autoTradingLocked: true,
         reconciledPosition: activePosition,
         brokerConfigured: true,
-        message: `⚠️ [v12.4 브로커 계좌 조회 대기] ${balanceRes.message}`,
+        message: `🚨 [Fail-Closed LOCK] KIS 계좌 잔고 조회 실패로 인해 자동매매가 일시 잠금(LOCK) 처리되었습니다: ${balanceRes.message}`,
         timestamp: new Date().toLocaleTimeString("ko-KR")
       });
     }

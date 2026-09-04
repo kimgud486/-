@@ -48,6 +48,7 @@ import { JarvisPositionAiPanel } from "./JarvisPositionAiPanel";
 // Existing sub-system modals to guarantee 100% preservation of every single capability
 import { StockSearchAndAddModal } from "./StockSearchAndAddModal";
 import { SmartSafetyGovernanceModal } from "./SmartSafetyGovernanceModal";
+import { ManualEntryGateModal } from "./ManualEntryGateModal";
 import { ProfitabilityHealthCheckModal } from "./ProfitabilityHealthCheckModal";
 import { MultiModelSecuritiesConsensusModal } from "../MultiModelSecuritiesConsensusModal";
 import { BotConfigModal } from "./BotConfigModal";
@@ -155,6 +156,7 @@ export const MasterAiAutoTradingDashboard: React.FC<{
   const [isFractionalModalOpen, setIsFractionalModalOpen] = useState(false);
   const [isIndicatorsDropdownOpen, setIsIndicatorsDropdownOpen] = useState(false);
   const [isStrategyFileReaderOpen, setIsStrategyFileReaderOpen] = useState(false);
+  const [isManualGateOpen, setIsManualGateOpen] = useState(false);
   const [customUploadedCandles, setCustomUploadedCandles] = useState<any[] | null>(null);
 
   // Clicked Prediction Point on Candlestick Chart
@@ -905,6 +907,16 @@ export const MasterAiAutoTradingDashboard: React.FC<{
           >
             <Activity className="w-3.5 h-3.5 text-indigo-500" />
             <span>AI 컨센서스</span>
+          </button>
+
+          {/* Manual Entry Gate (Scanner Omission Inspection Engine) */}
+          <button
+            onClick={() => setIsManualGateOpen(true)}
+            className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white border border-blue-400/40 text-xs font-bold transition shadow-sm cursor-pointer"
+            title="스캐너 밖 종목 직접 입력 및 AI BUY 정밀 검증 (Manual Entry Gate)"
+          >
+            <Radar className="w-3.5 h-3.5 text-amber-300 animate-pulse" />
+            <span>스캐너 밖 직접검증</span>
           </button>
 
           {/* Bell Notifications */}
@@ -3153,6 +3165,19 @@ export const MasterAiAutoTradingDashboard: React.FC<{
           formatPrice={formatPrice}
         />
       )}
+
+      {/* Manual Entry Gate Modal (Scanner Omission Inspector) */}
+      <ManualEntryGateModal
+        isOpen={isManualGateOpen}
+        onClose={() => setIsManualGateOpen(false)}
+        initialSymbol={selectedSymbol}
+        initialName={currentStock?.name || selectedSymbol}
+        initialMarket={currentStock?.market === "US" ? "US" : currentStock?.market === "UPBIT" ? "BTC" : "KOREA"}
+        initialPrice={currentStock?.price || 75000}
+        onExecuteOrderSuccess={(orderId) => {
+          addToast?.(`✅ [v12.4 Manual Gate] 미포착 종목 주문 수신 완료 (ODNO: ${orderId})`, "success");
+        }}
+      />
 
       {/* 30-DAY AI FUTURE FORECAST FULL OVERLAY MODAL */}
       {showFullForecastChartModal && (
