@@ -529,4 +529,182 @@ export class KISBrokerGatewayV123 {
       };
     }
   }
+
+  /**
+   * KIS Real Account Balance & Holdings Query (Domestic TTTC8434R / Overseas TTTS3012R)
+   */
+  public async getAccountBalance(market: "KOREA" | "US" = "KOREA", isPaper: boolean = false): Promise<{
+    success: boolean;
+    depositKRW: number;
+    totalEvalAmt: number;
+    holdings: Array<{ symbol: string; name: string; qty: number; avgPrice: number; currentPrice: number; pnlPct: number; evalAmt: number }>;
+    message: string;
+  }> {
+    if (!this.isConfigured()) {
+      return {
+        success: false,
+        depositKRW: 0,
+        totalEvalAmt: 0,
+        holdings: [],
+        message: "❌ KIS_APPKEY / KIS_APPSECRET / KIS_CANO 환경변수가 미설정되었습니다."
+      };
+    }
+
+    const token = await this.getOAuthToken(isPaper);
+    if (!token && !isPaper) {
+      return {
+        success: false,
+        depositKRW: 0,
+        totalEvalAmt: 0,
+        holdings: [],
+        message: "⛔ [Fail-Closed 차단] KIS OAuth2 토큰 발급 실패로 계좌 잔고 조회가 보류되었습니다."
+      };
+    }
+
+    const domain = isPaper
+      ? "https://openapivts.koreainvestment.com:29443"
+      : "https://openapi.koreainvestment.com:29443";
+
+    if (market === "KOREA") {
+      const trId = isPaper ? "VTTC8434R" : "TTTC8434R";
+      const queryParams = new URLSearchParams({
+        CANO: this.accountNo,
+        ACNT_PRDT_CD: this.productCode,
+        AFHR_FLG: "N",
+        OFL_YN: "N",
+        INQR_DVSN: "02",
+        UNPR_DVSN: "01",
+        FUND_STTL_ICLD_YN: "N",
+        FNCG_AMT_AUTO_RDPT_YN: "N",
+        PRCS_DVSN: "01",
+        CTX_AREA_FK100: "",
+        CTX_AREA_NK100: ""
+      });
+
+      try {
+        const res = await fetch(`${domain}/uapi/domestic-stock/v1/trading/inquire-balance?${queryParams.toString()}`, {
+          method: "GET",
+          headers: {
+            "content-type": "application/json",
+            "authorization": `Bearer ${token}`,
+            "appkey": this.appKey,
+            "appsecret": this.appSecret,
+            "tr_id": trId,
+            "custtype": "P"
+          }
+        });
+
+        if (!res.ok) {
+          return {
+            success: false,
+            depositKRW: 0,
+            totalEvalAmt: 0,
+            holdings: [],
+            message: `⚠️ KIS 국내 계좌 잔고 조회 HTTP ${res.status}`
+          };
+        }
+
+        const data = await res.json();
+        const output1 = data.output1 || [];
+        const output2 = (data.output2 || [])[0] || {};
+
+        const depositKRW = Number(output2.dnca_tot_amt || output2.prvs_rcdl_exn_amt || 0);
+        const totalEvalAmt = Number(output2.tot_evlu_amt || 0);
+
+        const holdings = output1.map((item: any) => ({
+          symbol: String(item.pdno || item.PDNO || "").trim(),
+          name: String(item.prdt_name || item.PRDT_NAME || "").trim(),
+          qty: Number(item.hldg_qty || item.HLDG_QTY || 0),
+          avgPrice: Number(item.pchs_avg_pric || item.PCHS_AVG_PRIC || 0),
+          currentPrice: Number(item.prpr || item.PRPR || 0),
+          pnlPct: Number(item.evlu_pfls_rt || item.EVLU_PFLS_RT || 0),
+          evalAmt: Number(item.evlu_amt || item.EVLU_AMT || 0)
+        })).filter((h: any) => h.qty > 0);
+
+        return {
+          success: true,
+          depositKRW,
+          totalEvalAmt,
+          holdings,
+          message: `✅ [KIS 국내 계좌 대조 성공] 보유종목: ${holdings.length}개 | 예수금: ${depositKRW.toLocaleString()}원`
+        };
+      } catch (err: any) {
+        return {
+          success: false,
+          depositKRW: 0,
+          totalEvalAmt: 0,
+          holdings: [],
+          message: `🚨 [계좌 조회 오류] ${err?.message || err}`
+        };
+      }
+    } else {
+      // Overseas US balance
+      const trId = isPaper ? "VTTS3012R" : "TTTS3012R";
+      const queryParams = new URLSearchParams({
+        CANO: this.accountNo,
+        ACNT_PRDT_CD: this.productCode,
+        OVRS_EXCG_CD: "NASD",
+        TR_CRCY_CD: "USD",
+        CTX_AREA_FK200: "",
+        CTX_AREA_NK200: ""
+      });
+
+      try {
+        const res = await fetch(`${domain}/uapi/overseas-stock/v1/trading/inquire-balance?${queryParams.toString()}`, {
+          method: "GET",
+          headers: {
+            "content-type": "application/json",
+            "authorization": `Bearer ${token}`,
+            "appkey": this.appKey,
+            "appsecret": this.appSecret,
+            "tr_id": trId,
+            "custtype": "P"
+          }
+        });
+
+        if (!res.ok) {
+          return {
+            success: false,
+            depositKRW: 0,
+            totalEvalAmt: 0,
+            holdings: [],
+            message: `⚠️ KIS 미국 계좌 잔고 조회 HTTP ${res.status}`
+          };
+        }
+
+        const data = await res.json();
+        const output1 = data.output1 || [];
+        const output2 = (data.output2 || [])[0] || {};
+
+        const depositKRW = Number(output2.frcr_pchs_amt1 || 0);
+        const totalEvalAmt = Number(output2.tot_evlu_pfls_amt || 0);
+
+        const holdings = output1.map((item: any) => ({
+          symbol: String(item.ovrs_pdno || item.OVRS_PDNO || item.pdno || "").trim(),
+          name: String(item.ovrs_item_name || item.item_name || "").trim(),
+          qty: Number(item.ovrs_ccls_qty || item.ccls_qty || 0),
+          avgPrice: Number(item.pchs_avg_pric || 0),
+          currentPrice: Number(item.now_pric2 || 0),
+          pnlPct: Number(item.evlu_pfls_rt || 0),
+          evalAmt: Number(item.ovrs_stck_evlu_amt || 0)
+        })).filter((h: any) => h.qty > 0);
+
+        return {
+          success: true,
+          depositKRW,
+          totalEvalAmt,
+          holdings,
+          message: `✅ [KIS 미국 계좌 대조 성공] 보유종목: ${holdings.length}개`
+        };
+      } catch (err: any) {
+        return {
+          success: false,
+          depositKRW: 0,
+          totalEvalAmt: 0,
+          holdings: [],
+          message: `🚨 [미국 계좌 조회 오류] ${err?.message || err}`
+        };
+      }
+    }
+  }
 }

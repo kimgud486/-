@@ -1147,28 +1147,95 @@ app.get("/api/broker/v12/fill-status", async (req, res) => {
   }
 });
 
-// 3. Position Reconciliation & Account Balance Verification Endpoint
+// 3. Position Reconciliation & Real KIS Account Balance Verification Endpoint
 app.post("/api/broker/v12/reconcile", async (req, res) => {
   try {
     const { activePosition, mode } = req.body;
     const isConfigured = kisBrokerGateway.isConfigured();
+    const isPaper = mode === "PAPER";
 
-    if (!activePosition) {
+    if (!isConfigured) {
       return res.json({
         matched: true,
-        reconciledPosition: null,
-        brokerConfigured: isConfigured,
-        message: "✅ [포지션 대조 완료] 현재 보유 포지션이 없어 IDLE 상태 정합성 검증 완료",
+        reconciledPosition: activePosition,
+        brokerConfigured: false,
+        message: "ℹ️ [v12.4 브로커 미설정] KIS 키가 설정되지 않아 모의 내부 정합성 모드로 가동 중입니다.",
         timestamp: new Date().toLocaleTimeString("ko-KR")
       });
     }
 
-    // Server-side verification & reconciliation
+    const market = activePosition?.market === "US" ? "US" : "KOREA";
+    const balanceRes = await kisBrokerGateway.getAccountBalance(market, isPaper);
+
+    if (!balanceRes.success) {
+      return res.json({
+        matched: true,
+        reconciledPosition: activePosition,
+        brokerConfigured: true,
+        message: `⚠️ [v12.4 브로커 계좌 조회 대기] ${balanceRes.message}`,
+        timestamp: new Date().toLocaleTimeString("ko-KR")
+      });
+    }
+
+    if (!activePosition) {
+      // Internal state is IDLE. Check if KIS account has ghost holdings.
+      if (balanceRes.holdings.length > 0) {
+        const topHolding = balanceRes.holdings[0];
+        return res.json({
+          matched: false,
+          reconciledPosition: {
+            symbol: topHolding.symbol,
+            name: topHolding.name,
+            market,
+            buyPrice: topHolding.avgPrice,
+            currentPrice: topHolding.currentPrice,
+            qty: topHolding.qty,
+            buyTimestamp: Date.now(),
+            unrealizedPnLAmt: topHolding.evalAmt - (topHolding.avgPrice * topHolding.qty),
+            unrealizedPnLPct: topHolding.pnlPct,
+            highPriceSinceBuy: topHolding.currentPrice,
+            trailingExitPrice: Math.round(topHolding.avgPrice * 0.985)
+          },
+          brokerConfigured: true,
+          message: `🔄 [v12.4 브로커 동기화] KIS 실제 계좌 잔고[${topHolding.name} ${topHolding.qty}주]를 발견하여 AISTOCK 포지션으로 동기화했습니다.`,
+          timestamp: new Date().toLocaleTimeString("ko-KR")
+        });
+      }
+
+      return res.json({
+        matched: true,
+        reconciledPosition: null,
+        brokerConfigured: true,
+        message: "✅ [v12.4 계좌 대조 완료] KIS 실제 계좌 및 AISTOCK 모두 잔고 없는 IDLE 상태 확인",
+        timestamp: new Date().toLocaleTimeString("ko-KR")
+      });
+    }
+
+    // Active position exists internally. Check if holding exists in KIS account.
+    const matchingHolding = balanceRes.holdings.find(h => h.symbol === activePosition.symbol);
+
+    if (!matchingHolding || matchingHolding.qty === 0) {
+      // Position sold or cleared in KIS account -> Clear internal ghost position!
+      return res.json({
+        matched: false,
+        reconciledPosition: null,
+        brokerConfigured: true,
+        message: `🚨 [v12.4 고스트 포지션 감지] KIS 계좌에 [${activePosition.name}(${activePosition.symbol})] 잔고가 없습니다. 내부 포지션을 IDLE로 정리했습니다.`,
+        timestamp: new Date().toLocaleTimeString("ko-KR")
+      });
+    }
+
+    // Matching holding confirmed
     return res.json({
       matched: true,
-      reconciledPosition: activePosition,
-      brokerConfigured: isConfigured,
-      message: `✅ [v12.2 브로커 대조 완료] [${activePosition.name}(${activePosition.symbol})] ${activePosition.qty}주 잔고 및 AISTOCK 포지션 일치 확인`,
+      reconciledPosition: {
+        ...activePosition,
+        qty: matchingHolding.qty,
+        buyPrice: matchingHolding.avgPrice || activePosition.buyPrice,
+        currentPrice: matchingHolding.currentPrice || activePosition.currentPrice
+      },
+      brokerConfigured: true,
+      message: `✅ [v12.4 계좌 대조 완료] [${activePosition.name}(${activePosition.symbol})] KIS 실제 잔고 ${matchingHolding.qty}주 일치 확인`,
       timestamp: new Date().toLocaleTimeString("ko-KR")
     });
   } catch (err: any) {
@@ -1176,6 +1243,25 @@ app.post("/api/broker/v12/reconcile", async (req, res) => {
       matched: false,
       reconciledPosition: req.body?.activePosition || null,
       message: `🚨 [대조 서버 오류] ${err?.message || err}`
+    });
+  }
+});
+
+// 4. KIS Account Balance & Holdings Query Endpoint
+app.get("/api/broker/v12/account-balance", async (req, res) => {
+  try {
+    const market = (req.query.market as string || "KOREA").trim() as "KOREA" | "US";
+    const isPaper = req.query.isPaper === "true";
+
+    const balanceRes = await kisBrokerGateway.getAccountBalance(market, isPaper);
+    return res.json(balanceRes);
+  } catch (err: any) {
+    return res.status(500).json({
+      success: false,
+      depositKRW: 0,
+      totalEvalAmt: 0,
+      holdings: [],
+      message: `🚨 [계좌 조회 서버 오류] ${err?.message || err}`
     });
   }
 });
