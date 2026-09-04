@@ -153,8 +153,8 @@ export class BrokerApiClientV121 {
           };
         }
 
-        // CRITICAL V12.2 RULE: ODNO returning means PENDING! Perform fill confirmation query via HTTP server!
-        const fillStatusRes = await fetch(`/api/broker/v12/fill-status?orderNo=${encodeURIComponent(gwRes.orderNo)}&symbol=${encodeURIComponent(req.symbol)}&isPaper=false`);
+        // CRITICAL V12.3 RULE: ODNO returning means PENDING! Perform fill confirmation query via HTTP server!
+        const fillStatusRes = await fetch(`/api/broker/v12/fill-status?orderNo=${encodeURIComponent(gwRes.orderNo)}&symbol=${encodeURIComponent(req.symbol)}&market=${encodeURIComponent(req.market)}&isPaper=false`);
         
         if (fillStatusRes.ok) {
           const fillCheck = await fillStatusRes.json();

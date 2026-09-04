@@ -196,6 +196,15 @@ export class UnifiedBuyGateV121 {
         stateCheckPassed: true,
         orderResult: orderRes
       };
+    } else if (orderRes.success && orderRes.status === "PENDING") {
+      // Order received ODNO and is PENDING. Keep in BUY_PENDING state until Real Fill Engine confirms fill.
+      return {
+        passed: true,
+        scoreCheckPassed: true,
+        riskCheckPassed: true,
+        stateCheckPassed: true,
+        orderResult: orderRes
+      };
     } else {
       stateMachine.rejectBuyPending(orderRes.message);
       return {

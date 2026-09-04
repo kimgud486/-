@@ -1126,13 +1126,14 @@ app.get("/api/broker/v12/fill-status", async (req, res) => {
   try {
     const orderNo = (req.query.orderNo as string || "").trim();
     const symbol = (req.query.symbol as string || "").trim();
+    const market = (req.query.market as string || "KOREA").trim() as "KOREA" | "US" | "BTC";
     const isPaper = req.query.isPaper === "true";
 
     if (!orderNo) {
       return res.status(400).json({ isFilled: false, message: "orderNo 파라미터가 필요합니다." });
     }
 
-    const fillResult = await kisBrokerGateway.checkFillStatus(orderNo, symbol, isPaper);
+    const fillResult = await kisBrokerGateway.checkFillStatus(orderNo, symbol, market, isPaper);
     return res.json(fillResult);
   } catch (err: any) {
     console.error("[Broker Server API] Fill status check error:", err);
