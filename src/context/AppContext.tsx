@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from "react";
+import React, { createContext, useContext, useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { GlobalTradeGuardModal, TradeConfirmationRequest } from "../components/GlobalTradeGuardModal";
 import { StockCandleChartModal } from "../components/StockCandleChartModal";
 import { realtimeMarketFeedService } from "../services/realtimeMarketFeedService";
@@ -306,7 +306,28 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [orders, setOrders] = useState<Order[]>([]);
   const [marketStatus, setMarketStatus] = useState<MarketStatus | null>(null);
   const [loading, setLoading] = useState(true);
-  const [selectedSymbol, setSelectedSymbol] = useState("005930");
+  const [selectedSymbolState, setSelectedSymbolState] = useState<string>("005930");
+
+  const setSelectedSymbol = useCallback((sym: any) => {
+    if (typeof sym === "string") {
+      setSelectedSymbolState(sym);
+    } else if (sym && typeof sym === "object" && sym.symbol) {
+      setSelectedSymbolState(String(sym.symbol));
+    } else if (sym !== null && sym !== undefined) {
+      setSelectedSymbolState(String(sym));
+    } else {
+      setSelectedSymbolState("005930");
+    }
+  }, []);
+
+  const selectedSymbol = useMemo(() => {
+    if (typeof selectedSymbolState === "string") return selectedSymbolState;
+    if (selectedSymbolState && typeof (selectedSymbolState as any).symbol === "string") {
+      return (selectedSymbolState as any).symbol;
+    }
+    return String(selectedSymbolState || "005930");
+  }, [selectedSymbolState]);
+
   const [activeChartStock, setActiveChartStock] = useState<ActiveChartStock | null>(null);
 
   // Dark / Light Theme Mode State with localStorage persistence

@@ -60,7 +60,8 @@ export const RealtimeRawDataStreamPanel: React.FC<RealtimeRawDataStreamPanelProp
         let tickVol = 100;
 
         if (selectedMarket === "BTC") {
-          const upbitMarketCode = selectedSymbol.startsWith("KRW-") ? selectedSymbol : `KRW-${selectedSymbol}`;
+          const symStr = typeof selectedSymbol === "string" ? selectedSymbol : String((selectedSymbol as any)?.symbol || selectedSymbol || "");
+          const upbitMarketCode = symStr.startsWith("KRW-") ? symStr : `KRW-${symStr}`;
           const res = await fetch(`/api/upbit/public/trades/ticks?market=${encodeURIComponent(upbitMarketCode)}&count=1`).catch(() => null);
           if (res && res.ok) {
             const data = await res.json();

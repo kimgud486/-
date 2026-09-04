@@ -77,7 +77,7 @@ export const MasterAiAutoTradingDashboard: React.FC<{
   onOpenConsensusModal?: (symbol: string) => void;
 }> = ({ onOpenConsensusModal }) => {
   const {
-    selectedSymbol = "005930",
+    selectedSymbol: rawSelectedSymbol = "005930",
     setSelectedSymbol,
     allStocks = [],
     executeTrade,
@@ -90,6 +90,15 @@ export const MasterAiAutoTradingDashboard: React.FC<{
     overallWinRate = 71.4,
     cashBreakdown
   } = useApp() as any;
+
+  // Ensure selectedSymbol is strictly a string to prevent runtime startsWith errors
+  const selectedSymbol = useMemo(() => {
+    if (typeof rawSelectedSymbol === "string") return rawSelectedSymbol;
+    if (rawSelectedSymbol && typeof rawSelectedSymbol === "object" && (rawSelectedSymbol as any).symbol) {
+      return String((rawSelectedSymbol as any).symbol);
+    }
+    return String(rawSelectedSymbol || "005930");
+  }, [rawSelectedSymbol]);
 
   // Real-time 1-second clock state
   const [currentTimeStr, setCurrentTimeStr] = useState<string>("09:45:32 KST");
@@ -543,7 +552,8 @@ export const MasterAiAutoTradingDashboard: React.FC<{
 
   // Price formatting helper for Domestic KRX / Overseas US / Upbit Crypto
   const formatPrice = (p: number) => {
-    if (currentStock.market === "US" || (currentStock.symbol.length <= 5 && !/^\d+$/.test(currentStock.symbol) && !currentStock.symbol.startsWith("KRW-"))) {
+    const sym = typeof currentStock?.symbol === "string" ? currentStock.symbol : String(currentStock?.symbol || "");
+    if (currentStock.market === "US" || (sym.length <= 5 && !/^\d+$/.test(sym) && !sym.startsWith("KRW-"))) {
       return `$${p.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
     }
     if (p >= 1000000) {
@@ -562,7 +572,8 @@ export const MasterAiAutoTradingDashboard: React.FC<{
   ]);
 
   // AI Autonomous Buy/Sell Triggering
-  const triggerAiExecution = (type: "BUY" | "SELL", symbol: string, price: number) => {
+  const triggerAiExecution = (type: "BUY" | "SELL", symbolArg: string, price: number) => {
+    const symbol = typeof symbolArg === "string" ? symbolArg : String((symbolArg as any)?.symbol || symbolArg || "");
     const stockName = watchlist.find(w => w.symbol === symbol)?.name || symbol;
     const isUs = currentStock.market === "US" || (!/^\d{6}$/.test(symbol) && !symbol.startsWith("KRW-"));
     const isCrypto = symbol.startsWith("KRW-");

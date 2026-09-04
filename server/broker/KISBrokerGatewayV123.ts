@@ -1,6 +1,6 @@
-// AISTOCK v12.3 Server-Side KIS Broker Gateway (REAL FILL ENGINE)
-// Implements KIS OAuth2 Token Cache, Official Domestic (TTTC0081R) & Overseas (TTTS3035R) Fill Inquiry,
-// and strictly prevents synthetic/mock FILLED responses in LIVE mode.
+// AISTOCK v12.3.1 HOTFIX Server-Side KIS Broker Gateway (REAL FILL ENGINE)
+// Implements Fail-Closed OAuth Token Enforcer, Strict ODNO Verification, BTC KIS Hard Block,
+// Correct Overseas Fill Query Parameter (CCLD_NCCS_DVSN), and Domestic Average Price Field (avg_prvs).
 
 export interface KISOrderRequest {
   symbol: string;
@@ -136,6 +136,22 @@ export class KISBrokerGatewayV123 {
   public async executeOrder(req: KISOrderRequest): Promise<KISOrderGatewayResponse> {
     const timestamp = new Date().toLocaleTimeString("ko-KR");
 
+    // 1. HARD BLOCK BTC FROM KIS GATEWAY
+    if (req.market === "BTC") {
+      return {
+        success: false,
+        orderNo: "",
+        symbol: req.symbol,
+        side: req.side,
+        status: "REJECTED",
+        filledQty: 0,
+        filledAvgPrice: 0,
+        message: "⛔ [KIS 게이트웨이 차단] BTC/암호화폐는 KIS 주문 경로를 지원하지 않습니다. Upbit 전용 브로커 경로를 사용하세요.",
+        trId: "NONE",
+        timestamp
+      };
+    }
+
     if (!this.isConfigured()) {
       return {
         success: false,
@@ -151,8 +167,25 @@ export class KISBrokerGatewayV123 {
       };
     }
 
-    const token = await this.getOAuthToken(req.isPaperTrading);
     const trId = this.getTRID(req.market, req.side, req.isPaperTrading);
+
+    // 2. FAIL-CLOSED OAUTH TOKEN CHECK
+    const token = await this.getOAuthToken(req.isPaperTrading);
+    if (!token && !req.isPaperTrading) {
+      return {
+        success: false,
+        orderNo: "",
+        symbol: req.symbol,
+        side: req.side,
+        status: "REJECTED",
+        filledQty: 0,
+        filledAvgPrice: 0,
+        message: "⛔ [Fail-Closed 차단] KIS OAuth2 토큰 발급 실패로 주문을 전송하지 않고 차단했습니다.",
+        trId,
+        timestamp
+      };
+    }
+
     const domain = req.isPaperTrading
       ? "https://openapivts.koreainvestment.com:29443"
       : "https://openapi.koreainvestment.com:29443";
@@ -215,8 +248,10 @@ export class KISBrokerGatewayV123 {
       }
 
       const data = await res.json();
-      if (data.rt_cd === "0" && (data.output?.ODNO || data.output?.KRX_FWDG_ORD_ORGNO)) {
-        const orderNo = data.output.ODNO || data.output.KRX_FWDG_ORD_ORGNO;
+
+      // 3. STRICT ODNO CHECK (Removed KRX_FWDG_ORD_ORGNO fallback)
+      if (data.rt_cd === "0" && data.output?.ODNO) {
+        const orderNo = String(data.output.ODNO).trim();
         return {
           success: true,
           orderNo,
@@ -238,7 +273,7 @@ export class KISBrokerGatewayV123 {
           status: "REJECTED",
           filledQty: 0,
           filledAvgPrice: 0,
-          message: `❌ [KIS 거절] ${data.msg1 || "주문 전송 오류"}`,
+          message: `❌ [KIS 거절] ${data.msg1 || "ODNO 주문번호가 발급되지 않았습니다."}`,
           trId,
           timestamp
         };
@@ -260,7 +295,7 @@ export class KISBrokerGatewayV123 {
   }
 
   /**
-   * Check Fill Execution Status for an ODNO Order Number (REAL FILL ENGINE v12.3)
+   * Check Fill Execution Status for an ODNO Order Number (REAL FILL ENGINE v12.3.1 HOTFIX)
    * Queries KIS inquire-daily-ccld (domestic TTTC0081R) or inquire-ccnl (overseas TTTS3035R)
    */
   public async checkFillStatus(
@@ -269,6 +304,17 @@ export class KISBrokerGatewayV123 {
     market: "KOREA" | "US" | "BTC" = "KOREA",
     isPaper: boolean = false
   ): Promise<KISFillCheckResult> {
+    // 1. HARD BLOCK BTC FROM KIS FILL INQUIRY
+    if (market === "BTC") {
+      return {
+        isFilled: false,
+        filledQty: 0,
+        filledAvgPrice: 0,
+        status: "CANCELLED",
+        message: "⛔ [KIS 체결 조회 차단] BTC/암호화폐는 KIS 조회 대상이 아닙니다."
+      };
+    }
+
     if (!orderNo) {
       return { isFilled: false, filledQty: 0, filledAvgPrice: 0, status: "PENDING", message: "주문번호 없음" };
     }
@@ -295,6 +341,7 @@ export class KISBrokerGatewayV123 {
       };
     }
 
+    // 2. FAIL-CLOSED OAUTH TOKEN CHECK
     const token = await this.getOAuthToken(false);
     if (!token) {
       return {
@@ -302,7 +349,7 @@ export class KISBrokerGatewayV123 {
         filledQty: 0,
         filledAvgPrice: 0,
         status: "PENDING",
-        message: "⚠️ OAuth 토큰 발급 대기 중"
+        message: "⛔ [Fail-Closed 차단] KIS OAuth2 토큰 발급 실패로 체결 조회가 보류되었습니다."
       };
     }
 
@@ -362,7 +409,9 @@ export class KISBrokerGatewayV123 {
         if (matched) {
           const ordQty = Number(matched.ord_qty || matched.ORD_QTY || 0);
           const ccldQty = Number(matched.tot_ccld_qty || matched.ccld_qty || matched.CCLD_QTY || 0);
-          const avgPrice = Number(matched.avg_prc || matched.ccld_prc || matched.CCLD_PRC || 0);
+          
+          // 4. DOMESTIC AVERAGE PRICE FIELD FIX (avg_prvs)
+          const avgPrice = Number(matched.avg_prvs || matched.avg_prc || matched.ccld_prc || matched.CCLD_PRC || 0);
 
           if (ccldQty >= ordQty && ordQty > 0) {
             return {
@@ -393,6 +442,8 @@ export class KISBrokerGatewayV123 {
       } else {
         // KIS Overseas Stock Execution Inquiry (inquire-ccnl, TR: TTTS3035R)
         const trId = "TTTS3035R";
+        
+        // 5. US FILL QUERY PARAMETER TYPO FIX: CCLD_NCCS_DVSN (was CCLD_NCCL_DVSN)
         const queryParams = new URLSearchParams({
           CANO: this.accountNo,
           ACNT_PRDT_CD: this.productCode,
@@ -400,7 +451,7 @@ export class KISBrokerGatewayV123 {
           ORD_STRT_DT: todayStr,
           ORD_END_DT: todayStr,
           SLL_BUY_DVSN: "00",
-          CCLD_NCCL_DVSN: "00",
+          CCLD_NCCS_DVSN: "00",
           OVRS_EXCG_CD: "NASD",
           SORT_SQN: "DS",
           CTX_AREA_FK200: "",

@@ -635,18 +635,19 @@ export const NeuralBrainMasterControlCenter: React.FC = () => {
 
   // Sync with global selectedSymbol
   useEffect(() => {
-    if (selectedSymbol && selectedSymbol !== selectedStock.symbol) {
-      const cleanSym = selectedSymbol.replace(/^KRW-/, "");
+    const symStr = typeof selectedSymbol === "string" ? selectedSymbol : String((selectedSymbol as any)?.symbol || selectedSymbol || "");
+    if (symStr && symStr !== selectedStock.symbol) {
+      const cleanSym = symStr.replace(/^KRW-/, "");
       const found = universeTargets.find(
-        (s) => s.symbol === selectedSymbol || s.symbol.replace(/^KRW-/, "") === cleanSym || s.name === selectedSymbol
+        (s) => s.symbol === symStr || s.symbol.replace(/^KRW-/, "") === cleanSym || s.name === symStr
       );
       if (found) {
         setSelectedStock(found);
       } else {
         const customRecord: MasterStockRecord = {
-          symbol: selectedSymbol,
-          name: selectedSymbol,
-          market: selectedSymbol.startsWith("KRW-") || selectedSymbol === "BTC" ? "UPBIT" : (/^[A-Za-z]+$/.test(selectedSymbol) ? "US" : "KOSPI"),
+          symbol: symStr,
+          name: symStr,
+          market: symStr.startsWith("KRW-") || symStr === "BTC" ? "UPBIT" : (/^[A-Za-z]+$/.test(symStr) ? "US" : "KOSPI"),
           capCategory: "MID",
           sector: "신규 발굴 종목"
         };

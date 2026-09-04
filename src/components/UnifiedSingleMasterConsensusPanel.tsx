@@ -51,18 +51,19 @@ export const UnifiedSingleMasterConsensusPanel: React.FC = () => {
 
   // Sync with AppContext selectedSymbol or global custom event
   useEffect(() => {
-    if (selectedSymbol && selectedSymbol !== selectedStock.symbol) {
-      const found = MASTER_SAMPLE_STOCKS.find(s => s.symbol === selectedSymbol || s.symbol.replace("BTC-", "") === selectedSymbol);
+    const symStr = typeof selectedSymbol === "string" ? selectedSymbol : String((selectedSymbol as any)?.symbol || selectedSymbol || "");
+    if (symStr && symStr !== selectedStock.symbol) {
+      const found = MASTER_SAMPLE_STOCKS.find(s => s.symbol === symStr || s.symbol.replace("BTC-", "") === symStr);
       if (found) {
         setSelectedStock(found);
       } else {
         // Dynamic search for arbitrary stock
         setSelectedStock({
-          symbol: selectedSymbol,
-          name: selectedSymbol,
+          symbol: symStr,
+          name: symStr,
           price: 50000,
           changeRate: 0.5,
-          market: selectedSymbol.startsWith("KRW-") || selectedSymbol === "BTC" ? "BTC" : (/^[A-Za-z]+$/.test(selectedSymbol) ? "US" : "KOREA")
+          market: symStr.startsWith("KRW-") || symStr === "BTC" ? "BTC" : (/^[A-Za-z]+$/.test(symStr) ? "US" : "KOREA")
         });
       }
     }

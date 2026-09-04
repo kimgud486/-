@@ -67,17 +67,18 @@ export const BearishPatternsLifecycleEngine: React.FC = () => {
 
   // Sync with AppContext selectedSymbol
   useEffect(() => {
-    if (selectedSymbol && selectedSymbol !== selectedStock.symbol) {
-      const found = SAMPLE_STOCKS.find(s => s.symbol === selectedSymbol || s.symbol.replace("BTC-", "") === selectedSymbol);
+    const symStr = typeof selectedSymbol === "string" ? selectedSymbol : String((selectedSymbol as any)?.symbol || selectedSymbol || "");
+    if (symStr && symStr !== selectedStock.symbol) {
+      const found = SAMPLE_STOCKS.find(s => s.symbol === symStr || s.symbol.replace("BTC-", "") === symStr);
       if (found) {
         setSelectedStock(found);
       } else {
         setSelectedStock({
-          symbol: selectedSymbol,
-          name: selectedSymbol,
+          symbol: symStr,
+          name: symStr,
           price: 50000,
           changeRate: -1.5,
-          market: selectedSymbol.startsWith("KRW-") || selectedSymbol === "BTC" ? "CRYPTO" : (/^[A-Za-z]+$/.test(selectedSymbol) ? "US" : "KOREA")
+          market: symStr.startsWith("KRW-") || symStr === "BTC" ? "CRYPTO" : (/^[A-Za-z]+$/.test(symStr) ? "US" : "KOREA")
         });
       }
     }
