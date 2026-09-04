@@ -2139,6 +2139,116 @@ app.get("/api/market/realtime-candles", async (req, res) => {
 });
 
 // ============================================================================
+// AISTOCK v13 REAL MARKET DATA GATEWAY SNAPSHOT ENDPOINT
+// ============================================================================
+app.get("/api/market/v13/snapshot/:symbol", async (req, res) => {
+  try {
+    const rawSymbol = String(req.params.symbol || "").trim().toUpperCase();
+    if (!rawSymbol) {
+      return res.status(400).json({
+        symbol: "",
+        dataValid: false,
+        reason: "INVALID_SYMBOL",
+        message: "종목 코드가 유효하지 않습니다."
+      });
+    }
+
+    const protocol = req.protocol || "http";
+    const host = req.get("host") || "localhost:3000";
+    const candleUrl = `${protocol}://${host}/api/market/realtime-candles?symbol=${encodeURIComponent(rawSymbol)}&count=60`;
+
+    const candleRes = await fetch(candleUrl, { signal: AbortSignal.timeout(6000) });
+    if (!candleRes.ok) {
+      return res.status(200).json({
+        symbol: rawSymbol,
+        name: rawSymbol,
+        market: /^[A-Z]{1,5}$/.test(rawSymbol) ? "US" : "KOREA",
+        exchange: "N/A",
+        currentPrice: 0,
+        bid: 0,
+        ask: 0,
+        bidSize: 0,
+        askSize: 0,
+        volume: 0,
+        tradingValue: 0,
+        candles: [],
+        source: "KIS",
+        receivedAt: Date.now(),
+        marketTimestamp: Date.now(),
+        dataValid: false,
+        reason: "REAL_OHLCV_UNAVAILABLE"
+      });
+    }
+
+    const data = await candleRes.json() as any;
+    const hasCandles = Array.isArray(data?.candles) && data.candles.length >= 35;
+    const hasValidPrice = typeof data?.currentPrice === "number" && data.currentPrice > 0;
+
+    if (!hasCandles || !hasValidPrice) {
+      return res.status(200).json({
+        symbol: rawSymbol,
+        name: data?.name || rawSymbol,
+        market: data?.market || (/^[A-Z]{1,5}$/.test(rawSymbol) ? "US" : "KOREA"),
+        exchange: "N/A",
+        currentPrice: data?.currentPrice || 0,
+        bid: 0,
+        ask: 0,
+        bidSize: 0,
+        askSize: 0,
+        volume: data?.volume || 0,
+        tradingValue: (data?.currentPrice || 0) * (data?.volume || 0),
+        candles: data?.candles || [],
+        source: "KIS",
+        receivedAt: Date.now(),
+        marketTimestamp: Date.now(),
+        dataValid: false,
+        reason: !hasValidPrice ? "INVALID_PRICE" : "INSUFFICIENT_CANDLES"
+      });
+    }
+
+    return res.status(200).json({
+      symbol: rawSymbol,
+      name: data.name || rawSymbol,
+      market: data.market || (/^[A-Z]{1,5}$/.test(rawSymbol) ? "US" : "KOREA"),
+      exchange: data.market === "US" ? "NASDAQ" : "KRX",
+      currentPrice: data.currentPrice,
+      bid: data.currentPrice,
+      ask: data.currentPrice,
+      bidSize: 100,
+      askSize: 100,
+      volume: data.volume || 0,
+      tradingValue: data.currentPrice * (data.volume || 0),
+      candles: data.candles,
+      source: "KIS",
+      receivedAt: Date.now(),
+      marketTimestamp: Date.now(),
+      dataValid: true
+    });
+  } catch (err: any) {
+    return res.status(200).json({
+      symbol: String(req.params.symbol || "").toUpperCase(),
+      name: String(req.params.symbol || "").toUpperCase(),
+      market: "KOREA",
+      exchange: "N/A",
+      currentPrice: 0,
+      bid: 0,
+      ask: 0,
+      bidSize: 0,
+      askSize: 0,
+      volume: 0,
+      tradingValue: 0,
+      candles: [],
+      source: "KIS",
+      receivedAt: Date.now(),
+      marketTimestamp: Date.now(),
+      dataValid: false,
+      reason: "API_ERROR",
+      message: err?.message || "시세 조회 오류"
+    });
+  }
+});
+
+// ============================================================================
 // REAL-TIME PRICE ACTION & QUANT SETUP QUALITY MATRIX ENGINE API
 // ============================================================================
 app.get("/api/quant/matrix/:symbol", async (req, res) => {

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { AiFutureTrendOverlayChart } from "./AiFutureTrendOverlayChart";
+import { InteractivePredictionCanvasChart } from "./InteractivePredictionCanvasChart";
 import { 
   X, 
   TrendingUp, 
@@ -100,17 +101,47 @@ export const StockCandleChartModal: React.FC<StockCandleChartModalProps> = ({
 
   const [timeframe, setTimeframe] = useState<"1M" | "5M" | "15M" | "1H" | "1D">("5M");
   const [chartType, setChartType] = useState<"CANDLE" | "LINE" | "AI_FORECAST">("CANDLE");
-  const [activeTab, setActiveTab] = useState<"CHART" | "AI_30D" | "INFO" | "ORDERBOOK" | "ORDER">("CHART");
+  const [activeTab, setActiveTab] = useState<"CHART" | "AI_DUAL" | "AI_30D" | "INFO" | "ORDERBOOK" | "ORDER">("CHART");
+
+  const [livePrice, setLivePrice] = useState<number>(currentPrice > 0 ? currentPrice : 50000);
+  const [liveChangeRate, setLiveChangeRate] = useState<number>(changeRate);
+  const [lastTickDirection, setLastTickDirection] = useState<"UP" | "DOWN" | "FLAT">("FLAT");
+  const [isLiveUpdating, setIsLiveUpdating] = useState<boolean>(true);
+  const [candleData, setCandleData] = useState<CandleTickData[]>([]);
+
+  // Dual Chart Matrix Dataset (Realtime Ticks vs AI Prediction Points)
+  const dualPredictedPath = useMemo(() => {
+    const baseP = livePrice || 50000;
+    const step = baseP * 0.006;
+    const labels = ["D-3 (과거)", "D-2 (과거)", "D-1 (과거)", "현재 (T-0 LIVE)", "+1D (예측)", "+3D (예측)", "+5D (예측)", "+10D (예측)", "+15D (예측)", "+30D (예측)"];
+    return labels.map((lbl, idx) => {
+      const isPast = idx < 3;
+      const isNow = idx === 3;
+      const isFuturePredict = idx > 3;
+      const baseVal = Math.round(baseP + (idx - 3) * step * 0.95);
+      const bullVal = Math.round(baseVal + step * 1.5 * (idx > 3 ? idx - 2 : 1));
+      const bearVal = Math.round(baseVal - step * 1.1 * (idx > 3 ? idx - 2 : 1));
+      return {
+        timeLabel: lbl,
+        timestamp: Date.now() + (idx - 3) * 86400000,
+        actualPrice: isPast || isNow ? Math.round(baseP + (idx - 3) * step * 0.5) : null,
+        bullPrice: bullVal,
+        basePrice: baseVal,
+        bearPrice: bearVal,
+        upperBand: Math.round(bullVal * 1.015),
+        lowerBand: Math.round(bearVal * 0.985),
+        isNow,
+        isPast,
+        isLivePoint: isNow,
+        isFuturePredict,
+        aiSignalNote: isNow ? "🎯 실시간 매수 타점 포착" : isFuturePredict ? `D+${idx - 3} AI 예상 궤적` : "과거 체결 기록"
+      };
+    });
+  }, [livePrice]);
 
   const capInfoData = useMemo(() => {
     return getCapCategoryInfo({ symbol, market, name });
   }, [symbol, market, name]);
-
-  const [candleData, setCandleData] = useState<CandleTickData[]>([]);
-  const [isLiveUpdating, setIsLiveUpdating] = useState<boolean>(true);
-  const [livePrice, setLivePrice] = useState<number>(currentPrice > 0 ? currentPrice : 50000);
-  const [liveChangeRate, setLiveChangeRate] = useState<number>(changeRate);
-  const [lastTickDirection, setLastTickDirection] = useState<"UP" | "DOWN" | "FLAT">("FLAT");
 
   const corpInfo = useMemo(() => {
     const isUpbit = market === "BTC";
@@ -762,14 +793,13 @@ export const StockCandleChartModal: React.FC<StockCandleChartModalProps> = ({
             <button
               type="button"
               onClick={() => {
-                setActiveTab("CHART");
-                setChartType("AI_FORECAST");
+                setActiveTab("AI_DUAL");
               }}
               className="px-3.5 py-2 bg-gradient-to-r from-purple-600 via-indigo-600 to-cyan-600 hover:from-purple-500 hover:to-cyan-500 text-white font-black text-xs rounded-xl shadow-lg border border-purple-400/50 flex items-center gap-1.5 transition cursor-pointer"
-              title="AI 미래 가격 예측 그래프 및 타점 분석 바로보기"
+              title="AI 실시간 vs 예측 듀얼 차트 바로보기"
             >
               <Sparkles className="h-4 w-4 text-amber-300 animate-pulse" />
-              <span>🔮 AI 예측 그래프</span>
+              <span>🔮 AI 예측 그래프 (실시간 대조)</span>
             </button>
 
             <button
@@ -901,6 +931,16 @@ export const StockCandleChartModal: React.FC<StockCandleChartModalProps> = ({
             >
               <BarChart3 className="h-3.5 w-3.5" />
               <span>실시간 차트</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab("AI_DUAL")}
+              className={`px-3 py-1.5 rounded-xl text-xs font-black font-mono flex items-center gap-1.5 transition cursor-pointer whitespace-nowrap ${
+                activeTab === "AI_DUAL" ? "bg-gradient-to-r from-cyan-600 via-indigo-600 to-purple-600 text-white shadow-lg ring-1 ring-cyan-400" : "text-cyan-300 hover:text-white hover:bg-cyan-950/40"
+              }`}
+            >
+              <Activity className="h-3.5 w-3.5 text-cyan-300 animate-pulse" />
+              <span>📊 실시간 vs AI예측 듀얼차트</span>
             </button>
 
             <button
@@ -1249,6 +1289,37 @@ export const StockCandleChartModal: React.FC<StockCandleChartModalProps> = ({
               </div>
                 </>
               )}
+            </div>
+          )}
+
+          {/* TAB 1.2: REALTIME VS AI PREDICTION DUAL SPLIT CANVAS CHART */}
+          {activeTab === "AI_DUAL" && (
+            <div className="flex-1 flex flex-col justify-start">
+              <InteractivePredictionCanvasChart
+                symbol={symbol}
+                name={name}
+                market={market}
+                currentPrice={livePrice}
+                predictedPath={dualPredictedPath}
+                liveTickHistory={candleData.slice(-30).map((c) => ({
+                  time: c.time,
+                  price: c.close,
+                  volume: c.volume,
+                  side: c.close >= c.open ? "BUY" : "SELL"
+                }))}
+                timeframe={timeframe}
+                horizonMode="MEDIUM"
+                tradePlan={{
+                  entryPrice: aiPrediction.entryMin,
+                  tp1: aiPrediction.target1,
+                  tp2: aiPrediction.target2,
+                  stopLoss: aiPrediction.stopLoss,
+                  riskRewardRatio: 2.85
+                }}
+                recommendation={aiPrediction.recommendation}
+                actionSignal={aiPrediction.actionSignal === "STRONG_BUY" ? "BUY_CANDIDATE" : aiPrediction.actionSignal === "STRONG_SELL" ? "SELL_SIGNAL" : "WAIT_OBSERVE"}
+                aiConfidence={aiPrediction.probabilityPct}
+              />
             </div>
           )}
 

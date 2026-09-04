@@ -137,7 +137,7 @@ export class SafeKISBrokerAdapter {
 
       try {
         // Real KIS API Call Attempt
-        const domain = "https://openapi.koreainvestment.com:29443";
+        const domain = "https://openapi.koreainvestment.com:9443";
         const endpoint = "/uapi/domestic-stock/v1/trading/order-cash";
         
         const res = await fetch(`${domain}${endpoint}`, {

@@ -1,5 +1,5 @@
 // AISTOCK v13 Real Intelligence Core - Missing Reason Analyzer & Pre-Scanner Radar
-// Upgraded to use authentic Technical Analysis Engine V13 (Zero hash/random generators!)
+// Upgraded to use authentic Technical Analysis Engine V13 (Zero hash/random generators or synthetic candles!)
 
 import { TechnicalAnalysisEngineV13, CandleOHLCV } from "../v13/TechnicalAnalysisEngineV13";
 import { UnifiedScannerAndEntryAiV13, EntryAnalysisResultV13 } from "../v13/UnifiedScannerAndEntryAiV13";
@@ -87,7 +87,9 @@ export interface ManualEntryAnalysisResult {
 
 export class MissingReasonAnalyzerV124 {
   /**
-   * Primary Entry Point: Analyze symbol with authentic V13 Technical Analysis Engine
+   * Primary Entry Point: Analyze symbol with authentic V13 Technical Analysis Engine.
+   * STRICT REAL DATA REQUIREMENT: If real customCandles are missing or < 35 bars,
+   * FAIL CLOSED immediately with NO BUY and REAL_OHLCV_UNAVAILABLE. Zero synthetic candle generation!
    */
   public analyzeSymbol(
     symbol: string,
@@ -99,19 +101,73 @@ export class MissingReasonAnalyzerV124 {
   ): ManualEntryAnalysisResult {
     const cleanSymbol = symbol.trim().toUpperCase();
 
-    // 1. Check Scanner Presence
+    // 1. Check Real Candles Availability (NO SYNTHETIC CANDLES ALLOWED)
+    if (!customCandles || customCandles.length < 35 || currentPrice <= 0) {
+      return {
+        symbol: cleanSymbol,
+        name,
+        market,
+        currentPrice: currentPrice > 0 ? currentPrice : 0,
+        scannerStatus: { found: false },
+        preScannerSignal: {
+          active: false,
+          confidence: 0,
+          signalType: "NONE",
+          alertText: "실시간 OHLCV 데이터 부재로 Pre-Scanner 비활성화"
+        },
+        scoreBreakdown: {
+          marketState: 0,
+          sectorTheme: 0,
+          relativeStrength: 0,
+          volumeRvol: 0,
+          priceStructure: 0,
+          vwapEma: 0,
+          momentumIndicators: 0,
+          patterns: 0,
+          multiTimeframe: 0,
+          liquiditySpread: 0,
+          totalScore: 0
+        },
+        hardReject: {
+          hasHardReject: true,
+          rejectedRule: "data_error",
+          rejectDescription: "⛔ [REAL_OHLCV_UNAVAILABLE] 실제 시장 캔들 데이터가 없거나 수량이 부족하여 분석 및 매수를 즉시 차단합니다."
+        },
+        decisionState: "NO BUY",
+        confidencePct: 0,
+        aiCommentary: "실제 시장 데이터(OHLCV 35봉 이상)를 수신받지 못하여 가짜 시뮬레이션을 차단하고 매수 불가(NO BUY)로 판정했습니다.",
+        timestamp: new Date().toLocaleTimeString("ko-KR")
+      };
+    }
+
+    const candles = customCandles;
+
+    // 2. Check Scanner Presence
     const scannerMatch = scannerList.find(s => s.symbol.toUpperCase() === cleanSymbol);
     const scannerStatus: ScannerCheckResult = scannerMatch
       ? { found: true, scannerName: "실시간 주도주 스캐너", scannerScore: scannerMatch.score || 85 }
       : { found: false };
 
-    // 2. Build or Calculate Authentic Candles
-    const candles: CandleOHLCV[] = customCandles && customCandles.length >= 5
-      ? customCandles
-      : this.generateRealBasedCandles(currentPrice);
-
     // 3. Compute Authentic Indicators using TechnicalAnalysisEngineV13
-    const indicators = TechnicalAnalysisEngineV13.calculateIndicators(candles);
+    let indicators;
+    try {
+      indicators = TechnicalAnalysisEngineV13.calculateIndicators(candles);
+    } catch (err: any) {
+      return {
+        symbol: cleanSymbol,
+        name,
+        market,
+        currentPrice,
+        scannerStatus,
+        preScannerSignal: { active: false, confidence: 0, signalType: "NONE", alertText: "기술적 지표 계산 불가" },
+        scoreBreakdown: { marketState: 0, sectorTheme: 0, relativeStrength: 0, volumeRvol: 0, priceStructure: 0, vwapEma: 0, momentumIndicators: 0, patterns: 0, multiTimeframe: 0, liquiditySpread: 0, totalScore: 0 },
+        hardReject: { hasHardReject: true, rejectedRule: "data_error", rejectDescription: `기술적 분석 실패: ${err?.message || "지표 데이터 오류"}` },
+        decisionState: "NO BUY",
+        confidencePct: 0,
+        aiCommentary: `지표 계산 실패: ${err?.message || "실제 지표 부족"}`,
+        timestamp: new Date().toLocaleTimeString("ko-KR")
+      };
+    }
 
     // 4. Run Unified Entry Analysis V13
     const entryAnalysis: EntryAnalysisResultV13 = UnifiedScannerAndEntryAiV13.analyzeEntry(
@@ -205,32 +261,5 @@ export class MissingReasonAnalyzerV124 {
       aiCommentary: entryAnalysis.aiExplanation,
       timestamp: new Date().toLocaleTimeString("ko-KR")
     };
-  }
-
-  private generateRealBasedCandles(basePrice: number): CandleOHLCV[] {
-    const candles: CandleOHLCV[] = [];
-    const now = Date.now();
-    let price = basePrice * 0.98;
-
-    for (let i = 20; i >= 0; i--) {
-      const open = price;
-      const change = (Math.sin(i * 0.5) + 0.1) * (basePrice * 0.005);
-      const close = Math.max(1, open + change);
-      const high = Math.max(open, close) + basePrice * 0.002;
-      const low = Math.min(open, close) - basePrice * 0.002;
-      const volume = Math.floor(10000 + Math.abs(Math.cos(i)) * 50000);
-
-      candles.push({
-        time: now - i * 60000,
-        open: Number(open.toFixed(2)),
-        high: Number(high.toFixed(2)),
-        low: Number(low.toFixed(2)),
-        close: Number(close.toFixed(2)),
-        volume
-      });
-
-      price = close;
-    }
-    return candles;
   }
 }

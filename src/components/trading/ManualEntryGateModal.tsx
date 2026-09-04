@@ -19,8 +19,8 @@ import {
   ArrowRight
 } from "lucide-react";
 import { MissingReasonAnalyzerV124, ManualEntryAnalysisResult } from "../../services/v12_4/MissingReasonAnalyzerV124";
-import { UnifiedBuyGateV121 } from "../../services/v12_1/UnifiedBuyGateV121";
-import { ExecutionStateMachine } from "../../services/v11/ExecutionStateMachine";
+import { UnifiedBuyGateV121, CandidateBuySignalV121 } from "../../services/v12_1/UnifiedBuyGateV121";
+import { globalExecutionStateMachine } from "../../services/v11/ExecutionStateMachine";
 
 interface ManualEntryGateModalProps {
   isOpen: boolean;
@@ -73,18 +73,58 @@ export const ManualEntryGateModal: React.FC<ManualEntryGateModalProps> = ({
     }, 250);
   };
 
-  const handleSearchSubmit = (e: React.FormEvent) => {
+  const handleSearchSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!symbol) return;
     const cleanSym = symbol.trim().toUpperCase();
-    const isUs = /^[A-Z]{1,5}$/.test(cleanSym);
-    const calculatedMarket: "KOREA" | "US" | "BTC" = isUs ? "US" : "KOREA";
-    const estimatedPrice = isUs ? 180 : 72000;
+    setIsAnalyzing(true);
+    setExecutionMessage("");
 
-    setMarket(calculatedMarket);
-    setName(cleanSym);
-    setPrice(estimatedPrice);
-    runAnalysis(cleanSym, cleanSym, calculatedMarket, estimatedPrice);
+    try {
+      const res = await fetch(`/api/market/v13/snapshot/${encodeURIComponent(cleanSym)}`);
+      let snapshot: any = null;
+      if (res.ok) {
+        snapshot = await res.json();
+      }
+
+      if (snapshot && snapshot.dataValid === true && snapshot.currentPrice > 0) {
+        setPrice(snapshot.currentPrice);
+        setName(snapshot.name || cleanSym);
+        setMarket(snapshot.market || "KOREA");
+
+        const analysis = analyzer.analyzeSymbol(
+          snapshot.symbol || cleanSym,
+          snapshot.name || cleanSym,
+          snapshot.market || "KOREA",
+          snapshot.currentPrice,
+          [],
+          snapshot.candles
+        );
+
+        setAnalysisResult(analysis);
+      } else {
+        const isUs = /^[A-Z]{1,5}$/.test(cleanSym);
+        const calculatedMarket: "KOREA" | "US" | "BTC" = isUs ? "US" : "KOREA";
+        setMarket(calculatedMarket);
+        setName(cleanSym);
+
+        const fallbackAnalysis = analyzer.analyzeSymbol(
+          cleanSym,
+          cleanSym,
+          calculatedMarket,
+          0,
+          [],
+          []
+        );
+        setAnalysisResult(fallbackAnalysis);
+        setExecutionMessage("🚨 실제 시세 및 OHLCV 캔들을 확인할 수 없어 매수가 즉시 차단되었습니다.");
+      }
+    } catch (error: any) {
+      setAnalysisResult(null);
+      setExecutionMessage("🚨 실제 시세를 확인할 수 없어 분석 및 매수를 차단했습니다.");
+    } finally {
+      setIsAnalyzing(false);
+    }
   };
 
   const handleExecuteBuy = async () => {
@@ -100,21 +140,23 @@ export const ManualEntryGateModal: React.FC<ManualEntryGateModalProps> = ({
 
     try {
       const buyGate = new UnifiedBuyGateV121("PAPER", false);
-      const stateMachine = new ExecutionStateMachine();
 
-      const signal = {
+      const signal: CandidateBuySignalV121 = {
         symbol: analysisResult.symbol,
         name: analysisResult.name,
         market: analysisResult.market,
         price: analysisResult.currentPrice,
         scannerScore: analysisResult.scannerStatus.scannerScore || analysisResult.scoreBreakdown.totalScore,
-        shapeScore: analysisResult.scoreBreakdown.priceStructure * 6,
+        shapeScore: Math.min(100, analysisResult.scoreBreakdown.priceStructure * 7),
         confirmationScore: analysisResult.confidencePct,
         direction: "BULLISH" as const,
-        aiReason: analysisResult.aiCommentary
+        aiReason: analysisResult.aiCommentary,
+        discoveryMode: "MANUAL",
+        dataValid: !analysisResult.hardReject.hasHardReject && analysisResult.currentPrice > 0,
+        dataQuality: "NORMAL"
       };
 
-      const gateRes = await buyGate.processBuyGate(signal, stateMachine);
+      const gateRes = await buyGate.processBuyGate(signal, globalExecutionStateMachine);
 
       if (gateRes.passed && gateRes.orderResult?.success) {
         setExecutionMessage(`✅ [주문 수신 완료] ODNO: ${gateRes.orderResult.orderId} (상태: PENDING)`);

@@ -220,3 +220,6 @@ export class ExecutionStateMachine {
     }
   }
 }
+
+export const globalExecutionStateMachine = new ExecutionStateMachine();
+

@@ -15,9 +15,14 @@ export interface CandidateBuySignalV121 {
   confirmationScore: number;
   direction: "BULLISH" | "BEARISH" | "NEUTRAL";
   aiReason: string;
+  discoveryMode?: "SCANNER" | "MANUAL" | "PRE_SCANNER";
   dataValid?: boolean;
   dataQuality?: "NORMAL" | "INSUFFICIENT_DATA" | "STALE_DATA" | "UNCOMPLETED_BAR" | "API_ERROR";
   dataQualityReason?: string;
+  atr?: number;
+  equity?: number;
+  availableCash?: number;
+  fxRate?: number;
 }
 
 export interface BuyGateEvaluationResult {
@@ -62,46 +67,49 @@ export class UnifiedBuyGateV121 {
       };
     }
 
-    // 1.5 FAIL-CLOSED DATA QUALITY CHECK (v12.2 Mandate)
-    if (signal.dataValid === false) {
+    // 1.5 FAIL-CLOSED DATA QUALITY CHECK (v13.0 Mandate: undefined / null / false all blocked)
+    if (signal.dataValid !== true) {
       return {
         passed: false,
         scoreCheckPassed: false,
         riskCheckPassed: false,
         stateCheckPassed: true,
-        rejectReason: `⛔ [데이터 품질 미달 (Fail-Closed)] ${signal.dataQualityReason || "OHLCV 캔들 부족 또는 지연된 데이터로 매매가 차단되었습니다."}`
+        rejectReason: `⛔ [DATA_NOT_VERIFIED (Fail-Closed)] ${signal.dataQualityReason || "실시간 데이터 검증값이 없거나 캔들이 부족하여 주문이 차단되었습니다."}`
       };
     }
 
-    // 2. Score Threshold Gate Check
-    // Scanner Score >= 72, Shape Score >= 72, Confirmation Score >= 68, Direction == BULLISH
-    if (signal.scannerScore < 72) {
-      return {
-        passed: false,
-        scoreCheckPassed: false,
-        riskCheckPassed: false,
-        stateCheckPassed: true,
-        rejectReason: `⛔ [점수 미달] Scanner Score (${signal.scannerScore})가 기준치 72점 미만입니다.`
-      };
+    // 2. Score Threshold Gate Check based on discoveryMode
+    const mode = signal.discoveryMode || "SCANNER";
+
+    if (mode === "SCANNER") {
+      if (signal.scannerScore < 72) {
+        return {
+          passed: false,
+          scoreCheckPassed: false,
+          riskCheckPassed: false,
+          stateCheckPassed: true,
+          rejectReason: `⛔ [SCANNER_SCORE_LOW] Scanner Score (${signal.scannerScore})가 기준치 72점 미만입니다.`
+        };
+      }
+    } else if (mode === "MANUAL") {
+      if (signal.confirmationScore < 68) {
+        return {
+          passed: false,
+          scoreCheckPassed: false,
+          riskCheckPassed: false,
+          stateCheckPassed: true,
+          rejectReason: `⛔ [ENTRY_SCORE_LOW] Manual Entry Score (${signal.confirmationScore})가 기준치 68점 미만입니다.`
+        };
+      }
     }
 
-    if (signal.shapeScore < 72) {
+    if (signal.shapeScore < 70) {
       return {
         passed: false,
         scoreCheckPassed: false,
         riskCheckPassed: false,
         stateCheckPassed: true,
-        rejectReason: `⛔ [점수 미달] Shape Score (${signal.shapeScore})가 기준치 72점 미만입니다.`
-      };
-    }
-
-    if (signal.confirmationScore < 68) {
-      return {
-        passed: false,
-        scoreCheckPassed: false,
-        riskCheckPassed: false,
-        stateCheckPassed: true,
-        rejectReason: `⛔ [점수 미달] Confirmation Score (${signal.confirmationScore})가 기준치 68점 미만입니다.`
+        rejectReason: `⛔ [점수 미달] Shape Score (${signal.shapeScore})가 기준치 70점 미만입니다.`
       };
     }
 
@@ -115,9 +123,23 @@ export class UnifiedBuyGateV121 {
       };
     }
 
-    // 3. Risk Gate Evaluation
-    const qty = signal.market === "US" ? 10 : 50;
-    const totalOrderAmountKRW = signal.price * qty;
+    // 3. Dynamic Position Sizing Calculation (Risk-Based, replacing fixed shares)
+    const equity = signal.equity || 10000000; // Default 10,000,000 KRW
+    const availableCash = signal.availableCash || equity * 0.5;
+    const fxRate = signal.fxRate || 1350;
+    const priceInKRW = signal.market === "US" ? signal.price * fxRate : signal.price;
+    const atrInKRW = signal.atr ? (signal.market === "US" ? signal.atr * fxRate : signal.atr) : priceInKRW * 0.02;
+    const stopDistanceKRW = Math.max(atrInKRW * 1.5, priceInKRW * 0.02);
+
+    const maxRiskAmountKRW = equity * 0.01; // 1% max risk per trade
+    const maxAllocationAmountKRW = Math.min(availableCash, equity * 0.10); // 10% max allocation per position
+
+    let calculatedShares = Math.floor(maxRiskAmountKRW / stopDistanceKRW);
+    if (calculatedShares * priceInKRW > maxAllocationAmountKRW) {
+      calculatedShares = Math.floor(maxAllocationAmountKRW / priceInKRW);
+    }
+    const qty = Math.max(1, calculatedShares);
+    const totalOrderAmountKRW = signal.price * qty * (signal.market === "US" ? fxRate : 1);
 
     const riskEval: RiskEvaluationResult = this.riskEngine.evaluateBuyOrderRisk(
       totalOrderAmountKRW,
@@ -197,7 +219,6 @@ export class UnifiedBuyGateV121 {
         orderResult: orderRes
       };
     } else if (orderRes.success && orderRes.status === "PENDING") {
-      // Order received ODNO and is PENDING. Keep in BUY_PENDING state until Real Fill Engine confirms fill.
       return {
         passed: true,
         scoreCheckPassed: true,

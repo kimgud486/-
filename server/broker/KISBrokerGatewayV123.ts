@@ -2,6 +2,9 @@
 // Implements Fail-Closed OAuth Token Enforcer, Strict ODNO Verification, BTC KIS Hard Block,
 // Correct Overseas Fill Query Parameter (CCLD_NCCS_DVSN), and Domestic Average Price Field (avg_prvs).
 
+export const KIS_REAL_REST_DOMAIN = process.env.KIS_REAL_DOMAIN ?? "https://openapi.koreainvestment.com:9443";
+export const KIS_PAPER_REST_DOMAIN = process.env.KIS_PAPER_DOMAIN ?? "https://openapivts.koreainvestment.com:29443";
+
 export interface KISOrderRequest {
   symbol: string;
   name: string;
@@ -71,9 +74,7 @@ export class KISBrokerGatewayV123 {
       return cache.accessToken;
     }
 
-    const domain = isPaper
-      ? "https://openapivts.koreainvestment.com:29443"
-      : "https://openapi.koreainvestment.com:29443";
+    const domain = isPaper ? KIS_PAPER_REST_DOMAIN : KIS_REAL_REST_DOMAIN;
 
     try {
       const res = await fetch(`${domain}/oauth2/tokenP`, {
@@ -186,9 +187,7 @@ export class KISBrokerGatewayV123 {
       };
     }
 
-    const domain = req.isPaperTrading
-      ? "https://openapivts.koreainvestment.com:29443"
-      : "https://openapi.koreainvestment.com:29443";
+    const domain = req.isPaperTrading ? KIS_PAPER_REST_DOMAIN : KIS_REAL_REST_DOMAIN;
 
     const endpoint = req.market === "US"
       ? "/uapi/overseas-stock/v1/trading/order"
@@ -353,7 +352,7 @@ export class KISBrokerGatewayV123 {
       };
     }
 
-    const domain = "https://openapi.koreainvestment.com:29443";
+    const domain = KIS_REAL_REST_DOMAIN;
     const todayStr = new Date().toISOString().slice(0, 10).replace(/-/g, "");
 
     try {
@@ -561,9 +560,7 @@ export class KISBrokerGatewayV123 {
       };
     }
 
-    const domain = isPaper
-      ? "https://openapivts.koreainvestment.com:29443"
-      : "https://openapi.koreainvestment.com:29443";
+    const domain = isPaper ? KIS_PAPER_REST_DOMAIN : KIS_REAL_REST_DOMAIN;
 
     if (market === "KOREA") {
       const trId = isPaper ? "VTTC8434R" : "TTTC8434R";

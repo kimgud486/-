@@ -1,6 +1,6 @@
 // AISTOCK v13 Real Intelligence Core - Technical Analysis Engine
 // Implements pure mathematical indicator calculations (VWAP, EMA, MACD, RSI, ADX/DMI, ATR, RVOL, HH/HL)
-// directly from real OHLCV candle data arrays. Zero hash-based pseudo generators!
+// directly from real OHLCV candle data arrays. Zero hash-based pseudo generators or fixed constants!
 
 export interface CandleOHLCV {
   time: string | number;
@@ -36,36 +36,17 @@ export interface CalculatedIndicatorsV13 {
 
 export class TechnicalAnalysisEngineV13 {
   /**
-   * Calculate exact mathematical technical indicators from real OHLCV candles
+   * Calculate exact mathematical technical indicators from real OHLCV candles.
+   * Requires at least 35 bars for accurate MACD(26,9) and ADX(14) calculations.
+   * Throws error if candles are insufficient so callers can fail-closed (NO TRADE).
    */
   public static calculateIndicators(candles: CandleOHLCV[]): CalculatedIndicatorsV13 {
-    if (!candles || candles.length < 14) {
-      const lastP = candles && candles.length > 0 ? candles[candles.length - 1].close : 100;
-      return {
-        currentPrice: lastP,
-        vwap: lastP,
-        ema9: lastP,
-        ema20: lastP,
-        ema50: lastP,
-        macdLine: 0,
-        macdSignal: 0,
-        macdHist: 0,
-        rsi14: 50,
-        adx14: 20,
-        plusDi14: 20,
-        minusDi14: 20,
-        atr14: lastP * 0.02,
-        rvol: 1.0,
-        structure: "SIDEWAYS",
-        lastHigherLow: lastP * 0.98,
-        lastLowerHigh: lastP * 1.02,
-        isVwapAbove: false,
-        isEmaBullishTrend: false,
-        isMacdBullishCross: false
-      };
+    if (!candles || candles.length < 35) {
+      throw new Error("INSUFFICIENT_CANDLES_FOR_TA: Minimum 35 real OHLCV candles required for MACD/ADX analysis.");
     }
 
     const currentPrice = candles[candles.length - 1].close;
+    const closes = candles.map(c => c.close);
 
     // 1. VWAP = sum(TypicalPrice * Volume) / sum(Volume)
     let totalTPV = 0;
@@ -77,32 +58,34 @@ export class TechnicalAnalysisEngineV13 {
     }
     const vwap = totalVol > 0 ? totalTPV / totalVol : currentPrice;
 
-    // 2. Exponential Moving Averages (EMA 9, 20, 50)
-    const closes = candles.map(c => c.close);
-    const ema9 = this.calculateEMA(closes, 9);
-    const ema20 = this.calculateEMA(closes, 20);
-    const ema50 = this.calculateEMA(closes, Math.min(50, closes.length));
+    // 2. Exponential Moving Averages Series
+    const ema9Series = this.calculateEMASeries(closes, 9);
+    const ema20Series = this.calculateEMASeries(closes, 20);
+    const ema50Series = this.calculateEMASeries(closes, Math.min(50, closes.length));
 
-    // 3. MACD (12, 26, 9)
-    const ema12 = this.calculateEMA(closes, 12);
-    const ema26 = this.calculateEMA(closes, 26);
-    const macdLine = ema12 - ema26;
-    const macdSignal = macdLine * 0.8; // Estimated signal line
-    const macdHist = macdLine - macdSignal;
+    const ema9 = ema9Series[ema9Series.length - 1];
+    const ema20 = ema20Series[ema20Series.length - 1];
+    const ema50 = ema50Series[ema50Series.length - 1];
 
-    // 4. RSI (14)
+    // 3. Exact MACD (12, 26, 9)
+    const macdResult = this.calculateMACD(closes);
+
+    // 4. Exact RSI (14)
     const rsi14 = this.calculateRSI(closes, 14);
 
-    // 5. ATR (14)
+    // 5. Exact ADX & +DMI / -DMI (14) using Wilder's Smoothing
+    const adxResult = this.calculateADXAndDMI(candles, 14);
+
+    // 6. Exact ATR (14)
     const atr14 = this.calculateATR(candles, 14);
 
-    // 6. RVOL = Current Volume / Average Volume of last 20 periods
+    // 7. RVOL = Current Volume / Average Volume of last 20 periods
     const lastVol = candles[candles.length - 1].volume;
     const recent20Vols = candles.slice(-20).map(c => c.volume);
     const avgVol = recent20Vols.reduce((a, b) => a + b, 0) / recent20Vols.length;
     const rvol = avgVol > 0 ? Number((lastVol / avgVol).toFixed(2)) : 1.0;
 
-    // 7. HH/HL Price Structure Analysis
+    // 8. HH/HL Price Structure Analysis
     const { structure, lastHigherLow, lastLowerHigh } = this.analyzeStructure(candles);
 
     return {
@@ -111,13 +94,13 @@ export class TechnicalAnalysisEngineV13 {
       ema9: Number(ema9.toFixed(2)),
       ema20: Number(ema20.toFixed(2)),
       ema50: Number(ema50.toFixed(2)),
-      macdLine: Number(macdLine.toFixed(2)),
-      macdSignal: Number(macdSignal.toFixed(2)),
-      macdHist: Number(macdHist.toFixed(2)),
+      macdLine: Number(macdResult.macd.toFixed(2)),
+      macdSignal: Number(macdResult.signal.toFixed(2)),
+      macdHist: Number(macdResult.histogram.toFixed(2)),
       rsi14: Number(rsi14.toFixed(1)),
-      adx14: 25,
-      plusDi14: 24,
-      minusDi14: 18,
+      adx14: Number(adxResult.adx.toFixed(1)),
+      plusDi14: Number(adxResult.plusDi.toFixed(1)),
+      minusDi14: Number(adxResult.minusDi.toFixed(1)),
       atr14: Number(atr14.toFixed(2)),
       rvol,
       structure,
@@ -125,42 +108,158 @@ export class TechnicalAnalysisEngineV13 {
       lastLowerHigh: Number(lastLowerHigh.toFixed(2)),
       isVwapAbove: currentPrice >= vwap,
       isEmaBullishTrend: currentPrice >= ema20 && ema9 >= ema20,
-      isMacdBullishCross: macdHist > 0
+      isMacdBullishCross: macdResult.histogram > 0
     };
   }
 
-  private static calculateEMA(values: number[], period: number): number {
-    if (values.length === 0) return 0;
+  /**
+   * Calculates full EMA series for an array of values
+   */
+  public static calculateEMASeries(values: number[], period: number): number[] {
+    if (values.length === 0) return [];
+    const emaSeries: number[] = new Array(values.length);
     const k = 2 / (period + 1);
-    let ema = values[0];
+    emaSeries[0] = values[0];
     for (let i = 1; i < values.length; i++) {
-      ema = values[i] * k + ema * (1 - k);
+      emaSeries[i] = values[i] * k + emaSeries[i - 1] * (1 - k);
     }
-    return ema;
+    return emaSeries;
   }
 
+  /**
+   * Exact MACD (12, 26, 9) calculation
+   */
+  private static calculateMACD(closes: number[]): { macd: number; signal: number; histogram: number } {
+    const ema12Series = this.calculateEMASeries(closes, 12);
+    const ema26Series = this.calculateEMASeries(closes, 26);
+
+    const macdSeries = closes.map((_, i) => ema12Series[i] - ema26Series[i]);
+    const signalSeries = this.calculateEMASeries(macdSeries, 9);
+
+    const last = macdSeries.length - 1;
+    const macd = macdSeries[last];
+    const signal = signalSeries[last];
+    const histogram = macd - signal;
+
+    return { macd, signal, histogram };
+  }
+
+  /**
+   * Exact RSI (14) with Wilder's Smoothing
+   */
   private static calculateRSI(closes: number[], period: number = 14): number {
     if (closes.length < period + 1) return 50;
 
-    let gains = 0;
-    let losses = 0;
+    let gainSum = 0;
+    let lossSum = 0;
 
-    for (let i = closes.length - period; i < closes.length; i++) {
+    for (let i = 1; i <= period; i++) {
       const diff = closes[i] - closes[i - 1];
-      if (diff >= 0) gains += diff;
-      else losses += Math.abs(diff);
+      if (diff >= 0) gainSum += diff;
+      else lossSum += Math.abs(diff);
     }
 
-    const avgGain = gains / period;
-    const avgLoss = losses / period;
+    let avgGain = gainSum / period;
+    let avgLoss = lossSum / period;
+
+    for (let i = period + 1; i < closes.length; i++) {
+      const diff = closes[i] - closes[i - 1];
+      const gain = diff >= 0 ? diff : 0;
+      const loss = diff < 0 ? Math.abs(diff) : 0;
+
+      avgGain = (avgGain * (period - 1) + gain) / period;
+      avgLoss = (avgLoss * (period - 1) + loss) / period;
+    }
 
     if (avgLoss === 0) return 100;
     const rs = avgGain / avgLoss;
-    return 100 - 100 / (1 + rs);
+    return 100 - (100 / (1 + rs));
   }
 
+  /**
+   * Exact ADX & DMI (+DI / -DI) calculation with Wilder's Smoothing
+   */
+  private static calculateADXAndDMI(candles: CandleOHLCV[], period: number = 14): {
+    adx: number;
+    plusDi: number;
+    minusDi: number;
+  } {
+    if (candles.length < period + 1) {
+      return { adx: 0, plusDi: 0, minusDi: 0 };
+    }
+
+    const trs: number[] = [];
+    const plusDMs: number[] = [];
+    const minusDMs: number[] = [];
+
+    for (let i = 1; i < candles.length; i++) {
+      const high = candles[i].high;
+      const low = candles[i].low;
+      const prevHigh = candles[i - 1].high;
+      const prevLow = candles[i - 1].low;
+      const prevClose = candles[i - 1].close;
+
+      const tr = Math.max(high - low, Math.abs(high - prevClose), Math.abs(low - prevClose));
+      trs.push(tr);
+
+      const upMove = high - prevHigh;
+      const downMove = prevLow - low;
+
+      if (upMove > downMove && upMove > 0) {
+        plusDMs.push(upMove);
+      } else {
+        plusDMs.push(0);
+      }
+
+      if (downMove > upMove && downMove > 0) {
+        minusDMs.push(downMove);
+      } else {
+        minusDMs.push(0);
+      }
+    }
+
+    let smoothTR = trs.slice(0, period).reduce((a, b) => a + b, 0);
+    let smoothPlusDM = plusDMs.slice(0, period).reduce((a, b) => a + b, 0);
+    let smoothMinusDM = minusDMs.slice(0, period).reduce((a, b) => a + b, 0);
+
+    const dxSeries: number[] = [];
+
+    for (let i = period; i < trs.length; i++) {
+      smoothTR = smoothTR - (smoothTR / period) + trs[i];
+      smoothPlusDM = smoothPlusDM - (smoothPlusDM / period) + plusDMs[i];
+      smoothMinusDM = smoothMinusDM - (smoothMinusDM / period) + minusDMs[i];
+
+      const plusDi = smoothTR > 0 ? (smoothPlusDM / smoothTR) * 100 : 0;
+      const minusDi = smoothTR > 0 ? (smoothMinusDM / smoothTR) * 100 : 0;
+
+      const diSum = plusDi + minusDi;
+      const diDiff = Math.abs(plusDi - minusDi);
+      const dx = diSum > 0 ? (diDiff / diSum) * 100 : 0;
+      dxSeries.push(dx);
+    }
+
+    const lastIdx = trs.length - period - 1;
+    const plusDi = smoothTR > 0 ? (smoothPlusDM / smoothTR) * 100 : 0;
+    const minusDi = smoothTR > 0 ? (smoothMinusDM / smoothTR) * 100 : 0;
+
+    if (dxSeries.length < period) {
+      const avgDx = dxSeries.length > 0 ? dxSeries.reduce((a, b) => a + b, 0) / dxSeries.length : 0;
+      return { adx: avgDx, plusDi, minusDi };
+    }
+
+    let adx = dxSeries.slice(0, period).reduce((a, b) => a + b, 0) / period;
+    for (let i = period; i < dxSeries.length; i++) {
+      adx = (adx * (period - 1) + dxSeries[i]) / period;
+    }
+
+    return { adx, plusDi, minusDi };
+  }
+
+  /**
+   * Exact ATR (14) calculation
+   */
   private static calculateATR(candles: CandleOHLCV[], period: number = 14): number {
-    if (candles.length < 2) return candles[0]?.close * 0.02 || 1;
+    if (candles.length < 2) return 0;
 
     let trSum = 0;
     const count = Math.min(candles.length - 1, period);
@@ -177,19 +276,18 @@ export class TechnicalAnalysisEngineV13 {
     return trSum / count;
   }
 
+  /**
+   * HH/HL Structure Analysis
+   */
   private static analyzeStructure(candles: CandleOHLCV[]): {
     structure: "HH_HL" | "LH_LL" | "SIDEWAYS";
     lastHigherLow: number;
     lastLowerHigh: number;
   } {
-    if (candles.length < 5) {
-      const p = candles[candles.length - 1]?.close || 100;
-      return { structure: "SIDEWAYS", lastHigherLow: p * 0.98, lastLowerHigh: p * 1.02 };
-    }
-
-    const recent = candles.slice(-10);
-    let highs: number[] = [];
-    let lows: number[] = [];
+    const currentP = candles[candles.length - 1].close;
+    const recent = candles.slice(-15);
+    const highs: number[] = [];
+    const lows: number[] = [];
 
     for (let i = 1; i < recent.length - 1; i++) {
       if (recent[i].high >= recent[i - 1].high && recent[i].high >= recent[i + 1].high) {
@@ -200,7 +298,6 @@ export class TechnicalAnalysisEngineV13 {
       }
     }
 
-    const currentP = candles[candles.length - 1].close;
     const lastHL = lows.length > 0 ? lows[lows.length - 1] : currentP * 0.975;
     const lastLH = highs.length > 0 ? highs[highs.length - 1] : currentP * 1.025;
 

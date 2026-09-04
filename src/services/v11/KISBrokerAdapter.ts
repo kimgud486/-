@@ -95,7 +95,7 @@ export class KISBrokerAdapter {
       // Real KIS OAuth Token Request logic
       const domain = this.credentials.isPaperTrading
         ? "https://openapivts.koreainvestment.com:29443"
-        : "https://openapi.koreainvestment.com:29443";
+        : "https://openapi.koreainvestment.com:9443";
 
       const res = await fetch(`${domain}/oauth2/tokenP`, {
         method: "POST",

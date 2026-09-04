@@ -850,7 +850,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       brokerName: "한국투자증권 (KIS Open API)",
       errorCode: "EGW00504",
       errorMessage: `KIS OpenAPI 서버 소켓 통신 지연 (${maxRetries}회 연속 재시도 후 타임아웃).`,
-      endpoint: "https://openapi.koreainvestment.com:29443",
+      endpoint: "https://openapi.koreainvestment.com:9443",
       httpStatus: 504,
       timestamp: new Date().toISOString(),
       rawResponse: { error: `Gateway Timeout after ${maxRetries} retries.` },
