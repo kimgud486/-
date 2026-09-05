@@ -8,6 +8,7 @@ import { MetaLabelingFilter, MetaLabelingOutput } from "./metaLabeling";
 export * from "./lightgbmEngine";
 export * from "./calibration";
 export * from "./metaLabeling";
+export * from "./PredictionAccuracyTracker";
 
 export interface PipelineExecutionResult {
   symbol: string;
@@ -27,6 +28,7 @@ export interface PredictionPipelineInput {
   patterns?: any;
   sectorName?: string;
   currentSectorExposurePct?: number;
+  requireRealData?: boolean;
 }
 
 /**
@@ -37,10 +39,23 @@ export function runPredictionPipeline(input: PredictionPipelineInput): PipelineE
   const market = input.market || "KOREA";
   const sectorName = input.sectorName || "IT / 반도체";
   const currentSectorExposurePct = input.currentSectorExposurePct ?? 35.0;
+  const requireRealData = input.requireRealData ?? true;
 
-  const candles = input.candles && input.candles.length > 0 
-    ? input.candles 
-    : MarketDataCollector.fetchOHLCV(symbol, market, "15m", 60);
+  let candles = input.candles;
+
+  // Strict Real Market Data Enforcement
+  if (requireRealData) {
+    if (!candles || !Array.isArray(candles) || candles.length < 30) {
+      throw new Error(
+        `REAL_MARKET_DATA_REQUIRED: Minimum 30 real candles required for prediction pipeline in LIVE mode. Provided: ${
+          candles ? candles.length : 0
+        }`
+      );
+    }
+  } else {
+    // Legacy fallback path only when explicitly requireRealData === false
+    candles = candles && candles.length > 0 ? candles : MarketDataCollector.fetchOHLCV(symbol, market, "15m", 60);
+  }
 
   const indicators = input.indicators || TechnicalIndicatorCalculator.calculateAll(candles);
   const patterns = input.patterns || PatternDetector.detect(candles);

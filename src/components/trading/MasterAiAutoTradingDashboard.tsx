@@ -174,30 +174,30 @@ export const MasterAiAutoTradingDashboard: React.FC<{
   } | null>(null);
   const [showFullForecastChartModal, setShowFullForecastChartModal] = useState<boolean>(false);
 
-  // Market Overview items
+  // Market Overview items (Initialized clean without static synthetic values)
   const [marketIndices, setMarketIndices] = useState([
-    { name: "KOSPI", value: 2659.15, changePct: 1.12, isUp: true, sparkline: [2630, 2635, 2642, 2638, 2648, 2655, 2659.15] },
-    { name: "KOSDAQ", value: 867.11, changePct: 0.85, isUp: true, sparkline: [855, 858, 861, 859, 863, 865, 867.11] },
-    { name: "S&P 500", value: 5337.44, changePct: 0.98, isUp: true, sparkline: [5280, 5295, 5310, 5305, 5320, 5330, 5337.44] },
-    { name: "NASDAQ", value: 18621.35, changePct: 1.35, isUp: true, sparkline: [18350, 18420, 18500, 18480, 18560, 18600, 18621.35] },
-    { name: "BTC/KRW", value: 108539000, changePct: 1.82, isUp: true, sparkline: [106500000, 107000000, 107800000, 108100000, 108539000] },
+    { name: "KOSPI", value: 0, changePct: 0, isUp: true, sparkline: [] as number[] },
+    { name: "KOSDAQ", value: 0, changePct: 0, isUp: true, sparkline: [] as number[] },
+    { name: "S&P 500", value: 0, changePct: 0, isUp: true, sparkline: [] as number[] },
+    { name: "NASDAQ", value: 0, changePct: 0, isUp: true, sparkline: [] as number[] },
+    { name: "BTC/KRW", value: 0, changePct: 0, isUp: true, sparkline: [] as number[] },
   ]);
 
-  // Real Multi-Market Watchlist items (Domestic KRX, Overseas US, Upbit Crypto)
+  // Real Multi-Market Watchlist items (Domestic KRX, Overseas US, Upbit Crypto) - 0 initial price until real feed arrives
   const [watchlist, setWatchlist] = useState<any[]>([
-    { symbol: "005930", name: "삼성전자", market: "KOREA", price: 74800, chgPct: 1.55, signal: "HOLD" },
-    { symbol: "000660", name: "SK하이닉스", market: "KOREA", price: 198500, chgPct: 2.13, signal: "HOLD" },
-    { symbol: "373220", name: "LG에너지솔루션", market: "KOREA", price: 382000, chgPct: 1.32, signal: "HOLD" },
-    { symbol: "005380", name: "현대차", market: "KOREA", price: 245000, chgPct: 1.12, signal: "HOLD" },
-    { symbol: "035420", name: "NAVER", market: "KOREA", price: 182000, chgPct: 0.69, signal: "HOLD" },
-    { symbol: "NVDA", name: "엔비디아 (NVIDIA)", market: "US", price: 128.50, chgPct: 2.85, signal: "HOLD" },
-    { symbol: "AAPL", name: "애플 (Apple)", market: "US", price: 224.10, chgPct: 0.95, signal: "HOLD" },
-    { symbol: "TSLA", name: "테슬라 (Tesla)", market: "US", price: 218.50, chgPct: -1.20, signal: "NEUTRAL" },
-    { symbol: "KRW-BTC", name: "비트코인 (BTC)", market: "UPBIT", price: 96500000, chgPct: 1.82, signal: "HOLD" },
-    { symbol: "KRW-ETH", name: "이더리움 (ETH)", market: "UPBIT", price: 3850000, chgPct: 2.15, signal: "HOLD" },
-    { symbol: "KRW-SOL", name: "솔라나 (SOL)", market: "UPBIT", price: 215000, chgPct: 3.42, signal: "HOLD" },
-    { symbol: "KRW-XRP", name: "리플 (XRP)", market: "UPBIT", price: 820, chgPct: -0.45, signal: "NEUTRAL" },
-    { symbol: "KRW-DOGE", name: "도지코인 (DOGE)", market: "UPBIT", price: 165, chgPct: 1.25, signal: "HOLD" },
+    { symbol: "005930", name: "삼성전자", market: "KOREA", price: 0, chgPct: 0, signal: "HOLD" },
+    { symbol: "000660", name: "SK하이닉스", market: "KOREA", price: 0, chgPct: 0, signal: "HOLD" },
+    { symbol: "373220", name: "LG에너지솔루션", market: "KOREA", price: 0, chgPct: 0, signal: "HOLD" },
+    { symbol: "005380", name: "현대차", market: "KOREA", price: 0, chgPct: 0, signal: "HOLD" },
+    { symbol: "035420", name: "NAVER", market: "KOREA", price: 0, chgPct: 0, signal: "HOLD" },
+    { symbol: "NVDA", name: "엔비디아 (NVIDIA)", market: "US", price: 0, chgPct: 0, signal: "HOLD" },
+    { symbol: "AAPL", name: "애플 (Apple)", market: "US", price: 0, chgPct: 0, signal: "HOLD" },
+    { symbol: "TSLA", name: "테슬라 (Tesla)", market: "US", price: 0, chgPct: 0, signal: "HOLD" },
+    { symbol: "KRW-BTC", name: "비트코인 (BTC)", market: "UPBIT", price: 0, chgPct: 0, signal: "HOLD" },
+    { symbol: "KRW-ETH", name: "이더리움 (ETH)", market: "UPBIT", price: 0, chgPct: 0, signal: "HOLD" },
+    { symbol: "KRW-SOL", name: "솔라나 (SOL)", market: "UPBIT", price: 0, chgPct: 0, signal: "HOLD" },
+    { symbol: "KRW-XRP", name: "리플 (XRP)", market: "UPBIT", price: 0, chgPct: 0, signal: "HOLD" },
+    { symbol: "KRW-DOGE", name: "도지코인 (DOGE)", market: "UPBIT", price: 0, chgPct: 0, signal: "HOLD" },
   ]);
 
   // Real Candles State fetched from real API
@@ -236,7 +236,7 @@ export const MasterAiAutoTradingDashboard: React.FC<{
               return prev.map(w => w.symbol === data.symbol ? {
                 ...w,
                 name: data.name || w.name,
-                price: data.currentPrice || w.price,
+                price: data.currentPrice || w.price || 0,
                 chgPct: data.changePct !== undefined ? data.changePct : w.chgPct,
                 market: data.market || w.market
               } : w);
@@ -245,9 +245,9 @@ export const MasterAiAutoTradingDashboard: React.FC<{
                 symbol: data.symbol,
                 name: data.name || data.symbol,
                 market: data.market || "KOREA",
-                price: data.currentPrice || 10000,
+                price: data.currentPrice || 0,
                 chgPct: data.changePct || 0,
-                signal: (data.changePct || 0) >= 0 ? "BUY" : "SELL"
+                signal: "HOLD"
               }, ...prev];
             }
           });
@@ -285,44 +285,54 @@ export const MasterAiAutoTradingDashboard: React.FC<{
         const res = await fetch("/api/market/status");
         if (res.ok) {
           const data = await res.json();
-          if (data.kospi && data.kosdaq && data.sp500 && data.nasdaq) {
-            setMarketIndices([
-              {
-                name: "KOSPI",
-                value: data.kospi.value || 2659.15,
-                changePct: data.kospi.pct || 0,
-                isUp: (data.kospi.pct || 0) >= 0,
-                sparkline: [data.kospi.value * 0.995, data.kospi.value * 0.997, data.kospi.value * 1.001, data.kospi.value]
-              },
-              {
-                name: "KOSDAQ",
-                value: data.kosdaq.value || 867.11,
-                changePct: data.kosdaq.pct || 0,
-                isUp: (data.kosdaq.pct || 0) >= 0,
-                sparkline: [data.kosdaq.value * 0.994, data.kosdaq.value * 0.998, data.kosdaq.value * 1.002, data.kosdaq.value]
-              },
-              {
-                name: "S&P 500",
-                value: data.sp500.value || 5337.44,
-                changePct: data.sp500.pct || 0,
-                isUp: (data.sp500.pct || 0) >= 0,
-                sparkline: [data.sp500.value * 0.996, data.sp500.value * 0.998, data.sp500.value]
-              },
-              {
-                name: "NASDAQ",
-                value: data.nasdaq.value || 18621.35,
-                changePct: data.nasdaq.pct || 0,
-                isUp: (data.nasdaq.pct || 0) >= 0,
-                sparkline: [data.nasdaq.value * 0.995, data.nasdaq.value * 1.001, data.nasdaq.value]
-              },
-              {
-                name: "BTC/KRW",
-                value: 108539000,
-                changePct: 1.82,
-                isUp: true,
-                sparkline: [106500000, 107000000, 107800000, 108539000]
-              }
-            ]);
+          const newIndices = [];
+          if (data.kospi && typeof data.kospi.value === "number") {
+            newIndices.push({
+              name: "KOSPI",
+              value: data.kospi.value,
+              changePct: data.kospi.pct || 0,
+              isUp: (data.kospi.pct || 0) >= 0,
+              sparkline: [data.kospi.value * 0.998, data.kospi.value]
+            });
+          }
+          if (data.kosdaq && typeof data.kosdaq.value === "number") {
+            newIndices.push({
+              name: "KOSDAQ",
+              value: data.kosdaq.value,
+              changePct: data.kosdaq.pct || 0,
+              isUp: (data.kosdaq.pct || 0) >= 0,
+              sparkline: [data.kosdaq.value * 0.998, data.kosdaq.value]
+            });
+          }
+          if (data.sp500 && typeof data.sp500.value === "number") {
+            newIndices.push({
+              name: "S&P 500",
+              value: data.sp500.value,
+              changePct: data.sp500.pct || 0,
+              isUp: (data.sp500.pct || 0) >= 0,
+              sparkline: [data.sp500.value * 0.998, data.sp500.value]
+            });
+          }
+          if (data.nasdaq && typeof data.nasdaq.value === "number") {
+            newIndices.push({
+              name: "NASDAQ",
+              value: data.nasdaq.value,
+              changePct: data.nasdaq.pct || 0,
+              isUp: (data.nasdaq.pct || 0) >= 0,
+              sparkline: [data.nasdaq.value * 0.998, data.nasdaq.value]
+            });
+          }
+          if (data.btc && typeof data.btc.value === "number") {
+            newIndices.push({
+              name: "BTC/KRW",
+              value: data.btc.value,
+              changePct: data.btc.pct || 0,
+              isUp: (data.btc.pct || 0) >= 0,
+              sparkline: [data.btc.value * 0.998, data.btc.value]
+            });
+          }
+          if (newIndices.length > 0) {
+            setMarketIndices(newIndices);
           }
         }
       } catch (err) {
@@ -1365,15 +1375,15 @@ export const MasterAiAutoTradingDashboard: React.FC<{
             <div className="flex items-center justify-between">
               <div>
                 <div className={`text-[10px] font-mono ${isWhiteTheme ? "text-slate-500" : "text-slate-400"}`}>Total P/L</div>
-                <div className={`text-2xl font-black ${isWhiteTheme ? "text-emerald-600" : "text-emerald-400"} font-mono tracking-tight`}>
-                  +12.85%
+                <div className={`text-2xl font-black ${totalTradingPnl >= 0 ? (isWhiteTheme ? "text-emerald-600" : "text-emerald-400") : "text-rose-500"} font-mono tracking-tight`}>
+                  {totalTradingPnl >= 0 ? `+${totalTradingPnl.toLocaleString()}원` : `${totalTradingPnl.toLocaleString()}원`}
                 </div>
-                <div className={`text-[11px] ${isWhiteTheme ? "text-emerald-700" : "text-emerald-300/80"} font-mono`}>
-                  +128,500원
+                <div className={`text-[11px] ${totalTradingPnl >= 0 ? (isWhiteTheme ? "text-emerald-700" : "text-emerald-300/80") : "text-rose-400"} font-mono`}>
+                  Realized PnL
                 </div>
               </div>
 
-              {/* Circular Win Rate Ring */}
+              {/* Dynamic Win Rate Ring */}
               <div className="relative w-16 h-16 flex items-center justify-center">
                 <svg className="w-full h-full -rotate-90" viewBox="0 0 36 36">
                   <path
@@ -1385,7 +1395,7 @@ export const MasterAiAutoTradingDashboard: React.FC<{
                   />
                   <path
                     className={`${isWhiteTheme ? "text-emerald-600" : "text-emerald-400"}`}
-                    strokeDasharray="71.4, 100"
+                    strokeDasharray={`${Math.min(100, Math.max(0, trades && trades.length > 0 ? Math.round((trades.filter((t: any) => t.pnl > 0).length / trades.length) * 100) : 0))}, 100`}
                     strokeWidth="3.5"
                     strokeLinecap="round"
                     stroke="currentColor"
@@ -1394,7 +1404,7 @@ export const MasterAiAutoTradingDashboard: React.FC<{
                   />
                 </svg>
                 <div className={`absolute text-[11px] font-mono font-bold ${isWhiteTheme ? "text-slate-900" : "text-slate-100"}`}>
-                  71.4%
+                  {trades && trades.length > 0 ? `${Math.round((trades.filter((t: any) => t.pnl > 0).length / trades.length) * 100)}%` : "0%"}
                 </div>
               </div>
             </div>
@@ -1402,20 +1412,22 @@ export const MasterAiAutoTradingDashboard: React.FC<{
             <div className={`grid grid-cols-2 gap-2 pt-1 border-t ${isWhiteTheme ? "border-slate-200" : "border-slate-800/60"} text-xs font-mono`}>
               <div>
                 <span className={`${isWhiteTheme ? "text-slate-500" : "text-slate-500"} text-[10px]`}>Win Rate</span>
-                <div className={`font-bold ${isWhiteTheme ? "text-slate-900" : "text-slate-200"}`}>71.4%</div>
+                <div className={`font-bold ${isWhiteTheme ? "text-slate-900" : "text-slate-200"}`}>
+                  {trades && trades.length > 0 ? `${Math.round((trades.filter((t: any) => t.pnl > 0).length / trades.length) * 100)}%` : "0%"}
+                </div>
               </div>
               <div>
                 <span className={`${isWhiteTheme ? "text-slate-500" : "text-slate-500"} text-[10px]`}>Total Trades</span>
-                <div className={`font-bold ${isWhiteTheme ? "text-slate-900" : "text-slate-200"}`}>237</div>
+                <div className={`font-bold ${isWhiteTheme ? "text-slate-900" : "text-slate-200"}`}>{trades ? trades.length : 0}</div>
               </div>
               <div className={`col-span-2 flex items-center justify-between text-[10px] ${isWhiteTheme ? "text-slate-500" : "text-slate-400"}`}>
                 <span className="flex items-center gap-1">
                   <span className={`w-1.5 h-1.5 rounded-full ${isWhiteTheme ? "bg-emerald-600" : "bg-emerald-400"}`} />
-                  Winning Trades 169 (71.4%)
+                  Win {trades ? trades.filter((t: any) => t.pnl > 0).length : 0}
                 </span>
                 <span className="flex items-center gap-1">
                   <span className={`w-1.5 h-1.5 rounded-full ${isWhiteTheme ? "bg-rose-600" : "bg-rose-400"}`} />
-                  Losing Trades 68 (28.6%)
+                  Loss {trades ? trades.filter((t: any) => t.pnl < 0).length : 0}
                 </span>
               </div>
             </div>
@@ -1746,7 +1758,7 @@ export const MasterAiAutoTradingDashboard: React.FC<{
                 }}
                 recommendation="BUY"
                 actionSignal="BUY_CANDIDATE"
-                aiConfidence={94.5}
+                aiConfidence={currentStock?.price > 0 ? 80 : 0}
               />
             </div>
           ) : (
@@ -3355,7 +3367,7 @@ export const MasterAiAutoTradingDashboard: React.FC<{
         initialSymbol={selectedSymbol}
         initialName={currentStock?.name || selectedSymbol}
         initialMarket={currentStock?.market === "US" ? "US" : currentStock?.market === "UPBIT" ? "BTC" : "KOREA"}
-        initialPrice={currentStock?.price || 75000}
+        initialPrice={currentStock?.price || 0}
         onExecuteOrderSuccess={(orderId) => {
           addToast?.(`✅ [v12.4 Manual Gate] 미포착 종목 주문 수신 완료 (ODNO: ${orderId})`, "success");
         }}
@@ -3403,7 +3415,7 @@ export const MasterAiAutoTradingDashboard: React.FC<{
                 }}
                 recommendation="BUY"
                 actionSignal="BUY_CANDIDATE"
-                aiConfidence={94.5}
+                aiConfidence={currentStock?.price > 0 ? 80 : 0}
               />
             </div>
           </div>

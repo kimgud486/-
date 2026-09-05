@@ -120,7 +120,7 @@ export const RealTimeTradingViewChart: React.FC<RealTimeTradingViewChartProps> =
     aggregatorRef.current.reset(ms);
   };
 
-  // Convert initial candles to clean LiveCandle array
+  // Convert initial candles to clean LiveCandle array (Return empty if no real initial candles)
   const normalizedInitialCandles: LiveCandle[] = useMemo(() => {
     if (initialCandles && initialCandles.length > 0) {
       return initialCandles.map(c => {
@@ -137,37 +137,9 @@ export const RealTimeTradingViewChart: React.FC<RealTimeTradingViewChartProps> =
         };
       }).sort((a, b) => a.time - b.time);
     }
-
-    // If no initial candles, synthesize seed candles from basePrice without random math
-    const count = 40;
-    const baseP = initialPrice || (market === "US" ? 150 : 70000);
-    const result: LiveCandle[] = [];
-    const nowSec = Math.floor(Date.now() / 1000);
-    const stepSec = 60;
-
-    let p = baseP * 0.985;
-    for (let i = count; i >= 1; i--) {
-      const t = nowSec - i * stepSec;
-      const o = p;
-      // deterministic small slope
-      const c = o * (1 + (i % 3 === 0 ? 0.001 : -0.0005));
-      const h = Math.max(o, c) * 1.002;
-      const l = Math.min(o, c) * 0.998;
-      result.push({
-        time: t,
-        open: Math.round(o * 100) / 100,
-        high: Math.round(h * 100) / 100,
-        low: Math.round(l * 100) / 100,
-        close: Math.round(c * 100) / 100,
-        volume: 1000 + (i * 25),
-        isClosed: true
-      });
-      p = c;
-    }
-    // Anchor last to initialPrice
-    result[result.length - 1].close = initialPrice;
-    return result;
-  }, [initialCandles, initialPrice, market]);
+    // LIVE MODE ENFORCEMENT: No synthetic seed candle generation!
+    return [];
+  }, [initialCandles]);
 
   // Recalculate indicators, prediction, and state when candle closes
   const onClosedCandle = useCallback((closedCandle: LiveCandle) => {
@@ -661,7 +633,20 @@ export const RealTimeTradingViewChart: React.FC<RealTimeTradingViewChartProps> =
       <div 
         ref={chartContainerRef}
         className="w-full h-[480px] rounded-lg overflow-hidden border border-slate-800/80 relative"
-      />
+      >
+        {historyRef.current.length === 0 && (
+          <div className="absolute inset-0 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm z-10 p-6 text-center">
+            <div className="max-w-md p-4 rounded-xl border border-slate-800 bg-slate-900/90 shadow-2xl flex flex-col items-center gap-2">
+              <Activity className="w-8 h-8 text-cyan-400 animate-pulse" />
+              <div className="text-sm font-bold text-slate-200">실시간 시장 데이터 대기 중 (WAITING_FOR_REAL_MARKET_DATA)</div>
+              <div className="text-xs text-slate-400">
+                가짜/합성 시세 생성이 금지된 LIVE-ONLY 상태입니다.<br />
+                실제 WebSocket 체결 틱 또는 API 봉 수신 시 차트가 표시됩니다.
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
 
       {/* 4. BOTTOM FORECAST SUMMARY LEGEND */}
       {lastForecast.length > 0 && (

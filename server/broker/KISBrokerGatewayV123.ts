@@ -65,16 +65,20 @@ export class KISBrokerGatewayV123 {
    * Acquire or reuse cached KIS OAuth2 Access Token (/oauth2/tokenP)
    */
   public async getOAuthToken(isPaper: boolean): Promise<string | null> {
+    if (isPaper) {
+      console.warn("[KIS OAuth2] PAPER trading path is disabled in live-only mode.");
+      return null;
+    }
     if (!this.isConfigured()) return null;
 
-    const cache = isPaper ? this.tokenCachePaper : this.tokenCacheLive;
+    const cache = this.tokenCacheLive;
     const now = Date.now();
 
     if (cache && cache.expiresAt > now + 60000) {
       return cache.accessToken;
     }
 
-    const domain = isPaper ? KIS_PAPER_REST_DOMAIN : KIS_REAL_REST_DOMAIN;
+    const domain = KIS_REAL_REST_DOMAIN;
 
     try {
       const res = await fetch(`${domain}/oauth2/tokenP`, {
@@ -99,11 +103,7 @@ export class KISBrokerGatewayV123 {
           accessToken: data.access_token,
           expiresAt: now + expiresInMs
         };
-        if (isPaper) {
-          this.tokenCachePaper = newCache;
-        } else {
-          this.tokenCacheLive = newCache;
-        }
+        this.tokenCacheLive = newCache;
         return data.access_token;
       }
     } catch (err) {
@@ -116,15 +116,12 @@ export class KISBrokerGatewayV123 {
    * Determine exact KIS TR_ID based on market, order side, and paper/live mode
    */
   public getTRID(market: "KOREA" | "US" | "BTC", side: "BUY" | "SELL", isPaper: boolean): string {
+    if (isPaper) {
+      return "REJECTED_PAPER_TR";
+    }
     if (market === "KOREA") {
-      if (isPaper) {
-        return side === "BUY" ? "VTTC0802U" : "VTTC0801U";
-      }
       return side === "BUY" ? "TTTC0802U" : "TTTC0801U";
     } else if (market === "US") {
-      if (isPaper) {
-        return side === "BUY" ? "VTTT1002U" : "VTTT1001U";
-      }
       // Official KIS US live TR IDs: BUY TTTT1002U, SELL TTTT1006U
       return side === "BUY" ? "TTTT1002U" : "TTTT1006U";
     }
@@ -136,6 +133,22 @@ export class KISBrokerGatewayV123 {
    */
   public async executeOrder(req: KISOrderRequest): Promise<KISOrderGatewayResponse> {
     const timestamp = new Date().toLocaleTimeString("ko-KR");
+
+    // 0. HARD BLOCK PAPER TRADING PATH
+    if (req.isPaperTrading) {
+      return {
+        success: false,
+        orderNo: "",
+        symbol: req.symbol,
+        side: req.side,
+        status: "REJECTED",
+        filledQty: 0,
+        filledAvgPrice: 0,
+        message: "⛔ [LIVE_TRADING_ONLY] PAPER 모의주문 경로(isPaperTrading=true)는 LIVE-ONLY 안전 가드레일에 의해 즉시 차단됩니다.",
+        trId: "NONE",
+        timestamp
+      };
+    }
 
     // 1. HARD BLOCK BTC FROM KIS GATEWAY
     if (req.market === "BTC") {
