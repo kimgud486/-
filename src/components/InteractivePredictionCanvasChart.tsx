@@ -718,9 +718,10 @@ export const InteractivePredictionCanvasChart: React.FC<InteractivePredictionCan
               AI QUANT ENGINE 3.7 MULTI-FACTOR ANALYSIS SCORE MATRIX
             </span>
           </div>
-          <span className="text-[11px] text-emerald-400 font-mono font-bold flex items-center gap-1">
+          <span className="text-[11px] text-emerald-400 font-mono font-bold flex items-center gap-1.5">
             <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-            종합 분석 신뢰도: {aiConfidence}% (A+ Grade)
+            AI 방향 신뢰도: {Math.round(aiConfidence)}/100 (기술적 Forecast)
+            <span className="text-[9px] text-amber-400 font-mono bg-amber-950/80 border border-amber-800/80 px-1.5 py-0.5 rounded font-bold">CALIBRATED: NO</span>
           </span>
         </div>
 
@@ -1136,9 +1137,14 @@ export const InteractivePredictionCanvasChart: React.FC<InteractivePredictionCan
                   <span>🔮 [2] AI 미래 가격 예측 그래프 (AI Scenario Forecast)</span>
                 </h4>
               </div>
-              <span className="text-[10px] font-mono text-cyan-300 bg-cyan-950/80 px-2 py-0.5 rounded border border-cyan-800 font-bold">
-                신뢰도: {aiConfidence}%
-              </span>
+              <div className="flex items-center gap-1.5 font-mono">
+                <span className="text-[10px] text-cyan-300 bg-cyan-950/80 px-2 py-0.5 rounded border border-cyan-800 font-bold">
+                  방향 신뢰도: {Math.round(aiConfidence)}/100
+                </span>
+                <span className="text-[9px] text-amber-400 bg-amber-950/80 px-1.5 py-0.5 rounded border border-amber-800/80 font-bold">
+                  CALIBRATED: NO
+                </span>
+              </div>
             </div>
 
             <div className="h-80 w-full">
@@ -1321,7 +1327,10 @@ export const InteractivePredictionCanvasChart: React.FC<InteractivePredictionCan
                 <Target className="w-3.5 h-3.5 text-cyan-400" />
                 <span>예상 최고점 도달 ETA: {selectedHorizon} 이내 (+{gainPct1}%)</span>
               </span>
-              <span className="text-emerald-400 font-bold">상승 확률 {aiConfidence}%</span>
+              <span className="text-cyan-300 font-bold flex items-center gap-1.5 font-mono">
+                AI 방향 신뢰도: {Math.round(aiConfidence)}/100
+                <span className="text-[9px] text-amber-400 bg-amber-950/80 px-1.5 py-0.5 rounded border border-amber-800/80">CALIBRATED: NO</span>
+              </span>
             </div>
           </div>
         </div>

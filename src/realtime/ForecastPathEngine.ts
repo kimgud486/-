@@ -1,5 +1,29 @@
 import type { LiveCandle, IndicatorSnapshot, ForecastPoint } from "./types";
 
+/**
+ * TechnicalForecastEngine: Heuristic trend & momentum projection based on EMA, RSI, MACD, and ATR.
+ * Note: Outputs raw direction scores (directionConfidence), NOT statistically calibrated probability.
+ */
+export function generateTechnicalForecastPath(
+  candles: LiveCandle[],
+  indicators: IndicatorSnapshot,
+  horizon = 8
+): ForecastPoint[] {
+  return generateForecastPath(candles, indicators, horizon);
+}
+
+/**
+ * MLForecastEngine: Inference engine wrapper for ML model output.
+ */
+export function generateMLForecastPath(
+  candles: LiveCandle[],
+  indicators: IndicatorSnapshot,
+  horizon = 8,
+  rawModelScore?: number
+): ForecastPoint[] {
+  return generateForecastPath(candles, indicators, horizon, rawModelScore);
+}
+
 export function generateForecastPath(
   candles: LiveCandle[],
   indicators: IndicatorSnapshot,
@@ -26,7 +50,7 @@ export function generateForecastPath(
     mlBias = (mlProbability - 0.5) * 2; // -1 to +1
   }
 
-  // Combined strength score
+  // Combined strength score (-1 to +1)
   const strength =
     typeof mlProbability === "number"
       ? trend * 0.25 + momentum * 0.20 + macdMomentum * 0.15 + mlBias * 0.40
@@ -54,7 +78,7 @@ export function generateForecastPath(
     // Uncertainty expands over time via square-root of horizon
     const uncertainty = safeAtr * Math.sqrt(i) * 0.85;
 
-    // Calibrated probability
+    // Direction score (uncalibrated heuristic score)
     const rawProbUp = 0.5 + strength * 0.28;
     const probabilityUp = Math.max(0.08, Math.min(0.92, Number(rawProbUp.toFixed(3))));
     const probabilityDown = Number((1 - probabilityUp).toFixed(3));
@@ -64,10 +88,11 @@ export function generateForecastPath(
       predicted: Math.round(projected * 100) / 100,
       upper: Math.round((projected + uncertainty) * 100) / 100,
       lower: Math.round((projected - uncertainty) * 100) / 100,
-      probabilityUp,
+      probabilityUp, // Heuristic direction score
       probabilityDown
     });
   }
 
   return results;
 }
+

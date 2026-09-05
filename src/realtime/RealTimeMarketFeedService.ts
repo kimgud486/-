@@ -3,11 +3,31 @@ import { realtimeMarketFeedService } from "../services/realtimeMarketFeedService
 
 type TickListener = (tick: LiveTick) => void;
 
+function parseKoreanVolume(value?: string): number {
+  if (!value) return 0;
+
+  const text = value.replace(/,/g, "").trim();
+
+  const eok = text.match(/([\d.]+)\s*억/);
+  if (eok) {
+    return Math.round(Number(eok[1]) * 100_000_000);
+  }
+
+  const man = text.match(/([\d.]+)\s*만/);
+  if (man) {
+    return Math.round(Number(man[1]) * 10_000);
+  }
+
+  const raw = text.match(/[\d.]+/);
+  return raw ? Math.round(Number(raw[0])) : 0;
+}
+
 export class RealTimeMarketFeedManager {
   private static instance: RealTimeMarketFeedManager;
-  private listeners: Map<string, Set<TickListener>> = new Map();
-  private lastPrices: Map<string, number> = new Map();
-  private unsubscribeFeed: (() => void) | null = null;
+
+  private listeners = new Map<string, Set<TickListener>>();
+  private lastPrices = new Map<string, number>();
+  private lastAccumulatedVolume = new Map<string, number>();
 
   private constructor() {
     this.initFeedBridge();
@@ -17,35 +37,41 @@ export class RealTimeMarketFeedManager {
     if (!this.instance) {
       this.instance = new RealTimeMarketFeedManager();
     }
+
     return this.instance;
   }
 
   private initFeedBridge() {
-    this.unsubscribeFeed = realtimeMarketFeedService.subscribe((quotesMap) => {
+    realtimeMarketFeedService.subscribe((quotesMap) => {
       quotesMap.forEach((quote, symbol) => {
         const symbolListeners = this.listeners.get(symbol);
-        if (!symbolListeners || symbolListeners.size === 0) return;
 
-        const lastP = this.lastPrices.get(symbol) ?? quote.price;
+        if (!symbolListeners?.size) return;
+
+        const accumulatedVolume = parseKoreanVolume(quote.volume);
+        const previousAccumulatedVolume = this.lastAccumulatedVolume.get(symbol);
+
+        const incrementalVolume =
+          previousAccumulatedVolume === undefined
+            ? 0
+            : Math.max(0, accumulatedVolume - previousAccumulatedVolume);
+
         this.lastPrices.set(symbol, quote.price);
 
-        const now = Date.now();
-        const priceDiff = quote.price - lastP;
-        const volNum = parseInt(quote.volume?.replace(/[^0-9]/g, "") || "100", 10);
-        const incrementalVol = Math.max(1, Math.round(volNum * 0.02));
+        if (accumulatedVolume > 0) {
+          this.lastAccumulatedVolume.set(symbol, accumulatedVolume);
+        }
 
         const tick: LiveTick = {
           symbol,
-          timestamp: now,
+          timestamp: Date.now(),
           price: quote.price,
-          volume: incrementalVol,
-          bid: Math.round(quote.price * 0.999),
-          ask: Math.round(quote.price * 1.001),
-          bidVolume: priceDiff >= 0 ? Math.round(incrementalVol * 0.6) : Math.round(incrementalVol * 0.4),
-          askVolume: priceDiff >= 0 ? Math.round(incrementalVol * 0.4) : Math.round(incrementalVol * 0.6)
+          // Actual incremental volume calculated from accumulated volume delta
+          volume: incrementalVolume
+          // bid / ask / bidVolume / askVolume are left undefined unless genuine Level-2 orderbook is present
         };
 
-        symbolListeners.forEach(listener => listener(tick));
+        symbolListeners.forEach((listener) => listener(tick));
       });
     });
   }
@@ -54,28 +80,28 @@ export class RealTimeMarketFeedManager {
     if (!this.listeners.has(symbol)) {
       this.listeners.set(symbol, new Set());
     }
+
     this.listeners.get(symbol)!.add(listener);
 
-    // Register symbol on base feed if needed
     realtimeMarketFeedService.registerSymbol(symbol);
 
     return () => {
-      const set = this.listeners.get(symbol);
-      if (set) {
-        set.delete(listener);
-        if (set.size === 0) {
-          this.listeners.delete(symbol);
-        }
+      const listeners = this.listeners.get(symbol);
+
+      if (!listeners) return;
+
+      listeners.delete(listener);
+
+      if (listeners.size === 0) {
+        this.listeners.delete(symbol);
       }
     };
   }
 
   public emitCustomTick(tick: LiveTick) {
-    const set = this.listeners.get(tick.symbol);
-    if (set) {
-      set.forEach(listener => listener(tick));
-    }
+    this.listeners.get(tick.symbol)?.forEach((listener) => listener(tick));
   }
 }
 
 export const realTimeMarketFeedManager = RealTimeMarketFeedManager.getInstance();
+
