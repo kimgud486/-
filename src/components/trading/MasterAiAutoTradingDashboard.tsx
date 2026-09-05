@@ -185,19 +185,19 @@ export const MasterAiAutoTradingDashboard: React.FC<{
 
   // Real Multi-Market Watchlist items (Domestic KRX, Overseas US, Upbit Crypto)
   const [watchlist, setWatchlist] = useState<any[]>([
-    { symbol: "005930", name: "삼성전자", market: "KOREA", price: 250000, chgPct: 1.55, signal: "BUY" },
-    { symbol: "006660", name: "SK하이닉스", market: "KOREA", price: 192700, chgPct: 2.13, signal: "BUY" },
-    { symbol: "373220", name: "LG에너지솔루션", market: "KOREA", price: 405500, chgPct: 1.32, signal: "BUY" },
-    { symbol: "005380", name: "현대차", market: "KOREA", price: 199800, chgPct: 1.12, signal: "BUY" },
-    { symbol: "035420", name: "NAVER", market: "KOREA", price: 218500, chgPct: 0.69, signal: "BUY" },
-    { symbol: "NVDA", name: "엔비디아 (NVIDIA)", market: "US", price: 227.89, chgPct: 2.85, signal: "BUY" },
-    { symbol: "AAPL", name: "애플 (Apple)", market: "US", price: 232.10, chgPct: 0.95, signal: "BUY" },
-    { symbol: "TSLA", name: "테슬라 (Tesla)", market: "US", price: 248.50, chgPct: -1.20, signal: "NEUTRAL" },
-    { symbol: "KRW-BTC", name: "비트코인 (BTC)", market: "UPBIT", price: 108539000, chgPct: 1.82, signal: "BUY" },
-    { symbol: "KRW-ETH", name: "이더리움 (ETH)", market: "UPBIT", price: 3347000, chgPct: 2.15, signal: "BUY" },
-    { symbol: "KRW-SOL", name: "솔라나 (SOL)", market: "UPBIT", price: 215000, chgPct: 3.42, signal: "BUY" },
+    { symbol: "005930", name: "삼성전자", market: "KOREA", price: 74800, chgPct: 1.55, signal: "HOLD" },
+    { symbol: "000660", name: "SK하이닉스", market: "KOREA", price: 198500, chgPct: 2.13, signal: "HOLD" },
+    { symbol: "373220", name: "LG에너지솔루션", market: "KOREA", price: 382000, chgPct: 1.32, signal: "HOLD" },
+    { symbol: "005380", name: "현대차", market: "KOREA", price: 245000, chgPct: 1.12, signal: "HOLD" },
+    { symbol: "035420", name: "NAVER", market: "KOREA", price: 182000, chgPct: 0.69, signal: "HOLD" },
+    { symbol: "NVDA", name: "엔비디아 (NVIDIA)", market: "US", price: 128.50, chgPct: 2.85, signal: "HOLD" },
+    { symbol: "AAPL", name: "애플 (Apple)", market: "US", price: 224.10, chgPct: 0.95, signal: "HOLD" },
+    { symbol: "TSLA", name: "테슬라 (Tesla)", market: "US", price: 218.50, chgPct: -1.20, signal: "NEUTRAL" },
+    { symbol: "KRW-BTC", name: "비트코인 (BTC)", market: "UPBIT", price: 96500000, chgPct: 1.82, signal: "HOLD" },
+    { symbol: "KRW-ETH", name: "이더리움 (ETH)", market: "UPBIT", price: 3850000, chgPct: 2.15, signal: "HOLD" },
+    { symbol: "KRW-SOL", name: "솔라나 (SOL)", market: "UPBIT", price: 215000, chgPct: 3.42, signal: "HOLD" },
     { symbol: "KRW-XRP", name: "리플 (XRP)", market: "UPBIT", price: 820, chgPct: -0.45, signal: "NEUTRAL" },
-    { symbol: "KRW-DOGE", name: "도지코인 (DOGE)", market: "UPBIT", price: 165, chgPct: 1.25, signal: "BUY" },
+    { symbol: "KRW-DOGE", name: "도지코인 (DOGE)", market: "UPBIT", price: 165, chgPct: 1.25, signal: "HOLD" },
   ]);
 
   // Real Candles State fetched from real API
@@ -213,9 +213,9 @@ export const MasterAiAutoTradingDashboard: React.FC<{
       name: selectedSymbol === "NVDA" ? "엔비디아 (NVIDIA)" : 
             selectedSymbol.startsWith("KRW-") ? `${selectedSymbol.replace("KRW-", "")} 코인` : 
             "선택 종목",
-      price: selectedSymbol.startsWith("KRW-") ? 108539000 : selectedSymbol === "NVDA" ? 227.89 : 250000,
-      chgPct: 1.55,
-      signal: "BUY",
+      price: 0,
+      chgPct: 0,
+      signal: "HOLD",
       market: selectedSymbol.startsWith("KRW-") ? "UPBIT" : /^\d{6}$/.test(selectedSymbol) ? "KOREA" : "US"
     };
   }, [selectedSymbol, watchlist]);
