@@ -34,7 +34,6 @@ class RealtimeMarketFeedService {
     } catch {
       this.isFeedEnabled = true;
     }
-    this.initDefaultQuotes();
   }
 
   public isFeedActive(): boolean {
@@ -66,51 +65,7 @@ class RealtimeMarketFeedService {
     return this.isFeedEnabled;
   }
 
-  private initDefaultQuotes() {
-    const defaults: LiveMarketQuote[] = [
-      { symbol: "005930", name: "삼성전자", market: "KOSPI", price: 74800, changeRate: 2.80, changeAmount: 2000, tradeValue: "1조 2,823억", volume: "1,767만", timestamp: new Date().toISOString() },
-      { symbol: "000660", name: "SK하이닉스", market: "KOSPI", price: 198500, changeRate: 2.10, changeAmount: 4100, tradeValue: "8,420억", volume: "360만", timestamp: new Date().toISOString() },
-      { symbol: "005380", name: "현대차", market: "KOSPI", price: 245000, changeRate: -0.81, changeAmount: -2000, tradeValue: "3,210억", volume: "110만", timestamp: new Date().toISOString() },
-      { symbol: "000270", name: "기아", market: "KOSPI", price: 118000, changeRate: 1.72, changeAmount: 2000, tradeValue: "2,100억", volume: "95만", timestamp: new Date().toISOString() },
-      { symbol: "035420", name: "NAVER", market: "KOSPI", price: 182000, changeRate: 0.55, changeAmount: 1000, tradeValue: "1,850억", volume: "85만", timestamp: new Date().toISOString() },
-      { symbol: "035720", name: "카카오", market: "KOSPI", price: 42500, changeRate: -1.16, changeAmount: -500, tradeValue: "1,200억", volume: "240만", timestamp: new Date().toISOString() },
-      { symbol: "068270", name: "셀트리온", market: "KOSPI", price: 184000, changeRate: 0.55, changeAmount: 1000, tradeValue: "2,400억", volume: "120만", timestamp: new Date().toISOString() },
-      { symbol: "005490", name: "POSCO홀딩스", market: "KOSPI", price: 375000, changeRate: 0.95, changeAmount: 3500, tradeValue: "2,100억", volume: "55만", timestamp: new Date().toISOString() },
-      { symbol: "373220", name: "LG에너지솔루션", market: "KOSPI", price: 342000, changeRate: 0.88, changeAmount: 3000, tradeValue: "1,950억", volume: "45만", timestamp: new Date().toISOString() },
-      { symbol: "006400", name: "삼성SDI", market: "KOSPI", price: 325000, changeRate: 1.40, changeAmount: 4500, tradeValue: "1,450억", volume: "38만", timestamp: new Date().toISOString() },
-      { symbol: "012450", name: "한화에어로스페이스", market: "KOSPI", price: 295000, changeRate: 4.20, changeAmount: 12000, tradeValue: "4,510억", volume: "152만", timestamp: new Date().toISOString() },
-      { symbol: "277810", name: "레인보우로보틱스", market: "KOSDAQ", price: 165000, changeRate: 5.40, changeAmount: 8500, tradeValue: "3,120억", volume: "189만", timestamp: new Date().toISOString() },
-      { symbol: "034020", name: "두산에너빌리티", market: "KOSPI", price: 21500, changeRate: 3.20, changeAmount: 670, tradeValue: "5,890억", volume: "1,840만", timestamp: new Date().toISOString() },
-      { symbol: "080220", name: "제주반도체", market: "KOSDAQ", price: 21500, changeRate: 4.85, changeAmount: 1000, tradeValue: "2,480억", volume: "890만", timestamp: new Date().toISOString() },
-      { symbol: "064350", name: "현대로템", market: "KOSPI", price: 61200, changeRate: 3.38, changeAmount: 2000, tradeValue: "1,940억", volume: "320만", timestamp: new Date().toISOString() },
-      { symbol: "042700", name: "한미반도체", market: "KOSPI", price: 135000, changeRate: 3.80, changeAmount: 4900, tradeValue: "2,850억", volume: "210만", timestamp: new Date().toISOString() },
-      { symbol: "247540", name: "에코프로비엠", market: "KOSDAQ", price: 185000, changeRate: 2.30, changeAmount: 4200, tradeValue: "2,900억", volume: "140만", timestamp: new Date().toISOString() },
-      { symbol: "086520", name: "에코프로", market: "KOSDAQ", price: 92000, changeRate: 3.12, changeAmount: 2800, tradeValue: "3,100억", volume: "320만", timestamp: new Date().toISOString() },
-      // Premier Korean Equities
-      { symbol: "012330", name: "현대모비스", market: "KOSPI", price: 238000, changeRate: 1.49, changeAmount: 3500, tradeValue: "1,250억", volume: "52만", timestamp: new Date().toISOString() },
-      { symbol: "105560", name: "KB금융", market: "KOSPI", price: 82400, changeRate: 2.23, changeAmount: 1800, tradeValue: "1,890억", volume: "230만", timestamp: new Date().toISOString() },
-      { symbol: "055550", name: "신한지주", market: "KOSPI", price: 54600, changeRate: 1.68, changeAmount: 900, tradeValue: "1,120억", volume: "205만", timestamp: new Date().toISOString() },
-      { symbol: "028300", name: "HLB", market: "KOSDAQ", price: 78500, changeRate: 3.42, changeAmount: 2600, tradeValue: "2,420억", volume: "310만", timestamp: new Date().toISOString() },
-      { symbol: "196170", name: "알테오젠", market: "KOSDAQ", price: 345000, changeRate: 4.86, changeAmount: 16000, tradeValue: "3,890억", volume: "112만", timestamp: new Date().toISOString() },
-      // Premier Korean Equities (Live Naver & Upbit Feed)
-      { symbol: "003230", name: "삼양식품", market: "KOSPI", price: 612000, changeRate: 13.1, changeAmount: 71000, tradeValue: "1,450억", volume: "24만", timestamp: new Date().toISOString() },
-      { symbol: "267260", name: "HD현대일렉트릭", market: "KOSPI", price: 312000, changeRate: 15.2, changeAmount: 41000, tradeValue: "2,120억", volume: "68만", timestamp: new Date().toISOString() },
-      { symbol: "454910", name: "두산로보틱스", market: "KOSPI", price: 78900, changeRate: 10.4, changeAmount: 7400, tradeValue: "1,180억", volume: "150만", timestamp: new Date().toISOString() },
-      { symbol: "277810", name: "레인보우로보틱스", market: "KOSDAQ", price: 162000, changeRate: 12.1, changeAmount: 17500, tradeValue: "1,320억", volume: "82만", timestamp: new Date().toISOString() },
-      // Premier Crypto (Upbit Live Feed)
-      { symbol: "BTC", name: "비트코인", market: "UPBIT", price: 96500000, changeRate: 2.15, changeAmount: 2030000, tradeValue: "4,820억", volume: "4,990 BTC", timestamp: new Date().toISOString() },
-      { symbol: "ETH", name: "이더리움", market: "UPBIT", price: 3920000, changeRate: 1.84, changeAmount: 71000, tradeValue: "1,940억", volume: "49,500 ETH", timestamp: new Date().toISOString() },
-      { symbol: "XRP", name: "리플", market: "UPBIT", price: 825, changeRate: 4.56, changeAmount: 36, tradeValue: "2,350억", volume: "2.8억 XRP", timestamp: new Date().toISOString() },
-      { symbol: "SOL", name: "솔라나", market: "UPBIT", price: 215000, changeRate: 3.22, changeAmount: 6700, tradeValue: "1,450억", volume: "67만 SOL", timestamp: new Date().toISOString() },
-      { symbol: "DOGE", name: "도지코인", market: "UPBIT", price: 178, changeRate: -0.56, changeAmount: -1, tradeValue: "890억", volume: "5.0억 DOGE", timestamp: new Date().toISOString() },
-      { symbol: "ADA", name: "에이다", market: "UPBIT", price: 485, changeRate: 1.46, changeAmount: 7, tradeValue: "420억", volume: "8,650만 ADA", timestamp: new Date().toISOString() }
-    ];
 
-    defaults.forEach((q) => {
-      this.quotes.set(q.symbol, q);
-      this.registeredSymbols.set(q.symbol, q.market);
-    });
-  }
 
   public registerSymbol(symbol: any, market?: "KOSPI" | "KOSDAQ" | "UPBIT" | "US") {
     const cleanSym = safeSymbolStr(symbol).toUpperCase();
@@ -303,23 +258,22 @@ class RealtimeMarketFeedService {
         .map(([sym]) => sym);
 
       for (const sym of usRegistered) {
-        if (!this.quotes.has(sym)) {
-          const res = await fetch(`/api/stocks/${sym}`);
-          if (res.ok) {
-            const item = await res.json();
-            if (item && item.price > 0) {
-              this.quotes.set(sym, {
-                symbol: sym,
-                name: item.name || sym,
-                market: "US",
-                price: item.price,
-                changeRate: item.changePct || 0,
-                changeAmount: item.change || 0,
-                tradeValue: "$1.0B",
-                volume: "1,000만",
-                timestamp: new Date().toISOString()
-              });
-            }
+        const res = await fetch(`/api/stocks/${sym}`);
+        if (res.ok) {
+          const item = await res.json();
+          if (item && item.price > 0) {
+            const prev = this.quotes.get(sym);
+            this.quotes.set(sym, {
+              symbol: sym,
+              name: item.name || prev?.name || sym,
+              market: "US",
+              price: item.price,
+              changeRate: item.changePct || 0,
+              changeAmount: item.change || 0,
+              tradeValue: item.marketCap || prev?.tradeValue || "--",
+              volume: prev?.volume || "--",
+              timestamp: new Date().toISOString()
+            });
           }
         }
       }

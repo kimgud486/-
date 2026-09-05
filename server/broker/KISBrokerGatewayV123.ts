@@ -33,7 +33,7 @@ export interface KISFillCheckResult {
   isFilled: boolean;
   filledQty: number;
   filledAvgPrice: number;
-  status: "PENDING" | "FILLED" | "PARTIAL" | "CANCELLED";
+  status: "PENDING" | "FILLED" | "PARTIAL" | "CANCELLED" | "REJECTED";
   message: string;
 }
 
@@ -318,14 +318,14 @@ export class KISBrokerGatewayV123 {
       return { isFilled: false, filledQty: 0, filledAvgPrice: 0, status: "PENDING", message: "주문번호 없음" };
     }
 
-    // PAPER mode simulated fill response
+    // PAPER mode simulated fill is strictly blocked in 100% Live-Only mode
     if (isPaper) {
       return {
-        isFilled: true,
-        filledQty: 1,
+        isFilled: false,
+        filledQty: 0,
         filledAvgPrice: 0,
-        status: "FILLED",
-        message: `[PAPER 모의체결 완료] ODNO: ${orderNo} 체결 완료`
+        status: "REJECTED",
+        message: "⛔ [LIVE_TRADING_ONLY] PAPER 모의체결은 실거래 운영 경로에서 금지되어 있습니다."
       };
     }
 

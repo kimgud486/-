@@ -44,20 +44,19 @@ export class BrokerApiClientV121 {
     const timestamp = new Date().toLocaleTimeString("ko-KR");
     const orderType = req.orderType || "MARKET";
 
-    // 1. PAPER Mode Handling
+    // 1. PAPER Mode Handling (Disabled in 100% Live Mode)
     if (this.mode === "PAPER") {
-      const mockOrderId = `PAPER_V122_${Date.now()}`;
       return {
-        success: true,
-        orderId: mockOrderId,
+        success: false,
+        orderId: "",
         symbol: req.symbol,
         side: req.side,
         price: req.price,
         qty: req.qty,
-        status: "FILLED",
-        filledQty: req.qty,
-        filledAvgPrice: req.price,
-        message: `[PAPER 모의체결 완료] ${req.name}(${req.symbol}) ${req.qty}주 ${req.side} 모의주문 체결`,
+        status: "REJECTED",
+        filledQty: 0,
+        filledAvgPrice: 0,
+        message: `⛔ [LIVE_TRADING_ONLY] PAPER 모드 모의체결은 실거래 운영 경로에서 허용되지 않습니다.`,
         timestamp,
         mode: "PAPER"
       };

@@ -1,3 +1,21 @@
+// KRX Official Exchange Holidays (YYYY-MM-DD format)
+const KRX_HOLIDAYS_SET = new Set([
+  "2025-01-01", "2025-01-28", "2025-01-29", "2025-01-30", "2025-03-01", "2025-03-03", "2025-05-05",
+  "2025-05-06", "2025-06-06", "2025-08-15", "2025-10-03", "2025-10-05", "2025-10-06", "2025-10-07",
+  "2025-10-09", "2025-12-25", "2025-12-31",
+  "2026-01-01", "2026-02-16", "2026-02-17", "2026-02-18", "2026-03-01", "2026-03-02", "2026-05-05",
+  "2026-05-24", "2026-06-06", "2026-08-15", "2026-08-17", "2026-09-24", "2026-09-25", "2026-09-26",
+  "2026-10-03", "2026-10-09", "2026-12-25", "2026-12-31"
+]);
+
+// US NYSE / NASDAQ Official Exchange Holidays (YYYY-MM-DD format)
+const US_HOLIDAYS_SET = new Set([
+  "2025-01-01", "2025-01-20", "2025-02-17", "2025-04-18", "2025-05-26", "2025-06-19", "2025-07-04",
+  "2025-09-01", "2025-11-27", "2025-12-25",
+  "2026-01-01", "2026-01-19", "2026-02-16", "2026-04-03", "2026-05-25", "2026-06-19", "2026-07-03",
+  "2026-09-07", "2026-11-26", "2026-12-25"
+]);
+
 export interface MarketStatus {
   market: 'KOREA' | 'US' | 'BTC';
   isOpen: boolean;
@@ -53,6 +71,17 @@ export function getExecutionPhase(market: 'KOREA' | 'US' | 'BTC', date: Date = n
   const totalKstMins = kstHour * 60 + kstMinute;
 
   if (market === 'KOREA') {
+    const kstDateStr = `${kstYear}-${String(kstMonth).padStart(2, "0")}-${String(kstDay).padStart(2, "0")}`;
+    if (KRX_HOLIDAYS_SET.has(kstDateStr)) {
+      return {
+        market: 'KOREA',
+        phase: 'CLOSED',
+        phaseName: '거래소 공식 휴장일',
+        allowNewBuy: false,
+        reasonText: '공식 거래소 휴장일에는 신규 주문이 자동으로 차단됩니다.'
+      };
+    }
+
     const isWeekday = kstDayOfWeek >= 1 && kstDayOfWeek <= 5;
     if (!isWeekday) {
       return {
@@ -134,9 +163,23 @@ export function getExecutionPhase(market: 'KOREA' | 'US' | 'BTC', date: Date = n
   const nyParts = nyFormatter.formatToParts(date);
   const getNyPart = (type: string) => parseInt(nyParts.find(p => p.type === type)?.value || "0", 10);
 
+  const nyYear = getNyPart("year");
+  const nyMonth = getNyPart("month");
+  const nyDay = getNyPart("day");
   const nyHour = getNyPart("hour");
   const nyMinute = getNyPart("minute");
   const totalNyMins = nyHour * 60 + nyMinute;
+
+  const nyDateStr = `${nyYear}-${String(nyMonth).padStart(2, "0")}-${String(nyDay).padStart(2, "0")}`;
+  if (US_HOLIDAYS_SET.has(nyDateStr)) {
+    return {
+      market: 'US',
+      phase: 'CLOSED',
+      phaseName: '미국 거래소 휴장일',
+      allowNewBuy: false,
+      reasonText: 'NYSE/NASDAQ 거래소 공식 휴장일입니다.'
+    };
+  }
 
   if (totalNyMins >= 9 * 60 + 30 && totalNyMins < 9 * 60 + 45) {
     return {
@@ -217,11 +260,13 @@ export function getMarketStatus(market: 'KOREA' | 'US' | 'BTC', date: Date = new
   const totalKstMins = kstHour * 60 + kstMinute;
 
   if (market === 'KOREA') {
+    const kstDateStr = `${kstYear}-${String(kstMonth).padStart(2, "0")}-${String(kstDay).padStart(2, "0")}`;
+    const isHoliday = KRX_HOLIDAYS_SET.has(kstDateStr);
     const isWeekday = kstDayOfWeek >= 1 && kstDayOfWeek <= 5;
     const startMins = 9 * 60; // 09:00 KST
     const endMins = 15 * 60 + 30; // 15:30 KST
 
-    const isOpen = isWeekday && totalKstMins >= startMins && totalKstMins < endMins;
+    const isOpen = isWeekday && !isHoliday && totalKstMins >= startMins && totalKstMins < endMins;
 
     let statusBadgeText = '';
     let detailText = '';
@@ -236,7 +281,10 @@ export function getMarketStatus(market: 'KOREA' | 'US' | 'BTC', date: Date = new
       nextSessionText = `장마감까지 ${rHours > 0 ? `${rHours}시간 ` : ''}${rMins}분 남음`;
     } else {
       statusBadgeText = '국내주식 장마감 🔴';
-      if (!isWeekday) {
+      if (isHoliday) {
+        detailText = '거래소 공식 휴장일 (KRX 정규장 휴장)';
+        nextSessionText = '다음 개장: 다음 영업일 09:00 KST';
+      } else if (!isWeekday) {
         detailText = '주말 휴장 (토/일요일은 국내 주식 거래가 정지됩니다)';
         nextSessionText = '다음 개장: 월요일 09:00 KST';
       } else if (totalKstMins < startMins) {
@@ -289,8 +337,10 @@ export function getMarketStatus(market: 'KOREA' | 'US' | 'BTC', date: Date = new
   const nyStartMins = 9 * 60 + 30; // 09:30 NY time
   const nyEndMins = 16 * 60; // 16:00 NY time
 
+  const nyDateStr = `${nyYear}-${String(nyMonth).padStart(2, "0")}-${String(nyDay).padStart(2, "0")}`;
+  const isUsHolidayDate = US_HOLIDAYS_SET.has(nyDateStr);
   const isNyWeekday = nyDayOfWeek >= 1 && nyDayOfWeek <= 5;
-  const isUsOpen = isNyWeekday && totalNyMins >= nyStartMins && totalNyMins < nyEndMins;
+  const isUsOpen = isNyWeekday && !isUsHolidayDate && totalNyMins >= nyStartMins && totalNyMins < nyEndMins;
 
   let usBadge = '';
   let usDetail = '';
@@ -305,7 +355,10 @@ export function getMarketStatus(market: 'KOREA' | 'US' | 'BTC', date: Date = new
     usNext = `장마감까지 ${rHours > 0 ? `${rHours}시간 ` : ''}${rMins}분 남음`;
   } else {
     usBadge = '미국주식 장마감 🔴';
-    if (!isNyWeekday) {
+    if (isUsHolidayDate) {
+      usDetail = '미국 거래소 공식 휴장일 (NYSE / NASDAQ 휴장)';
+      usNext = '다음 개장: 다음 영업일 밤 22:30 KST';
+    } else if (!isNyWeekday) {
       usDetail = '주말 휴장 (토/일요일은 미국 주식 거래가 정지됩니다)';
       usNext = '다음 개장: 한국시간 월요일 밤 22:30 KST';
     } else if (totalNyMins < nyStartMins) {
