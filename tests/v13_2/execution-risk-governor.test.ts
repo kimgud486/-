@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { executionRiskGovernorV132 } from "../../src/services/v13_2/ExecutionRiskGovernorV132";
 import { positionSizingEngineV132 } from "../../src/services/v13_2/PositionSizingEngineV132";
 import { dailyRiskGovernorV132 } from "../../src/services/v13_2/DailyRiskGovernorV132";
+import { paperDryRunLiveGateV132 } from "../../src/services/v13_2/PaperDryRunLiveGateV132";
 
 describe("AISTOCK v13.2 Execution & Risk Governor Test Suite", () => {
   test("1. Position Sizing: Recommends safe quantity capped by account capital limits", () => {
@@ -81,5 +82,27 @@ describe("AISTOCK v13.2 Execution & Risk Governor Test Suite", () => {
     const result = executionRiskGovernorV132.evaluateRisk(input);
     assert.strictEqual(result.approved, false);
     assert.ok(result.rejectionReasons.includes("MAX_ACCOUNT_EXPOSURE_CAP_EXCEEDED"));
+  });
+
+  test("5. PaperDryRunLiveGate: Evaluates promotion criteria for LIVE mode", () => {
+    // Failing case: insufficient trades
+    const failEval = paperDryRunLiveGateV132.evaluateLivePromotion("PAPER", {
+      totalTradesCount: 10, // < 20 required
+      winningTradesCount: 7,
+      maxDrawdownPct: 1.5,
+      accountVerified: true
+    });
+    assert.strictEqual(failEval.allowLiveTrading, false);
+    assert.ok(failEval.rejectionReasons.some(r => r.includes("INSUFFICIENT_TEST_TRADES")));
+
+    // Passing case: >=20 trades, >=55% win rate, <=3.0% drawdown, verified account
+    const passEval = paperDryRunLiveGateV132.evaluateLivePromotion("DRY_RUN", {
+      totalTradesCount: 25,
+      winningTradesCount: 18, // 72% win rate
+      maxDrawdownPct: 2.1,
+      accountVerified: true
+    });
+    assert.strictEqual(passEval.allowLiveTrading, true);
+    assert.strictEqual(passEval.rejectionReasons.length, 0);
   });
 });
