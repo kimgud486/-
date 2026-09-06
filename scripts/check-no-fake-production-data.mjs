@@ -34,7 +34,10 @@ const forbidden = [
   /krxBenchmarkReturn\s*=\s*0\.5/,
   /usBenchmarkReturn\s*=\s*0\.8/,
   /getQuote\(["']005930["']\)/,
-  /getSessionInfo\(symbol\)/
+  /getSessionInfo\(symbol\)/,
+  /fakeCvd\b/,
+  /syntheticCvd\b/,
+  /estimatedOrderFlow\b/
 ];
 
 const allowedFolders = [
