@@ -30,7 +30,9 @@ const forbidden = [
   /sma60:\s*price\s*\*\s*0\.93/,
   /high52w:\s*price\s*\*\s*1\.08/,
   /low52w:\s*price\s*\*\s*0\.75/,
-  /vwap:\s*price\s*\*\s*0\.995/
+  /vwap:\s*price\s*\*\s*0\.995/,
+  /krxBenchmarkReturn\s*=\s*0\.5/,
+  /usBenchmarkReturn\s*=\s*0\.8/
 ];
 
 const allowedFolders = [

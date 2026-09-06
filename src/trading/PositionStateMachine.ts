@@ -1,7 +1,9 @@
 // ----------------------------------------------------------------------
-// POSITION STATE MACHINE V2 (V16.1 REAL TRADING INTELLIGENCE)
-// Formal 12-State Lifecycle State Transitions for Position & Trailing Execution
+// POSITION STATE MACHINE V3 (AISTOCK V18 CANONICAL LIFECYCLE ENGINE)
+// Evidence-Driven State Transitions & Broker Event-Synced Quantities
 // ----------------------------------------------------------------------
+
+import { ExitEvidence } from "../services/ExitEvidenceEngine";
 
 export type PositionState =
   | "FLAT"
@@ -17,99 +19,123 @@ export type PositionState =
   | "SELL_PARTIAL"
   | "CLOSED";
 
-export interface PositionContext {
+export interface PositionQuantityState {
+  requestedBuyQty: number;
+  buyFilledQty: number;
+  currentPositionQty: number;
+  requestedSellQty: number;
+  sellFilledQty: number;
+  remainingPositionQty: number;
+}
+
+export interface PositionContextV18 {
   state: PositionState;
   symbol: string;
+  strategyId: string;
+
   entryPrice: number | null;
   currentPrice: number;
-  highestPrice: number | null;
-  trailingStop: number | null;
-  structureValid: boolean;
-  aboveVWAP: boolean;
-  macdHealthy: boolean;
-  momentumHealthy: boolean;
-  orderFlowHealthy: boolean;
-  filledQuantity: number;
-  targetQuantity: number;
+  highestPriceSinceBuy: number | null;
+  initialStopPrice: number | null;
+  trailingFloorPrice: number | null;
+
+  quantities: PositionQuantityState;
+
+  exitEvidence: ExitEvidence | null;
+
+  watchThreshold?: number; // default 35
+  sellThreshold?: number;  // default 65
 }
 
 export class PositionStateMachine {
   /**
-   * Evaluate next position state based on price action, technical integrity, and broker fill status
+   * Evaluate canonical position state transition
    */
-  public static evaluateNextState(ctx: PositionContext): PositionState {
+  public static evaluateNextState(ctx: PositionContextV18): PositionState {
     const {
       state,
       entryPrice,
       currentPrice,
-      trailingStop,
-      structureValid,
-      aboveVWAP,
-      macdHealthy,
-      momentumHealthy,
-      orderFlowHealthy,
-      filledQuantity,
-      targetQuantity
+      quantities,
+      exitEvidence,
+      watchThreshold = 35,
+      sellThreshold = 65
     } = ctx;
+
+    const { remainingPositionQty, buyFilledQty, requestedBuyQty, sellFilledQty } = quantities;
 
     switch (state) {
       case "FLAT":
         return "FLAT";
 
       case "BUY_PENDING":
-        return "BUY_PENDING"; // Awaits broker ACK or partial fill
+        return "BUY_PENDING"; // Awaits Broker ACK or Fill event
 
       case "BUY_ACKNOWLEDGED":
-        if (filledQuantity >= targetQuantity && targetQuantity > 0) return "BUY_FILLED";
-        if (filledQuantity > 0) return "BUY_PARTIAL";
+        if (buyFilledQty >= requestedBuyQty && requestedBuyQty > 0) return "BUY_FILLED";
+        if (buyFilledQty > 0) return "BUY_PARTIAL";
         return "BUY_ACKNOWLEDGED";
 
       case "BUY_PARTIAL":
-        if (filledQuantity >= targetQuantity && targetQuantity > 0) return "BUY_FILLED";
+        if (buyFilledQty >= requestedBuyQty && requestedBuyQty > 0) return "BUY_FILLED";
         return "BUY_PARTIAL";
 
       case "BUY_FILLED":
         return "HOLD";
 
-      case "HOLD":
-        if (!structureValid || (trailingStop != null && currentPrice <= trailingStop)) {
+      case "HOLD": {
+        if (remainingPositionQty <= 0) return "CLOSED";
+        if (!exitEvidence) return "HOLD";
+
+        if (exitEvidence.hardStopHit || exitEvidence.trailingStopHit || exitEvidence.exitRiskScore >= sellThreshold) {
           return "SELL_PENDING";
         }
-        if (!momentumHealthy || !aboveVWAP || !macdHealthy) {
+        if (exitEvidence.exitRiskScore >= watchThreshold) {
           return "SELL_WATCH";
         }
-        if (entryPrice != null && currentPrice > entryPrice) {
+        if (entryPrice != null && currentPrice > entryPrice && exitEvidence.exitRiskScore < watchThreshold) {
           return "PROFIT_HOLD";
         }
         return "HOLD";
+      }
 
-      case "PROFIT_HOLD":
-        if (!structureValid || (trailingStop != null && currentPrice <= trailingStop)) {
+      case "PROFIT_HOLD": {
+        if (remainingPositionQty <= 0) return "CLOSED";
+        if (!exitEvidence) return "PROFIT_HOLD";
+
+        if (exitEvidence.hardStopHit || exitEvidence.trailingStopHit || exitEvidence.exitRiskScore >= sellThreshold) {
           return "SELL_PENDING";
         }
-        if (!momentumHealthy || !aboveVWAP || !orderFlowHealthy) {
+        if (exitEvidence.exitRiskScore >= watchThreshold) {
           return "SELL_WATCH";
         }
         return "PROFIT_HOLD";
+      }
 
-      case "SELL_WATCH":
-        if (!structureValid || (trailingStop != null && currentPrice <= trailingStop)) {
+      case "SELL_WATCH": {
+        if (remainingPositionQty <= 0) return "CLOSED";
+        if (!exitEvidence) return "SELL_WATCH";
+
+        if (exitEvidence.hardStopHit || exitEvidence.trailingStopHit || exitEvidence.exitRiskScore >= sellThreshold) {
           return "SELL_PENDING";
         }
-        if (momentumHealthy && aboveVWAP && macdHealthy) {
+        // Recovery back to HOLD / PROFIT_HOLD if exit risk drops below watch threshold
+        if (exitEvidence.exitRiskScore < watchThreshold) {
           return entryPrice != null && currentPrice > entryPrice ? "PROFIT_HOLD" : "HOLD";
         }
         return "SELL_WATCH";
+      }
 
       case "SELL_PENDING":
-        return "SELL_PENDING"; // Awaits broker sell ACK
+        return "SELL_PENDING"; // Awaits Broker ACK or Fill event
 
       case "SELL_ACKNOWLEDGED":
-        if (filledQuantity <= 0) return "CLOSED";
-        return "SELL_PARTIAL";
+        if (remainingPositionQty === 0 && sellFilledQty > 0) return "CLOSED";
+        if (sellFilledQty > 0) return "SELL_PARTIAL";
+        return "SELL_ACKNOWLEDGED";
 
       case "SELL_PARTIAL":
-        if (filledQuantity <= 0) return "CLOSED";
+        if (remainingPositionQty === 0 && sellFilledQty > 0) return "CLOSED";
         return "SELL_PARTIAL";
 
       case "CLOSED":

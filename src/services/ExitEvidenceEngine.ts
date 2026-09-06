@@ -1,0 +1,184 @@
+// ----------------------------------------------------------------------
+// EXIT EVIDENCE ENGINE V18 (AISTOCK V18 MULTI-FACTOR EXIT INTELLIGENCE)
+// Quantitative Evidence-Based Exit Scoring for Position Lifecycle
+// ----------------------------------------------------------------------
+
+import { CandlePatternSignal } from "./CandlePatternEngine";
+
+export interface ExitEvidenceInput {
+  currentPrice: number;
+  entryPrice: number;
+  highestPriceSinceBuy: number;
+  initialStopPrice: number | null;
+  trailingFloorPrice: number | null;
+
+  structureValid: boolean;
+  bearishChoch: boolean;
+  swingLowBreak: boolean;
+
+  aboveVWAP: boolean;
+  aboveEMA20: boolean;
+
+  macdWeakening: boolean;
+  rsiWeakening: boolean;
+
+  bearishCandlePatterns: CandlePatternSignal[];
+
+  orderFlowReversal: boolean;
+  cvdDivergence: boolean;
+
+  relativeStrengthLoss: boolean;
+  marketWeakness: boolean;
+}
+
+export interface ExitEvidence {
+  hardStopHit: boolean;
+  trailingStopHit: boolean;
+
+  structureBreak: boolean;
+  bearishChoch: boolean;
+  swingLowBreak: boolean;
+
+  vwapLost: boolean;
+  ema20Lost: boolean;
+
+  macdWeakening: boolean;
+  rsiWeakening: boolean;
+
+  bearishCandlePattern: boolean;
+
+  orderFlowReversal: boolean;
+  cvdDivergence: boolean;
+
+  relativeStrengthLoss: boolean;
+  marketWeakness: boolean;
+
+  exitRiskScore: number; // 0 ~ 100
+  reasons: string[];
+}
+
+export class ExitEvidenceEngine {
+  /**
+   * Evaluate all technical, structure, indicator, and order flow evidence to produce an ExitEvidence report
+   */
+  public static evaluate(input: ExitEvidenceInput): ExitEvidence {
+    const {
+      currentPrice,
+      initialStopPrice,
+      trailingFloorPrice,
+      structureValid,
+      bearishChoch,
+      swingLowBreak,
+      aboveVWAP,
+      aboveEMA20,
+      macdWeakening,
+      rsiWeakening,
+      bearishCandlePatterns,
+      orderFlowReversal,
+      cvdDivergence,
+      relativeStrengthLoss,
+      marketWeakness
+    } = input;
+
+    const hardStopHit = initialStopPrice != null && currentPrice <= initialStopPrice;
+    const trailingStopHit = trailingFloorPrice != null && currentPrice <= trailingFloorPrice;
+    const structureBreak = !structureValid;
+    const vwapLost = !aboveVWAP;
+    const ema20Lost = !aboveEMA20;
+
+    const hasBearishCandlePattern = Array.isArray(bearishCandlePatterns) && bearishCandlePatterns.some((p) => p.direction === "BEARISH" && p.confidence >= 70);
+
+    const reasons: string[] = [];
+    let score = 0;
+
+    // Hard Stop / Trailing Stop
+    if (hardStopHit) {
+      score += 100;
+      reasons.push("🚨 [Hard Stop] 초기 손절가 하향 이탈");
+    }
+    if (trailingStopHit) {
+      score += 100;
+      reasons.push("🚨 [Trailing Stop] 수익 보존 트레일링 스탑 이탈");
+    }
+
+    // Structure Evidence
+    if (structureBreak) {
+      score += 35;
+      reasons.push("⚠️ [구조 붕괴] HH/HL 상승 구조 이탈");
+    }
+    if (bearishChoch) {
+      score += 30;
+      reasons.push("⚠️ [CHoCH 발생] 하락 추세 전환 신호");
+    }
+    if (swingLowBreak) {
+      score += 25;
+      reasons.push("⚠️ [Swing Low Break] 직전 지지 저점 이탈");
+    }
+
+    // Indicator Evidence
+    if (vwapLost) {
+      score += 20;
+      reasons.push("📉 [VWAP 이탈] 일중 당일 평균 단가 하회");
+    }
+    if (ema20Lost) {
+      score += 15;
+      reasons.push("📉 [EMA20 이탈] 20단위 단기 추세선 이탈");
+    }
+    if (macdWeakening) {
+      score += 10;
+      reasons.push("📉 [MACD 약화] 모멘텀 히스토그램 감소");
+    }
+    if (rsiWeakening) {
+      score += 10;
+      reasons.push("📉 [RSI 둔화] 모멘텀 지수 하락");
+    }
+
+    // Candle Pattern Evidence
+    if (hasBearishCandlePattern) {
+      score += 15;
+      const patternNames = bearishCandlePatterns.filter((p) => p.direction === "BEARISH").map((p) => p.pattern).join(", ");
+      reasons.push(`🕯️ [음봉 캔들 패턴] ${patternNames}`);
+    }
+
+    // Order Flow Evidence
+    if (orderFlowReversal) {
+      score += 20;
+      reasons.push("📊 [Order Flow 반전] 매도 체결 수급 우위 전환");
+    }
+    if (cvdDivergence) {
+      score += 20;
+      reasons.push("📊 [CVD Divergence] 고점 형성 대비 순매수 수급 이탈");
+    }
+
+    // Market & Sector
+    if (relativeStrengthLoss) {
+      score += 10;
+      reasons.push("🌐 [상대강도 약화] 시장 지수 대비 약세 전환");
+    }
+    if (marketWeakness) {
+      score += 10;
+      reasons.push("🌐 [시장 약세] 지수 전체 급락 변동성");
+    }
+
+    const exitRiskScore = Math.min(100, score);
+
+    return {
+      hardStopHit,
+      trailingStopHit,
+      structureBreak,
+      bearishChoch,
+      swingLowBreak,
+      vwapLost,
+      ema20Lost,
+      macdWeakening,
+      rsiWeakening,
+      bearishCandlePattern: hasBearishCandlePattern,
+      orderFlowReversal,
+      cvdDivergence,
+      relativeStrengthLoss,
+      marketWeakness,
+      exitRiskScore,
+      reasons
+    };
+  }
+}

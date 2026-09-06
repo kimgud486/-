@@ -9,6 +9,8 @@ import { realtimeMarketFeedService, LiveMarketQuote } from "./realtimeMarketFeed
 import { realCandleStore } from "./RealCandleStore";
 import { CandlePatternEngine, CandlePatternSignal } from "./CandlePatternEngine";
 import { RealScannerCoreEngine, RealScannerResult } from "./RealScannerCoreEngine";
+import { IndicatorTruthEngine } from "./IndicatorTruthEngine";
+import { MarketSessionService } from "./MarketSessionService";
 
 export interface DiscoveryCandidateV17 {
   symbol: string;
@@ -46,9 +48,12 @@ export class GlobalStockDiscoveryScannerV17 {
       stage1Candidates.push({ stock, quote });
     }
 
-    // Benchmark Returns for Relative Strength Calculation (KOSPI ~ 0.5%, NASDAQ ~ 0.8%)
-    const krxBenchmarkReturn = 0.5;
-    const usBenchmarkReturn = 0.8;
+    // Fetch Benchmark Returns dynamically
+    const kospiQuote = realtimeMarketFeedService.getQuote("KOSPI") || realtimeMarketFeedService.getQuote("005930");
+    const nasdaqQuote = realtimeMarketFeedService.getQuote("QQQ") || realtimeMarketFeedService.getQuote("AAPL");
+
+    const krxBenchmarkReturn = kospiQuote?.changeRate ?? 0;
+    const usBenchmarkReturn = nasdaqQuote?.changeRate ?? 0;
 
     // Stage 2 & Stage 3 Deep Analysis
     const candidates: DiscoveryCandidateV17[] = [];
@@ -56,11 +61,13 @@ export class GlobalStockDiscoveryScannerV17 {
     for (const item of stage1Candidates) {
       const { stock, quote } = item;
       const candles = realCandleStore.getCachedCandles(stock.symbol, "15m");
+      const marketSession = MarketSessionService.getSessionInfo(stock.market === "US" ? "US" : stock.market === "UPBIT" ? "CRYPTO" : "KR");
+      const indicators = candles.length > 0 ? IndicatorTruthEngine.computeSnapshot(candles, marketSession.openTimestamp) : null;
 
-      // Scan Candle Patterns
+      // Scan Candle Patterns using real Session VWAP and RVOL
       const patterns = CandlePatternEngine.scan(candles, {
-        vwap: quote?.tradeValue != null && quote?.volume ? Math.round((quote.tradeValue * 100000000) / quote.volume) : null,
-        rvol: stock.rvol
+        vwap: indicators?.vwap ?? null,
+        rvol: indicators?.rvol ?? stock.rvol ?? null
       });
 
       // Run RealScannerCoreEngine Deep Analysis
