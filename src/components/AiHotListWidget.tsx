@@ -27,6 +27,7 @@ export interface HotItem {
   symbol: string;
   name: string;
   market: "KOREA" | "US" | "BTC";
+  exchange?: string;
   currentPrice: number;
   priceChange24hPct: number;
   volatilityScore: number;
@@ -41,6 +42,9 @@ export interface HotItem {
   volumeIncreaseRatio: number;
   rsiIndicator: number;
   reasoning: string;
+  grade?: "S" | "A" | "B" | "WATCH" | "REJECT" | string;
+  setupScore?: number;
+  dataStatus?: string;
 }
 
 interface AiHotListWidgetProps {
@@ -63,12 +67,14 @@ export const AiHotListWidget: React.FC<AiHotListWidgetProps> = ({
   } = useApp();
 
   const [marketFilter, setMarketFilter] = useState<"ALL" | "KOREA" | "US" | "BTC">("ALL");
+  const [exchangeFilter, setExchangeFilter] = useState<"ALL" | "NASDAQ" | "NYSE" | "AMEX">("ALL");
   const [patternFilter, setPatternFilter] = useState<string>("ALL");
   const [minYieldFilter, setMinYieldFilter] = useState<number>(15);
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [lastScanTime, setLastScanTime] = useState<string>("");
   const [scannedTotal, setScannedTotal] = useState<number>(3420);
+  const [marketCounts, setMarketCounts] = useState<{ KOREA: number; US: number; UPBIT: number }>({ KOREA: 0, US: 0, UPBIT: 0 });
   const [hotItems, setHotItems] = useState<HotItem[]>([]);
 
   // Quick Order Modal State
@@ -84,6 +90,7 @@ export const AiHotListWidget: React.FC<AiHotListWidgetProps> = ({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           marketFilter,
+          exchangeFilter,
           patternFilter,
           minYield: minYieldFilter
         })
@@ -94,12 +101,12 @@ export const AiHotListWidget: React.FC<AiHotListWidgetProps> = ({
         setHotItems(data.hotItems || []);
         setLastScanTime(data.scanTimestamp || new Date().toLocaleTimeString());
         if (data.scannedTotal) setScannedTotal(data.scannedTotal);
+        if (data.marketCounts) setMarketCounts(data.marketCounts);
       } else {
         throw new Error("API response not ok");
       }
     } catch (e) {
       console.warn("Hot list fetch error, using local quantitative generator", e);
-      // Fallback
       setLastScanTime(new Date().toLocaleTimeString());
     } finally {
       setIsLoading(false);
@@ -108,7 +115,7 @@ export const AiHotListWidget: React.FC<AiHotListWidgetProps> = ({
 
   useEffect(() => {
     fetchHotList();
-  }, [marketFilter, patternFilter, minYieldFilter]);
+  }, [marketFilter, exchangeFilter, patternFilter, minYieldFilter]);
 
   // Client-side search filtering
   const filteredItems = useMemo(() => {
@@ -249,9 +256,16 @@ export const AiHotListWidget: React.FC<AiHotListWidgetProps> = ({
         
         {/* MARKET SELECTOR */}
         <div className="space-y-1">
-          <label className="text-[10px] font-bold text-zinc-400 flex items-center gap-1">
-            <Filter className="h-3 w-3 text-amber-400" />
-            <span>대상 시장 (Market)</span>
+          <label className="text-[10px] font-bold text-zinc-400 flex items-center justify-between">
+            <span className="flex items-center gap-1">
+              <Filter className="h-3 w-3 text-amber-400" />
+              <span>대상 시장 (Market)</span>
+            </span>
+            {marketCounts && (marketCounts.KOREA > 0 || marketCounts.US > 0 || marketCounts.UPBIT > 0) && (
+              <span className="text-[9px] font-mono text-amber-400">
+                🇰🇷{marketCounts.KOREA} 🇺🇸{marketCounts.US} 🪙{marketCounts.UPBIT}
+              </span>
+            )}
           </label>
           <div className="flex bg-zinc-950 p-1 rounded-lg border border-zinc-800 gap-1">
             {[
@@ -275,26 +289,56 @@ export const AiHotListWidget: React.FC<AiHotListWidgetProps> = ({
           </div>
         </div>
 
-        {/* PATTERN CATEGORY SELECTOR */}
-        <div className="space-y-1">
-          <label className="text-[10px] font-bold text-zinc-400 flex items-center gap-1">
-            <Sparkles className="h-3 w-3 text-cyan-400" />
-            <span>AI 차트 패턴 (Pattern)</span>
-          </label>
-          <select
-            value={patternFilter}
-            onChange={(e) => setPatternFilter(e.target.value)}
-            className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-1.5 text-xs text-zinc-200 font-semibold outline-none focus:border-amber-500"
-          >
-            <option value="ALL">✨ 전체 AI 차트 패턴</option>
-            <option value="BOLLINGER_SQUEEZE">🚀 볼린저 스퀴즈 오버슈팅</option>
-            <option value="W_BOTTOM">📈 W-이중바닥 수급돌파</option>
-            <option value="BULL_FLAG">⚡ 깃발형 모멘텀 2차파동</option>
-            <option value="VOLUME_SURGE">🔥 24시간 거래량 폭발</option>
-            <option value="CUP_AND_HANDLE">🏆 컵앤핸들 대시세 수렴</option>
-            <option value="RSI_OVERSOLD">🛡️ 과매도 반등 지름길</option>
-          </select>
-        </div>
+        {/* US SUB-EXCHANGE SELECTOR (WHEN US OR ALL IS ACTIVE) */}
+        {(marketFilter === "US" || marketFilter === "ALL") ? (
+          <div className="space-y-1">
+            <label className="text-[10px] font-bold text-zinc-400 flex items-center gap-1">
+              <Zap className="h-3 w-3 text-blue-400" />
+              <span>미국 거래소 (US Exchange)</span>
+            </label>
+            <div className="flex bg-zinc-950 p-1 rounded-lg border border-zinc-800 gap-1">
+              {[
+                { id: "ALL", label: "ALL US" },
+                { id: "NASDAQ", label: "NASDAQ" },
+                { id: "NYSE", label: "NYSE" },
+                { id: "AMEX", label: "AMEX" }
+              ].map(ex => (
+                <button
+                  key={ex.id}
+                  onClick={() => setExchangeFilter(ex.id as any)}
+                  className={`flex-1 py-1 rounded text-[10px] font-bold transition cursor-pointer text-center ${
+                    exchangeFilter === ex.id
+                      ? "bg-blue-600 text-white shadow-xs font-black"
+                      : "text-zinc-400 hover:text-zinc-200"
+                  }`}
+                >
+                  {ex.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : (
+          /* PATTERN CATEGORY SELECTOR */
+          <div className="space-y-1">
+            <label className="text-[10px] font-bold text-zinc-400 flex items-center gap-1">
+              <Sparkles className="h-3 w-3 text-cyan-400" />
+              <span>AI 차트 패턴 (Pattern)</span>
+            </label>
+            <select
+              value={patternFilter}
+              onChange={(e) => setPatternFilter(e.target.value)}
+              className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-1.5 text-xs text-zinc-200 font-semibold outline-none focus:border-amber-500"
+            >
+              <option value="ALL">✨ 전체 AI 차트 패턴</option>
+              <option value="BOLLINGER_SQUEEZE">🚀 볼린저 스퀴즈 오버슈팅</option>
+              <option value="W_BOTTOM">📈 W-이중바닥 수급돌파</option>
+              <option value="BULL_FLAG">⚡ 깃발형 모멘텀 2차파동</option>
+              <option value="VOLUME_SURGE">🔥 24시간 거래량 폭발</option>
+              <option value="CUP_AND_HANDLE">🏆 컵앤핸들 대시세 수렴</option>
+              <option value="RSI_OVERSOLD">🛡️ 과매도 반등 지름길</option>
+            </select>
+          </div>
+        )}
 
         {/* MIN EXPECTED YIELD SELECTOR */}
         <div className="space-y-1">
@@ -375,6 +419,16 @@ export const AiHotListWidget: React.FC<AiHotListWidgetProps> = ({
                       <span className="text-[10px] font-black font-mono bg-gradient-to-r from-amber-500 to-rose-500 text-zinc-950 px-2 py-0.5 rounded-md shadow-xs">
                         #{idx + 1} AI HOT
                       </span>
+                      {item.grade && (
+                        <span className={`text-[10px] font-black font-mono px-2 py-0.5 rounded border shadow-xs ${
+                          item.grade === "S" ? "bg-amber-500 text-zinc-950 border-amber-400 font-black animate-pulse" :
+                          item.grade === "A" ? "bg-emerald-500 text-zinc-950 border-emerald-400 font-black" :
+                          item.grade === "B" ? "bg-blue-500 text-white border-blue-400" :
+                          "bg-zinc-800 text-zinc-300 border-zinc-700"
+                        }`}>
+                          {item.grade} GRADE
+                        </span>
+                      )}
                       <span className={`text-[10px] font-black font-mono px-2 py-0.5 rounded border ${
                         isKorea ? "bg-emerald-950 text-emerald-300 border-emerald-800" :
                         isCrypto ? "bg-amber-950 text-amber-300 border-amber-800" :
@@ -382,6 +436,11 @@ export const AiHotListWidget: React.FC<AiHotListWidgetProps> = ({
                       }`}>
                         {item.market}
                       </span>
+                      {item.exchange && (
+                        <span className="text-[9px] font-black font-mono px-1.5 py-0.5 rounded bg-zinc-800 text-blue-300 border border-blue-800/60">
+                          {item.exchange}
+                        </span>
+                      )}
                     </div>
 
                     <div className="flex items-center gap-1">

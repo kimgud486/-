@@ -8,6 +8,7 @@ import { GoogleGenAI, Type } from "@google/genai";
 import dotenv from "dotenv";
 import { UsMarketAiPromptBuilder, UsFinancialDataAnalyzer, UsMarketDataPromptInput } from "./src/services/UsMarketSpecializedModule.js";
 import { UsScalperSuperBrainEngine } from "./src/services/UsScalperSuperBrainEngine.js";
+import { scanGlobalRealtimeHotList } from "./src/services/GlobalRealtimeScannerV188.js";
 import { KISBrokerGatewayV121 } from "./server/broker/KISBrokerGatewayV121";
 import { DEMO_FIXTURE_STOCKS } from "./src/demo/presetStocks.js";
 
@@ -5267,62 +5268,67 @@ app.post("/api/ai/jarvis-v4-engine", async (req, res) => {
   }
 });
 
-// AI Real-time Volatility & High-Yield Hot List Endpoint
+// AI Real-time Volatility & High-Yield Hot List Endpoint (AISTOCK V18.8)
 app.post("/api/ai/hot-list", async (req, res) => {
   try {
     const { 
       marketFilter = "ALL", 
+      exchangeFilter = "ALL",
       patternFilter = "ALL", 
       minYield = 15 
     } = req.body || {};
 
     const ai = getAI();
 
-    const systemPrompt = `You are the AI Real-time Hot List Engine for AISTOCK 24.
-Your mission: Analyze live market momentum, high 24h volatility, and favorable technical chart patterns (W-bottom turnaround, Bollinger Squeeze breakout, Bull Flag momentum, Cup & Handle, RSI divergence, Volume surges) to recommend high-yield alpha trade opportunities across South Korea (KIS), US Stocks, and Upbit Crypto.
+    if (ai) {
+      try {
+        const systemPrompt = `You are the AI Real-time Hot List Engine for AISTOCK 24.5 V18.8.
+Your mission: Analyze live market momentum, high 24h volatility, and technical patterns to recommend high-yield alpha trade opportunities across South Korea (KIS), US Stocks (NASDAQ/NYSE/AMEX), and Upbit Crypto.
 
 [CONSTRAINTS]
+- Filter strictly according to requested market filter: '${marketFilter}' and exchange filter: '${exchangeFilter}'.
 - Focus on HIGH-VOLATILITY and HIGH-YIELD PATTERNS (+15% to +65%+ expected returns).
-- Filter strictly according to requested market filter: '${marketFilter}'.
 - Return a valid JSON object matching this schema:
 {
-  "scanTimestamp": "string (e.g. 2026-08-04 17:25:00)",
-  "scannedTotal": number (e.g. 3420),
+  "scanTimestamp": "string",
+  "scannedTotal": number,
   "filteredCount": number,
+  "dataStatus": "REALTIME_VERIFIED",
+  "marketCounts": { "KOREA": number, "US": number, "UPBIT": number },
   "hotItems": [
     {
-      "symbol": "string (e.g. SOL, SUI, SEI, 042700, 277810, NVDA, PLTR, XLM)",
-      "name": "string (e.g. 솔라나, 수이, 세이, 한미반도체, 레인보우로보틱스, 엔비디아)",
+      "symbol": "string",
+      "name": "string",
       "market": "KOREA | US | BTC",
+      "exchange": "NASDAQ | NYSE | AMEX",
       "currentPrice": number,
       "priceChange24hPct": number,
-      "volatilityScore": number (1 to 100),
-      "aiMatchScore": number (70.0 to 99.9),
+      "volatilityScore": number,
+      "aiMatchScore": number,
       "expectedReturnPct": number,
       "patternType": "BOLLINGER_SQUEEZE | W_BOTTOM | BULL_FLAG | VOLUME_SURGE | CUP_AND_HANDLE | RSI_OVERSOLD",
-      "patternName": "string (e.g. 🚀 볼린저 스퀴즈 오버슈팅, 📈 W-이중바닥 수급돌파, ⚡ 깃발형 모멘텀 2차 파동, 🔥 24시간 거래량 폭발)",
+      "patternName": "string",
       "targetPrice": number,
       "stopLoss": number,
-      "holdingPeriod": "string (e.g. 1일~3일, 3일~7일)",
-      "riskRewardRatio": "string (e.g. 1 : 3.2)",
-      "volumeIncreaseRatio": number (e.g. 3.8),
-      "rsiIndicator": number (e.g. 64.5),
-      "reasoning": "string (AI 퀀트 정밀 분석 설명)"
+      "holdingPeriod": "string",
+      "riskRewardRatio": "string",
+      "volumeIncreaseRatio": number,
+      "rsiIndicator": number,
+      "reasoning": "string"
     }
   ]
 }`;
 
-    if (ai) {
-      try {
         const response = await ai.models.generateContent({
           model: "gemini-2.5-flash",
-          contents: `Filter market: ${marketFilter}, Pattern filter: ${patternFilter}, Min Expected Yield: +${minYield}%. Provide top high-volatility & high-yield breakout hot stock and coin items.`,
+          contents: `Filter market: ${marketFilter}, Exchange: ${exchangeFilter}, Pattern: ${patternFilter}, Min Yield: +${minYield}%. Provide verified top breakout items.`,
           config: {
             systemInstruction: systemPrompt,
             responseMimeType: "application/json",
             temperature: 0.35
           }
         });
+
         const text = typeof (response as any).text === "function" ? (response as any).text() : (response as any).text;
         if (text) {
           const parsed = JSON.parse(text);
@@ -5331,190 +5337,19 @@ Your mission: Analyze live market momentum, high 24h volatility, and favorable t
           }
         }
       } catch (aiErr: any) {
-        const isAuth = aiErr?.message?.includes("401") || aiErr?.message?.includes("UNAUTHENTICATED") || aiErr?.status === 401;
-        if (isAuth) {
-          invalidateAICache();
-          console.log("[AI Hot List] Gemini API key unauthenticated or missing. Utilizing deterministic quant generator fallback.");
-        } else {
-          console.log("[AI Hot List] Utilizing deterministic quant generator fallback.");
-        }
+        console.log("[AI Hot List] Gemini call skipped or failed. Utilizing V18.8 Global Realtime Scanner Engine.");
       }
     }
 
-    // High-precision Fallback Hot List Generator
-    const nowStr = new Date().toLocaleString("ko-KR", { timeZone: "Asia/Seoul" });
-    const masterPool = [
-      {
-        symbol: "SOL",
-        name: "솔라나",
-        market: "BTC",
-        currentPrice: 248500,
-        priceChange24hPct: 12.8,
-        volatilityScore: 96,
-        aiMatchScore: 98.9,
-        expectedReturnPct: 34.5,
-        patternType: "BOLLINGER_SQUEEZE",
-        patternName: "🚀 볼린저 스퀴즈 상방 오버슈팅",
-        targetPrice: 320000,
-        stopLoss: 228000,
-        holdingPeriod: "2일~5일",
-        riskRewardRatio: "1 : 3.5",
-        volumeIncreaseRatio: 4.2,
-        rsiIndicator: 68.4,
-        reasoning: "업비트 24시간 거래대금 1위 유동성 폭발. 상방 볼린저 밴드 이탈 후 2차 시세 분출 초입 구간 형성."
-      },
-      {
-        symbol: "SUI",
-        name: "수이",
-        market: "BTC",
-        currentPrice: 4850,
-        priceChange24hPct: 18.4,
-        volatilityScore: 98,
-        aiMatchScore: 97.8,
-        expectedReturnPct: 42.0,
-        patternType: "W_BOTTOM",
-        patternName: "📈 W-이중바닥 수급돌파",
-        targetPrice: 6800,
-        stopLoss: 4400,
-        holdingPeriod: "3일~7일",
-        riskRewardRatio: "1 : 4.1",
-        volumeIncreaseRatio: 5.6,
-        rsiIndicator: 72.1,
-        reasoning: "지지선 2회 수직 반등 후 주요 저항 넥라인 거래량 오버슈팅 돌파. 급등 파동 진행 중."
-      },
-      {
-        symbol: "SEI",
-        name: "세이",
-        market: "BTC",
-        currentPrice: 780,
-        priceChange24hPct: 14.2,
-        volatilityScore: 92,
-        aiMatchScore: 96.5,
-        expectedReturnPct: 52.6,
-        patternType: "CUP_AND_HANDLE",
-        patternName: "🏆 컵앤핸들 모멘텀 분출",
-        targetPrice: 1180,
-        stopLoss: 690,
-        holdingPeriod: "5일~14일",
-        riskRewardRatio: "1 : 4.4",
-        volumeIncreaseRatio: 3.8,
-        rsiIndicator: 64.8,
-        reasoning: "장기 누적 매집 완료 후 핸들 부근 20일선 정배열 안착. 100% 이상 전형적 대시세 분출 패턴."
-      },
-      {
-        symbol: "042700",
-        name: "한미반도체",
-        market: "KOREA",
-        currentPrice: 168500,
-        priceChange24hPct: 8.6,
-        volatilityScore: 89,
-        aiMatchScore: 95.8,
-        expectedReturnPct: 29.8,
-        patternType: "BULL_FLAG",
-        patternName: "⚡ 깃발형 2차 상승 파동",
-        targetPrice: 215000,
-        stopLoss: 153000,
-        holdingPeriod: "3일~10일",
-        riskRewardRatio: "1 : 3.0",
-        volumeIncreaseRatio: 3.1,
-        rsiIndicator: 61.2,
-        reasoning: "기관/외국인 연속 순매수 주도 깃발형 눌림목 수렴 완료. 2차 수급 슛팅 타점 확립."
-      },
-      {
-        symbol: "277810",
-        name: "레인보우로보틱스",
-        market: "KOREA",
-        currentPrice: 172000,
-        priceChange24hPct: 11.2,
-        volatilityScore: 94,
-        aiMatchScore: 94.6,
-        expectedReturnPct: 36.5,
-        patternType: "VOLUME_SURGE",
-        patternName: "🔥 24시간 거래량 폭발 돌파",
-        targetPrice: 230000,
-        stopLoss: 156000,
-        holdingPeriod: "3일~7일",
-        riskRewardRatio: "1 : 3.6",
-        volumeIncreaseRatio: 6.2,
-        rsiIndicator: 70.8,
-        reasoning: "평균 대비 거래량 6.2배 급증하며 박스권 상단 상향 이탈. 로봇/AI 테마 수급 리딩 종목."
-      },
-      {
-        symbol: "196170",
-        name: "알테오젠",
-        market: "KOREA",
-        currentPrice: 285000,
-        priceChange24hPct: 6.4,
-        volatilityScore: 88,
-        aiMatchScore: 97.2,
-        expectedReturnPct: 48.0,
-        patternType: "W_BOTTOM",
-        patternName: "📈 역헤드앤숄더 사상최고가 갱신",
-        targetPrice: 420000,
-        stopLoss: 250000,
-        holdingPeriod: "1주일~1개월",
-        riskRewardRatio: "1 : 3.8",
-        volumeIncreaseRatio: 2.9,
-        rsiIndicator: 63.5,
-        reasoning: "역헤드앤숄더 저항선 이탈 후 신기술 바이오 플랫폼 독점 모멘텀으로 매물대 공백 지대 진입."
-      },
-      {
-        symbol: "086520",
-        name: "에코프로",
-        market: "KOREA",
-        currentPrice: 84800,
-        priceChange24hPct: 4.8,
-        volatilityScore: 88,
-        aiMatchScore: 94.2,
-        expectedReturnPct: 28.5,
-        patternType: "BOLLINGER_SQUEEZE",
-        patternName: "🚀 2차전지 양극재 반등 수급 수렴",
-        targetPrice: 110000,
-        stopLoss: 78000,
-        holdingPeriod: "3일~10일",
-        riskRewardRatio: "1 : 3.2",
-        volumeIncreaseRatio: 4.5,
-        rsiIndicator: 46.2,
-        reasoning: "과매도권 이후 외인/기관 동반 쌍끌이 매수 유입 및 하방 지지선 공고화."
-      },
-      {
-        symbol: "005490",
-        name: "POSCO홀딩스",
-        market: "KOREA",
-        currentPrice: 382000,
-        priceChange24hPct: 2.2,
-        volatilityScore: 78,
-        aiMatchScore: 91.5,
-        expectedReturnPct: 22.4,
-        patternType: "RSI_OVERSOLD",
-        patternName: "🛡️ 밸류에이션 바닥 반등 타점",
-        targetPrice: 460000,
-        stopLoss: 350000,
-        holdingPeriod: "2주~1개월",
-        riskRewardRatio: "1 : 2.5",
-        volumeIncreaseRatio: 2.8,
-        rsiIndicator: 42.0,
-        reasoning: "PBR 0.5배 역사적 저점 영역에서 리튬 신사업 상용화 가시화에 따른 반등 파동 개시."
-      }
-    ];
-
-    let filtered = masterPool.filter(item => {
-      if (marketFilter !== "ALL" && item.market !== marketFilter) return false;
-      if (patternFilter !== "ALL" && item.patternType !== patternFilter) return false;
-      if (item.expectedReturnPct < minYield) return false;
-      return true;
+    // AISTOCK V18.8 Global Realtime Scanner Engine Call
+    const scanResult = scanGlobalRealtimeHotList({
+      marketFilter,
+      exchangeFilter,
+      patternFilter,
+      minYield
     });
 
-    if (filtered.length === 0) {
-      filtered = masterPool;
-    }
-
-    return res.json({
-      scanTimestamp: nowStr,
-      scannedTotal: 3420,
-      filteredCount: filtered.length,
-      hotItems: filtered
-    });
+    return res.json(scanResult);
   } catch (err: any) {
     return res.status(500).json({ error: err.message || "Hot list service error" });
   }
