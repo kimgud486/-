@@ -102,7 +102,7 @@ interface TargetItem {
 const REAL_TIME_MARKET_TARGETS: TargetItem[] = [
   // UPBIT CRYPTO
   { symbol: "XLM", name: "스텔라루멘", market: "BTC", price: 215, upbitMarketCode: "KRW-XLM", sectorTag: "결제/송금", aliases: ["스텔라", "xlm", "ㅅㅌㄹㄹㅁ"] },
-  { symbol: "BTC", name: "비트코인", market: "BTC", price: 98500000, upbitMarketCode: "KRW-BTC", sectorTag: "디지털골드/대장", aliases: ["비트", "btc", "ㅂㅌㅋㅇ"] },
+  { symbol: "BTC", name: "비트코인", market: "BTC", price: 0, upbitMarketCode: "KRW-BTC", sectorTag: "디지털골드/대장", aliases: ["비트", "btc", "ㅂㅌㅋㅇ"] },
   { symbol: "ETH", name: "이더리움", market: "BTC", price: 3850000, upbitMarketCode: "KRW-ETH", sectorTag: "스마트컨트랙트", aliases: ["이더", "eth", "ㅇㄷㄹㅇ"] },
   { symbol: "SOL", name: "솔라나", market: "BTC", price: 248000, upbitMarketCode: "KRW-SOL", sectorTag: "고성능L1", aliases: ["솔라나", "sol", "ㅅㄹㄴ"] },
   { symbol: "XRP", name: "리플", market: "BTC", price: 820, upbitMarketCode: "KRW-XRP", sectorTag: "국경간결제", aliases: ["리플", "xrp", "ㄹㅍ"] },

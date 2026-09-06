@@ -21,6 +21,7 @@ export interface Candle {
 export interface SwingPoint {
   id: string;
   index: number;
+  confirmedAtIndex?: number;
   price: number;
   high: number;
   low: number;
@@ -213,6 +214,7 @@ export class StructureBrain {
         swingHighs.push({
           id: `sh_${i}_${current.high}`,
           index: i,
+          confirmedAtIndex: i + rightWindow,
           price: current.high,
           high: current.high,
           low: current.low,
@@ -226,6 +228,7 @@ export class StructureBrain {
         swingLows.push({
           id: `sl_${i}_${current.low}`,
           index: i,
+          confirmedAtIndex: i + rightWindow,
           price: current.low,
           high: current.high,
           low: current.low,
@@ -279,9 +282,10 @@ export class StructureBrain {
     for (let i = 0; i < candles.length; i++) {
       const c = candles[i];
 
-      // Update active swings
+      // Update active swings (only those confirmed at or before current candle i)
       for (const sw of allSwings) {
-        if (sw.index <= i) {
+        const confirmedAt = sw.confirmedAtIndex ?? (sw.index + 2);
+        if (confirmedAt <= i) {
           if (sw.type === "SWING_HIGH") lastSwingHigh = sw;
           else lastSwingLow = sw;
         }

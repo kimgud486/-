@@ -156,7 +156,7 @@ export const AiBotCommandCenterUi: React.FC<AiBotCommandCenterUiProps> = ({
     if (found) {
       return {
         ...found,
-        price: found.price || found.currentPrice || 98500000,
+        price: found.price || found.currentPrice || 0,
         changeRate: found.changeRate ?? 1.85,
         tradeValue: found.tradeValue || "3,820억",
         volume: found.volume || "450,200",
@@ -176,7 +176,7 @@ export const AiBotCommandCenterUi: React.FC<AiBotCommandCenterUiProps> = ({
       stockList[0] || {
         symbol: "KRW-BTC",
         name: "비트코인",
-        price: 98500000,
+        price: 0,
         changeRate: 3.45,
         tradeValue: "1조 4,200억",
         volume: "85,400",

@@ -9,6 +9,7 @@ import dotenv from "dotenv";
 import { UsMarketAiPromptBuilder, UsFinancialDataAnalyzer, UsMarketDataPromptInput } from "./src/services/UsMarketSpecializedModule.js";
 import { UsScalperSuperBrainEngine } from "./src/services/UsScalperSuperBrainEngine.js";
 import { KISBrokerGatewayV121 } from "./server/broker/KISBrokerGatewayV121";
+import { DEMO_FIXTURE_STOCKS } from "./src/demo/presetStocks.js";
 
 dotenv.config();
 
@@ -23,7 +24,7 @@ process.on("uncaughtException", (err) => {
 });
 
 const app = express();
-const PORT = Number(process.env.PORT) || 3000;
+const PORT = 3000;
 
 app.use(express.json());
 
@@ -211,171 +212,7 @@ interface PresetStock {
   };
 }
 
-const PRESET_STOCKS: PresetStock[] = [
-  {
-    symbol: "005930",
-    name: "삼성전자",
-    market: "KOREA",
-    price: 255000,
-    regularClosePrice: 255000,
-    afterHoursPrice: 255000,
-    overPrice: 255000,
-    marketSession: "REGULAR (정규장)",
-    priceNote: "실시간 체결 시세 255,000원",
-    change: 1500,
-    changePct: 0.59,
-    marketCap: "1,655조 원",
-    per: 14.8,
-    pbr: 1.25,
-    roe: 8.5,
-    debtRatio: 24.3,
-    revenueGrowth: 11.2,
-    operatingMargin: 12.1,
-    news: [
-      { title: "삼성전자, AI 서버용 차세대 HBM4 양산 계획 가속화", source: "경제일보", time: "2시간 전", sentiment: "positive" },
-      { title: "글로벌 반도체 수요 회복 신호... 외국인 순매수 유입", source: "한국금융", time: "5시간 전", sentiment: "positive" },
-      { title: "IT 완제품 수요 둔화 여파 우려 상존", source: "마켓인포", time: "1일 전", sentiment: "neutral" }
-    ],
-    technical: { rsi: 58, macd: "Bullish Cross", bollinger: "middle", trend: "up" }
-  },
-  {
-    symbol: "000660",
-    name: "SK하이닉스",
-    market: "KOREA",
-    price: 1647000,
-    change: -3000,
-    changePct: -0.18,
-    marketCap: "135조 원",
-    per: 11.2,
-    pbr: 1.85,
-    roe: 14.2,
-    debtRatio: 48.6,
-    revenueGrowth: 28.4,
-    operatingMargin: 18.5,
-    news: [
-      { title: "SK하이닉스, 미국 최대 AI 칩 서밋 참가... 신기술 대거 공개", source: "글로벌IT", time: "1시간 전", sentiment: "positive" },
-      { title: "낸드 플래시 가격 반등 수혜 전망에 기관 매수세 강화", source: "경제일보", time: "4시간 전", sentiment: "positive" }
-    ],
-    technical: { rsi: 64, macd: "Golden Cross", bollinger: "upper", trend: "up" }
-  },
-  {
-    symbol: "035420",
-    name: "NAVER",
-    market: "KOREA",
-    price: 168000,
-    change: -1500,
-    changePct: -0.88,
-    marketCap: "27조 원",
-    per: 18.2,
-    pbr: 1.12,
-    roe: 6.2,
-    debtRatio: 32.1,
-    revenueGrowth: 8.5,
-    operatingMargin: 14.3,
-    news: [
-      { title: "NAVER, 자체 생성형 AI 모델 '하이퍼클로바X' B2B 서비스 다각화", source: "테크코리아", time: "3시간 전", sentiment: "positive" },
-      { title: "내수 광고 시장 부진에 따른 단기 실적 압박", source: "한국금융", time: "6시간 전", sentiment: "negative" }
-    ],
-    technical: { rsi: 42, macd: "Dead Cross", bollinger: "lower", trend: "sideways" }
-  },
-  {
-    symbol: "005380",
-    name: "현대자동차",
-    market: "KOREA",
-    price: 245000,
-    change: 3000,
-    changePct: 1.24,
-    marketCap: "52조 원",
-    per: 5.4,
-    pbr: 0.65,
-    roe: 12.8,
-    debtRatio: 72.1,
-    revenueGrowth: 6.4,
-    operatingMargin: 9.2,
-    news: [
-      { title: "현대차, 인도 현지 법인 IPO 순항... 글로벌 현금 확보 청신호", source: "마켓인포", time: "1시간 전", sentiment: "positive" },
-      { title: "북미 하이브리드 차량 누적 판매량 역대 최고치 경신", source: "모빌리티뉴스", time: "3시간 전", sentiment: "positive" }
-    ],
-    technical: { rsi: 52, macd: "Bullish Divergence", bollinger: "middle", trend: "up" }
-  },
-  {
-    symbol: "005490",
-    name: "POSCO홀딩스",
-    market: "KOREA",
-    price: 382000,
-    change: 4500,
-    changePct: 1.19,
-    marketCap: "32조 원",
-    per: 14.8,
-    pbr: 0.58,
-    roe: 4.1,
-    debtRatio: 38.2,
-    revenueGrowth: 3.2,
-    operatingMargin: 6.8,
-    news: [
-      { title: "POSCO홀딩스, 2차전지 소재 리튬 상업생산 본격화", source: "철강금속신문", time: "1시간 전", sentiment: "positive" },
-      { title: "친환경 미래소재 포트폴리오 가치 재평가 기대", source: "한국경제", time: "3시간 전", sentiment: "positive" }
-    ],
-    technical: { rsi: 54, macd: "Golden Cross", bollinger: "middle", trend: "up" }
-  },
-  {
-    symbol: "086520",
-    name: "에코프로",
-    market: "KOREA",
-    price: 84800,
-    change: -2400,
-    changePct: -2.75,
-    marketCap: "22조 원",
-    per: 42.1,
-    pbr: 5.2,
-    roe: 12.4,
-    debtRatio: 84.3,
-    revenueGrowth: 18.5,
-    operatingMargin: 11.2,
-    news: [
-      { title: "에코프로, 북미 양극재 공급망 확대 협력 논의", source: "배터리인사이트", time: "2시간 전", sentiment: "positive" }
-    ],
-    technical: { rsi: 46, macd: "Bullish Divergence", bollinger: "lower", trend: "sideways" }
-  },
-  {
-    symbol: "042700",
-    name: "한미반도체",
-    market: "KOREA",
-    price: 211500,
-    change: -3500,
-    changePct: -1.63,
-    marketCap: "20조 원",
-    per: 52.4,
-    pbr: 12.8,
-    roe: 28.6,
-    debtRatio: 22.4,
-    revenueGrowth: 85.2,
-    operatingMargin: 38.4,
-    news: [
-      { title: "한미반도체, 듀얼 TC 본더 글로벌 공급 계약 갱신", source: "전자신문", time: "30분 전", sentiment: "positive" }
-    ],
-    technical: { rsi: 62, macd: "Golden Cross", bollinger: "upper", trend: "up" }
-  },
-  {
-    symbol: "196170",
-    name: "알테오젠",
-    market: "KOREA",
-    price: 309000,
-    change: 8000,
-    changePct: 2.66,
-    marketCap: "16조 원",
-    per: 68.2,
-    pbr: 15.4,
-    roe: 22.1,
-    debtRatio: 18.9,
-    revenueGrowth: 120.4,
-    operatingMargin: 45.1,
-    news: [
-      { title: "알테오젠, 피하주사(SC) 제형 변경 글로벌 라이선스 계약 확대", source: "바이오타임즈", time: "1시간 전", sentiment: "positive" }
-    ],
-    technical: { rsi: 65, macd: "Bullish Cross", bollinger: "upper", trend: "up" }
-  }
-];
+const DEMO_STOCKS: PresetStock[] = DEMO_FIXTURE_STOCKS;
 
 // Expanded Stock Universe for instant real-time quote search across KR, US, and Crypto
 const KOREA_POPULAR_STOCKS: { symbol: string; name: string }[] = [
@@ -529,7 +366,7 @@ async function resolveSymbolAndMarket(input: string): Promise<{ symbol: string; 
 
   // 1. Is 6-digit Korean stock code?
   if (/^\d{6}$/.test(trimmed)) {
-    const foundPreset = PRESET_STOCKS.find(s => s.symbol === trimmed);
+    const foundPreset = DEMO_STOCKS.find(s => s.symbol === trimmed);
     const foundPop = KOREA_POPULAR_STOCKS.find(k => k.symbol === trimmed);
     if (foundPreset) return { symbol: trimmed, name: foundPreset.name, market: "KOREA" };
     if (foundPop) return { symbol: trimmed, name: foundPop.name, market: "KOREA" };
@@ -569,8 +406,8 @@ async function resolveSymbolAndMarket(input: string): Promise<{ symbol: string; 
     };
   }
 
-  // 3. Search PRESET_STOCKS, KOREA_POPULAR_STOCKS, US_POPULAR_STOCKS by name
-  const foundInPresets = PRESET_STOCKS.find(s => s.name.toLowerCase().includes(trimmed.toLowerCase()) || s.symbol.toUpperCase() === upper);
+  // 3. Search DEMO_STOCKS, KOREA_POPULAR_STOCKS, US_POPULAR_STOCKS by name
+  const foundInPresets = DEMO_STOCKS.find(s => s.name.toLowerCase().includes(trimmed.toLowerCase()) || s.symbol.toUpperCase() === upper);
   if (foundInPresets) {
     return {
       symbol: foundInPresets.symbol,
@@ -1349,7 +1186,7 @@ app.get("/api/market/naver-batch", async (req, res) => {
 
   // Tier 3: Internal Universe fallback to ensure 100% endpoint reliability
   const universeFallback = codeList.map((code) => {
-    const preset = PRESET_STOCKS.find((p) => p.symbol === code);
+    const preset = DEMO_STOCKS.find((p) => p.symbol === code);
     const pPrice = preset?.price || 50000;
     return {
       itemCode: code,
@@ -1402,7 +1239,7 @@ app.get(["/api/stocks", "/api/stocks/search"], async (req, res) => {
       const requestedSymbols = symbolsParam.split(",").map(s => s.trim()).filter(Boolean);
       const liveList = await Promise.all(
         requestedSymbols.map(async (sym) => {
-          const existing = PRESET_STOCKS.find(p => p.symbol.toUpperCase() === sym.toUpperCase());
+          const existing = DEMO_STOCKS.find(p => p.symbol.toUpperCase() === sym.toUpperCase());
           const popular = KOREA_POPULAR_STOCKS.find(k => k.symbol === sym);
           const baseItem: PresetStock = existing || {
             symbol: sym,
@@ -1446,16 +1283,16 @@ app.get(["/api/stocks", "/api/stocks/search"], async (req, res) => {
     }
 
     try {
-      let filteredList = PRESET_STOCKS;
-      if (marketFilter === "KOREA") filteredList = PRESET_STOCKS.filter(s => s.market === "KOREA");
-      else if (marketFilter === "US") filteredList = PRESET_STOCKS.filter(s => s.market === "US");
+      let filteredList = DEMO_STOCKS;
+      if (marketFilter === "KOREA") filteredList = DEMO_STOCKS.filter(s => s.market === "KOREA");
+      else if (marketFilter === "US") filteredList = DEMO_STOCKS.filter(s => s.market === "US");
       
       const liveStocks = await Promise.all(
         filteredList.map(stock => fetchLiveStockData(stock))
       );
       return res.json(liveStocks);
     } catch (e) {
-      return res.json(PRESET_STOCKS);
+      return res.json(DEMO_STOCKS);
     }
   }
 
@@ -1489,8 +1326,8 @@ app.get(["/api/stocks", "/api/stocks/search"], async (req, res) => {
     } catch (e) {}
   }
 
-  // 1. Check existing PRESET_STOCKS
-  PRESET_STOCKS.forEach(s => {
+  // 1. Check existing DEMO_STOCKS
+  DEMO_STOCKS.forEach(s => {
     if (s.symbol.toLowerCase().includes(qLower) || s.name.toLowerCase().includes(qLower)) {
       candidates.push(s);
     }
@@ -1666,7 +1503,7 @@ app.get(["/api/stocks", "/api/stocks/search"], async (req, res) => {
 // Single Stock Details including actual Yahoo Finance live historical series
 app.get("/api/stocks/:symbol", async (req, res) => {
   const symbolParam = req.params.symbol.toUpperCase();
-  let preset = PRESET_STOCKS.find(s => s.symbol.toUpperCase() === symbolParam);
+  let preset = DEMO_STOCKS.find(s => s.symbol.toUpperCase() === symbolParam);
   if (!preset) {
     const resolved = await resolveSymbolAndMarket(req.params.symbol);
     const resolvedSymbol = resolved.symbol;
@@ -1884,7 +1721,7 @@ app.get("/api/market/realtime-candles", async (req, res) => {
     } else if (market === "KOREA") {
       // 2) KOREAN STOCK REALTIME CANDLES & QUOTE
       const popular = KOREA_POPULAR_STOCKS.find(k => k.symbol === finalSymbol);
-      const preset = PRESET_STOCKS.find(p => p.symbol === finalSymbol);
+      const preset = DEMO_STOCKS.find(p => p.symbol === finalSymbol);
       stockName = popular?.name || preset?.name || resolveStockName(finalSymbol, finalSymbol, "KOREA");
 
       // Live Quote from Naver Polling API
@@ -3101,7 +2938,7 @@ app.post("/api/ai/analyze", async (req, res) => {
   // Resolve Stock Name
   name = resolveStockName(symbol, name, market);
 
-  const preset = PRESET_STOCKS.find(s => s.symbol === symbol) || {
+  const preset = DEMO_STOCKS.find(s => s.symbol === symbol) || {
     per: 15.0, pbr: 1.2, roe: 10.0, debtRatio: 35.0,
     revenueGrowth: 8.0, operatingMargin: 10.0,
     technical: { rsi: 50, macd: "Neutral", bollinger: "middle", trend: "sideways" }
@@ -3888,7 +3725,7 @@ JSON 구조 요구사항:
       if (parsed && typeof parsed === "object" && Array.isArray(parsed.stocks) && parsed.stocks.length > 0) {
         parsed.stocks = await Promise.all(
           parsed.stocks.map(async (st: any) => {
-            const preset = PRESET_STOCKS.find(p => p.symbol === st.symbol) || {
+            const preset = DEMO_STOCKS.find(p => p.symbol === st.symbol) || {
               symbol: st.symbol,
               name: st.name,
               market: st.market === "NASDAQ" ? "US" : "KOREA",
@@ -3950,7 +3787,7 @@ JSON 구조 요구사항:
   const hydrateStockList = async (stockArray: any[]) => {
     return Promise.all(
       stockArray.map(async (st) => {
-        const p = PRESET_STOCKS.find(x => x.symbol === st.symbol) || {
+        const p = DEMO_STOCKS.find(x => x.symbol === st.symbol) || {
           symbol: st.symbol,
           name: st.name,
           market: st.market === "NASDAQ" || st.market === "US" ? "US" : st.market === "UPBIT" || st.market === "BTC" ? "BTC" : "KOREA",
@@ -6667,7 +6504,7 @@ app.post("/api/backtest", (req, res) => {
   const { strategyType, symbol, days, usePatternFilter = true, patternType = "VOLATILITY_BREAKOUT" } = req.body;
   const daysCount = parseInt(days) || 30;
   
-  const stock = PRESET_STOCKS.find(s => s.symbol === symbol) || PRESET_STOCKS[0];
+  const stock = DEMO_STOCKS.find(s => s.symbol === symbol) || DEMO_STOCKS[0];
   const history = generateHistory(stock.price, daysCount);
   
   let balance = (typeof req.body.initialCapital === 'number' && req.body.initialCapital > 0) ? req.body.initialCapital : (req.body.balance || 10000000);
@@ -10700,7 +10537,7 @@ app.get("/api/corporate-news/analytics/:symbol", async (req, res) => {
   let resolvedName = symbolParam;
   let resolvedMarket = "KOSPI";
 
-  const preset = PRESET_STOCKS.find(s => s.symbol.toUpperCase() === resolvedSymbol || s.name === symbolParam);
+  const preset = DEMO_STOCKS.find(s => s.symbol.toUpperCase() === resolvedSymbol || s.name === symbolParam);
   if (preset) {
     resolvedSymbol = preset.symbol;
     resolvedName = preset.name;
@@ -11171,7 +11008,7 @@ async function startServer() {
     const cachedList = Object.values(LIVE_PRICE_CACHE);
     ws.send(JSON.stringify({
       type: "TICKER_SNAPSHOT",
-      data: cachedList.length > 0 ? cachedList : PRESET_STOCKS,
+      data: cachedList.length > 0 ? cachedList : DEMO_STOCKS,
       timestamp: Date.now()
     }));
 
@@ -11224,7 +11061,7 @@ async function startServer() {
     if (isTickerUpdating) return;
     isTickerUpdating = true;
     try {
-      for (const preset of PRESET_STOCKS) {
+      for (const preset of DEMO_STOCKS) {
         try {
           const liveData = await fetchLiveStockData(preset);
           let oldPrice = lastCachedPrices[preset.symbol] || liveData.price;

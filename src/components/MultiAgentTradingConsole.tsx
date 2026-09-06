@@ -26,7 +26,7 @@ import { analyzeStockWith30Agents } from "../services/multiAgentOrchestrator";
 import { BotOutput, MultiAgentStockAnalysis } from "../types/multiAgentTypes";
 import { AiAutoBotEnhancementModal } from "./trading/AiAutoBotEnhancementModal";
 
-const INITIAL_PRESET_STOCKS = [
+const INITIAL_FEATURED_STOCKS = [
   { symbol: "005930", name: "삼성전자", market: "KOREA" as const, price: 74800, changePct: 2.8, tradingValue: 1250, rvol: 2.7, executionPower: 145, sector: "반도체/AI" },
   { symbol: "NVDA", name: "엔비디아", market: "US" as const, price: 132.5, changePct: 4.2, tradingValue: 3400, rvol: 3.4, executionPower: 162, sector: "AI반도체" },
   { symbol: "BTC", name: "비트코인", market: "BTC" as const, price: 92400000, changePct: 1.9, tradingValue: 4100, rvol: 2.1, executionPower: 128, sector: "가상자산" },
@@ -37,7 +37,7 @@ const INITIAL_PRESET_STOCKS = [
 ];
 
 export const MultiAgentTradingConsole: React.FC = () => {
-  const [stockList, setStockList] = useState(INITIAL_PRESET_STOCKS);
+  const [stockList, setStockList] = useState(INITIAL_FEATURED_STOCKS);
   const [selectedStockSymbol, setSelectedStockSymbol] = useState("005930");
   const [searchQuery, setSearchQuery] = useState("");
   const [isSearching, setIsSearching] = useState(false);

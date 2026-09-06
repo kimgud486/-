@@ -52,7 +52,7 @@ export const CandlestickPatternOverlayVisualizer: React.FC<CandlestickPatternOve
     market: "KOSPI",
     category: "LARGE",
     categoryLabel: "대형주",
-    price: 73800,
+    price: 0,
     changeRate: 2.79,
     changeAmount: 2000,
     tradeValue: "9,812억",

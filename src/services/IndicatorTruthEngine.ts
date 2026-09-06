@@ -262,6 +262,43 @@ export class IndicatorTruthEngine {
   }
 
   /**
+   * RVOL V2 Calculation: Excludes current active candle from baseline volume average
+   */
+  public static calculateRVOL(candles: Candle[], baseline = 20): number | null {
+    if (!candles || candles.length < baseline + 1) {
+      return null;
+    }
+    const current = candles[candles.length - 1];
+    const historical = candles.slice(-(baseline + 1), -1);
+    const avgVolume = historical.reduce((sum, c) => sum + c.volume, 0) / historical.length;
+    if (avgVolume <= 0) return null;
+    return +(current.volume / avgVolume).toFixed(2);
+  }
+
+  /**
+   * Session VWAP: Resets cumulative Typical Price * Volume at session start
+   */
+  public static calculateSessionVWAP(candles: Candle[], sessionStartTimestamp?: number): number | null {
+    if (!candles || candles.length === 0) return null;
+
+    let targetCandles = candles;
+    if (sessionStartTimestamp && sessionStartTimestamp > 0) {
+      targetCandles = candles.filter((c) => Number(c.timestamp) >= sessionStartTimestamp);
+    }
+
+    if (!targetCandles.length) return null;
+
+    let sumPV = 0;
+    let sumV = 0;
+    for (const c of targetCandles) {
+      const tp = (c.high + c.low + c.close) / 3;
+      sumPV += tp * c.volume;
+      sumV += c.volume;
+    }
+    return sumV > 0 ? +(sumPV / sumV).toFixed(2) : null;
+  }
+
+  /**
    * On-Balance Volume (OBV)
    */
   public static calculateOBV(candles: Candle[]): number | null {
@@ -281,7 +318,7 @@ export class IndicatorTruthEngine {
   /**
    * Complete Snapshot Calculation
    */
-  public static computeSnapshot(candles: Candle[]): IndicatorSnapshot {
+  public static computeSnapshot(candles: Candle[], sessionStartTimestamp?: number): IndicatorSnapshot {
     if (!candles || candles.length < 10) {
       return {
         vwap: null,
@@ -302,24 +339,8 @@ export class IndicatorTruthEngine {
 
     const closes = candles.map((c) => c.close);
 
-    // VWAP
-    let sumPV = 0;
-    let sumV = 0;
-    for (const c of candles) {
-      const tp = (c.high + c.low + c.close) / 3;
-      sumPV += tp * c.volume;
-      sumV += c.volume;
-    }
-    const vwap = sumV > 0 ? +(sumPV / sumV).toFixed(2) : null;
-
-    // RVOL (20 period)
-    let rvol: number | null = null;
-    if (candles.length >= 20) {
-      const recent20 = candles.slice(-20);
-      const avgVol20 = recent20.reduce((acc, c) => acc + c.volume, 0) / 20;
-      const currentVol = candles[candles.length - 1].volume;
-      rvol = avgVol20 > 0 ? +(currentVol / avgVol20).toFixed(2) : null;
-    }
+    const vwap = this.calculateSessionVWAP(candles, sessionStartTimestamp);
+    const rvol = this.calculateRVOL(candles, 20);
 
     const ema9Arr = this.ema(closes, 9);
     const ema20Arr = this.ema(closes, 20);

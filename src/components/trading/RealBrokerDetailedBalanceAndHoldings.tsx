@@ -885,7 +885,7 @@ export const RealBrokerDetailedBalanceAndHoldings: React.FC<RealBrokerDetailedBa
                   {[
                     { symbol: "BTC", name: "비트코인", market: "BTC" as const, price: 135000000, color: "text-amber-300 border-amber-500/40 bg-amber-500/20" },
                     { symbol: "SOL", name: "솔라나", market: "BTC" as const, price: 248000, color: "text-purple-300 border-purple-500/40 bg-purple-500/20" },
-                    { symbol: "005930", name: "삼성전자", market: "KOREA" as const, price: 73800, color: "text-blue-300 border-blue-500/40 bg-blue-500/20" },
+                    { symbol: "005930", name: "삼성전자", market: "KOREA" as const, price: 0, color: "text-blue-300 border-blue-500/40 bg-blue-500/20" },
                     { symbol: "NVDA", name: "엔비디아", market: "US" as const, price: 128, color: "text-emerald-300 border-emerald-500/40 bg-emerald-500/20" }
                   ].map(item => (
                     <button

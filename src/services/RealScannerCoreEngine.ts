@@ -260,15 +260,19 @@ export class RealScannerCoreEngine {
       signal = score >= 75 ? "BUY_CANDIDATE" : score >= 50 ? "WATCH" : "REJECT";
     }
 
+    const marketDataVerified =
+      candleVerification.isVerified &&
+      quoteVerification.isVerified &&
+      liveQuote?.status === "LIVE" &&
+      liveQuote?.isVerified === true;
+
+    const tradingAllowed = marketDataVerified && signal === "BUY_CANDIDATE";
+
     return {
       symbol,
-      dataStatus: quoteVerification.isVerified ? "LIVE" : "STALE",
-      analysisAllowed: true,
-      tradingAllowed:
-        quoteVerification.isVerified &&
-        liveQuote?.status === "LIVE" &&
-        liveQuote?.isVerified === true &&
-        signal === "BUY_CANDIDATE",
+      dataStatus: marketDataVerified ? "LIVE" : "STALE",
+      analysisAllowed: candleVerification.isVerified,
+      tradingAllowed,
       score,
       grade,
       signal,
@@ -276,7 +280,9 @@ export class RealScannerCoreEngine {
       indicators,
       mtfResult,
       brainResult,
-      summary: `점수: ${score ?? "NO_DATA"}점 (${grade ?? "N/A"}) | 추세: ${trendState} | RVOL: ${indicators.rvol ?? "--"} | VWAP: ${indicators.vwap ? `₩${(indicators.vwap ?? 0).toLocaleString()}` : "--"}`
+      summary: tradingAllowed
+        ? `VERIFIED BUY CANDIDATE ${score}점 (${grade})`
+        : `ANALYSIS ONLY / EXECUTION BLOCKED (점수: ${score ?? "NO_DATA"}점 | ${grade})`
     };
   }
 }

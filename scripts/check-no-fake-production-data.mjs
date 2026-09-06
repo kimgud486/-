@@ -1,58 +1,81 @@
 // ----------------------------------------------------------------------
-// ZERO FAKE DATA PRODUCTION AUDIT SCRIPT
+// ZERO FAKE DATA PRODUCTION AUDIT SCRIPT V2
 // ----------------------------------------------------------------------
 
 import fs from "node:fs";
 import path from "node:path";
 
-const ROOT = path.resolve("src");
+const ROOTS = [
+  path.resolve("src"),
+  path.resolve("server"),
+  path.resolve("server.ts")
+];
 
 const forbidden = [
   /tradeValue\s*\*\s*0\.1/,
   /SAMPLE_FLOW_DATA/,
-  /m1:\s*true/
+  /m1:\s*true/,
+  /ORD-LIVE-\$\{/,
+  /price:\s*73800\b/,
+  /price:\s*233500\b/,
+  /price:\s*98500000\b/,
+  /cleanMarket\s*===\s*["']US["']\s*\?\s*150/,
+  /curPrice\s*\*\s*1\.0\d+/,
+  /fakeBreakoutRiskPct:\s*3\.8/,
+  /totalRelScore\s*=\s*93/,
+  /PRESET_STOCKS/
 ];
 
 const allowedFolders = [
   `${path.sep}demo${path.sep}`,
   `${path.sep}test${path.sep}`,
-  `${path.sep}tests${path.sep}`
+  `${path.sep}tests${path.sep}`,
+  `${path.sep}fixtures${path.sep}`
 ];
 
 let failed = false;
 
-function scan(dir) {
-  if (!fs.existsSync(dir)) return;
-  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
-    const full = path.join(dir, entry.name);
+function scanPath(p) {
+  if (!fs.existsSync(p)) return;
+  const stat = fs.statSync(p);
 
-    if (entry.isDirectory()) {
-      scan(full);
-      continue;
-    }
+  if (stat.isFile()) {
+    scanFile(p);
+    return;
+  }
 
-    if (!/\.(ts|tsx|js|jsx)$/.test(entry.name)) {
-      continue;
-    }
-
-    if (allowedFolders.some((folder) => full.includes(folder))) {
-      continue;
-    }
-
-    const text = fs.readFileSync(full, "utf8");
-
-    for (const pattern of forbidden) {
-      if (pattern.test(text)) {
-        console.error(`❌ FAKE DATA PATTERN FOUND IN PRODUCTION CODE: ${full}`);
-        console.error(`   Pattern: ${pattern}`);
-        failed = true;
+  if (stat.isDirectory()) {
+    for (const entry of fs.readdirSync(p, { withFileTypes: true })) {
+      const full = path.join(p, entry.name);
+      if (entry.isDirectory()) {
+        scanPath(full);
+      } else if (/\.(ts|tsx|js|jsx)$/.test(entry.name)) {
+        scanFile(full);
       }
     }
   }
 }
 
-console.log("🔍 Running Production Zero Fake Data Audit...");
-scan(ROOT);
+function scanFile(fullPath) {
+  if (allowedFolders.some((folder) => fullPath.includes(folder))) {
+    return;
+  }
+
+  const text = fs.readFileSync(fullPath, "utf8");
+
+  for (const pattern of forbidden) {
+    if (pattern.test(text)) {
+      console.error(`❌ FAKE DATA PATTERN FOUND IN PRODUCTION CODE: ${fullPath}`);
+      console.error(`   Pattern: ${pattern}`);
+      failed = true;
+    }
+  }
+}
+
+console.log("🔍 Running Production Zero Fake Data Audit V2...");
+for (const rootPath of ROOTS) {
+  scanPath(rootPath);
+}
 
 if (failed) {
   console.error("💥 Zero Fake Data Audit FAILED!");

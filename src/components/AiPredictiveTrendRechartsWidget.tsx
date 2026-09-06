@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
+import { realtimeMarketFeedService } from "../services/realtimeMarketFeedService";
 import {
   TrendingUp,
   TrendingDown,
@@ -592,7 +593,7 @@ export const AiPredictiveTrendRechartsWidget: React.FC<AiPredictiveTrendRecharts
                     symbol: qs.symbol,
                     name: qs.name,
                     market: (isCrypto ? "BTC" : isUs ? "US" : "KOSPI") as any,
-                    price: isUs ? 150 : isCrypto ? (qs.symbol === "BTC" ? 98500000 : qs.symbol === "ETH" ? 3850000 : 250000) : 70000
+                    price: realtimeMarketFeedService.getQuote(qs.symbol)?.price ?? 0
                   });
                 }
               }}

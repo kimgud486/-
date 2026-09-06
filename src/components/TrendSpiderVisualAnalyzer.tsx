@@ -49,7 +49,7 @@ export interface StockItem {
 const POPULAR_SEARCH_PRESETS: StockItem[] = [
   // CRYPTO / UPBIT (KRW- Markets with Upbit Live Ticker Codes)
   { symbol: "XLM", name: "스텔라루멘", market: "BTC", category: "업비트 실시간 가상자산", price: 215, changePct: 3.82, volume: "1,200억원", upbitMarketCode: "KRW-XLM" },
-  { symbol: "BTC", name: "비트코인", market: "BTC", category: "업비트 실시간 가상자산", price: 98500000, changePct: 2.45, volume: "1.2조원", upbitMarketCode: "KRW-BTC" },
+  { symbol: "BTC", name: "비트코인", market: "BTC", category: "업비트 실시간 가상자산", price: 0, changePct: 2.45, volume: "1.2조원", upbitMarketCode: "KRW-BTC" },
   { symbol: "ETH", name: "이더리움", market: "BTC", category: "업비트 실시간 가상자산", price: 3850000, changePct: 1.82, volume: "4500억원", upbitMarketCode: "KRW-ETH" },
   { symbol: "SOL", name: "솔라나", market: "BTC", category: "업비트 실시간 가상자산", price: 248000, changePct: 5.12, volume: "3100억원", upbitMarketCode: "KRW-SOL" },
   { symbol: "XRP", name: "리플", market: "BTC", category: "업비트 실시간 가상자산", price: 820, changePct: -0.85, volume: "2200억원", upbitMarketCode: "KRW-XRP" },

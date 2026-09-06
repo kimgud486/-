@@ -64,7 +64,7 @@ interface QuoteDetail {
   history1D: { time: string; price: number }[];
 }
 
-const PRESET_STOCKS: Record<string, QuoteDetail> = {
+const DEFAULT_QUOTE_DICTIONARY: Record<string, QuoteDetail> = {
   "005930": {
     symbol: "005930",
     name: "삼성전자",
@@ -94,7 +94,7 @@ const PRESET_STOCKS: Record<string, QuoteDetail> = {
       { price: 74100, volume: 45200, pct: 60 },
       { price: 74000, volume: 89100, pct: 90 },
       { price: 73900, volume: 32000, pct: 40 },
-      { price: 73800, volume: 15400, pct: 20 },
+      { price: 73850, volume: 15400, pct: 20 },
       { price: 73700, volume: 22000, pct: 30 }
     ],
     asks: [
@@ -110,7 +110,7 @@ const PRESET_STOCKS: Record<string, QuoteDetail> = {
       { time: "11:00", price: 73200 },
       { time: "12:00", price: 73900 },
       { time: "13:00", price: 74100 },
-      { time: "14:00", price: 73800 },
+      { time: "14:00", price: 73850 },
       { time: "15:00", price: 74200 }
     ]
   },
@@ -271,7 +271,7 @@ export const TickerQuoteModal: React.FC<TickerQuoteModalProps> = ({
   const { addWatchlistItem } = useApp();
   const effectiveTarget = symbol || initialQuery;
   const [searchQuery, setSearchQuery] = useState(effectiveTarget);
-  const [activeQuote, setActiveQuote] = useState<QuoteDetail>(PRESET_STOCKS["005930"]);
+  const [activeQuote, setActiveQuote] = useState<QuoteDetail>(DEFAULT_QUOTE_DICTIONARY["005930"]);
   const [isAddedToWatchlist, setIsAddedToWatchlist] = useState(false);
   const [copiedSymbol, setCopiedSymbol] = useState(false);
   const [selectedTab, setSelectedTab] = useState<"OVERVIEW" | "ORDERBOOK" | "AI_RECOMMENDATION">("OVERVIEW");
@@ -359,8 +359,8 @@ export const TickerQuoteModal: React.FC<TickerQuoteModalProps> = ({
     }
 
     // Fallback check presets
-    if (PRESET_STOCKS[q]) {
-      const preset = PRESET_STOCKS[q];
+    if (DEFAULT_QUOTE_DICTIONARY[q]) {
+      const preset = DEFAULT_QUOTE_DICTIONARY[q];
       if (cPrice) {
         setActiveQuote({
           ...preset,
@@ -491,7 +491,7 @@ export const TickerQuoteModal: React.FC<TickerQuoteModalProps> = ({
         {/* QUICK PRESET TICKER CHIPS */}
         <div className="px-4 py-2 bg-zinc-950/90 border-b border-zinc-800 flex items-center space-x-2 overflow-x-auto text-[10px] font-mono shrink-0">
           <span className="text-zinc-500 font-bold shrink-0">인기 시세:</span>
-          {Object.values(PRESET_STOCKS).map((preset) => (
+          {Object.values(DEFAULT_QUOTE_DICTIONARY).map((preset) => (
             <button
               key={preset.symbol}
               onClick={() => {

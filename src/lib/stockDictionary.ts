@@ -506,7 +506,7 @@ export const COMPREHENSIVE_STOCK_INDEX: SearchableStockItem[] = [
   { symbol: "SPY", name: "SPDR S&P500 ETF", market: "US", sectorTag: "미국대형주 대표 ETF", price: 550.0, changePct: 0.80, aliases: ["스파이", "spy", "ㅅㅍㅇ"], themeTags: ["S&P500", "미국지수"] },
 
   // 🪙 UPBIT CRYPTO (원화 가상자산)
-  { symbol: "BTC", name: "비트코인 (Bitcoin)", market: "BTC", sectorTag: "가상자산 대장주", price: 98500000, changePct: 2.45, aliases: ["비트", "비트코인", "btc", "ㅂㅌㅋㅇ"], themeTags: ["반감기", "현물ETF", "디지털금"] },
+  { symbol: "BTC", name: "비트코인 (Bitcoin)", market: "BTC", sectorTag: "가상자산 대장주", price: 0, changePct: 2.45, aliases: ["비트", "비트코인", "btc", "ㅂㅌㅋㅇ"], themeTags: ["반감기", "현물ETF", "디지털금"] },
   { symbol: "ETH", name: "이더리움 (Ethereum)", market: "BTC", sectorTag: "스마트컨트랙트 메이저", price: 3850000, changePct: 1.82, aliases: ["이더", "이더리움", "eth", "ㅇㄷㄹㅇ"], themeTags: ["현물ETF", "디파이", "스테이킹"] },
   { symbol: "SOL", name: "솔라나 (Solana)", market: "BTC", sectorTag: "고성능 L1 메이저", price: 248000, changePct: 5.12, aliases: ["솔라나", "sol", "ㅅㄹㄴ"], themeTags: ["디핀", "밈코인허브", "고속처리"] },
   { symbol: "XRP", name: "리플 (Ripple)", market: "BTC", sectorTag: "국경간 결제 송금", price: 820, changePct: -0.85, aliases: ["리플", "xrp", "ㄹㅍ"], themeTags: ["SEC합의", "RLUSD스테이블코인"] },

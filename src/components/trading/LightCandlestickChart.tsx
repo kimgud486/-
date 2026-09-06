@@ -35,7 +35,7 @@ export const LightCandlestickChart: React.FC<LightCandlestickChartProps> = ({
     market: "KOSPI" as const,
     category: "LARGE" as const,
     categoryLabel: "대형주",
-    price: 73800,
+    price: 0,
     changeRate: 2.79,
     changeAmount: 2000,
     tradeValue: "9,812억",
@@ -64,7 +64,7 @@ export const LightCandlestickChart: React.FC<LightCandlestickChartProps> = ({
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
 
-  const [livePrice, setLivePrice] = useState(safeStock.price || 73800);
+  const [livePrice, setLivePrice] = useState(safeStock.price || 0);
   const [priceFlash, setPriceFlash] = useState<"up" | "down" | null>(null);
 
   // Helper to map candles with genuine moving averages
