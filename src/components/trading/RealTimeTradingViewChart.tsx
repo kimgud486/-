@@ -104,9 +104,7 @@ export const RealTimeTradingViewChart: React.FC<RealTimeTradingViewChartProps> =
   // Keep internal candle history and aggregator
   const historyRef = useRef<LiveCandle[]>([]);
   const aggregatorRef = useRef<CandleAggregator>(
-    new CandleAggregator(
-      timeframe === "1m" ? 60_000 : timeframe === "3m" ? 180_000 : timeframe === "5m" ? 300_000 : timeframe === "15m" ? 900_000 : 86_400_000
-    )
+    new CandleAggregator((timeframe as any) || "1m")
   );
   const entryPriceRef = useRef<number>(initialPrice);
   const highestPriceRef = useRef<number>(initialPrice);

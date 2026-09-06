@@ -46,7 +46,10 @@ const forbidden = [
   /syntheticOrb\b/,
   /hardcodedBenchmark\b/,
   /fakeDelta\b/,
-  /fakeRvol\b/
+  /fakeRvol\b/,
+  /generateSynthetic\b/,
+  /simulatedFill\b/,
+  /mockPrice\b/
 ];
 
 const allowedFolders = [

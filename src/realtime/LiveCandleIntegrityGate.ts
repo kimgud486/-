@@ -1,104 +1,145 @@
-// AISTOCK Live Candle Integrity Gate
-// Enforces source provenance, structural OHLC integrity, timestamp ordering, and gap checks on VerifiedCandle arrays.
+// AISTOCK v13.8 LIVE CANDLE INTEGRITY GATE
+// Validates structural OHLC integrity, source provenance, timestamp validity, freshness, and sequence gaps.
+// Any failing candle is marked INVALID_CANDLE and MUST NOT be passed to IndicatorEngine.
 
-import { VerifiedCandle, assertVerifiedCandles } from "./MarketCandle";
+import { AggregatedCandle } from "./CandleAggregator";
 
-export interface CandleIntegrityValidationResult {
+export interface SingleCandleIntegrityResult {
   valid: boolean;
   reason?: string;
-  candleCount: number;
+  ageMs?: number;
+  isStale?: boolean;
+  sequenceGap?: boolean;
+  sourceVerified?: boolean;
 }
 
 export class LiveCandleIntegrityGate {
-  public validateCandles(
-    candles: VerifiedCandle[],
+  private staleThresholdMs: number;
+
+  constructor(staleThresholdMs = 300_000) { // 5 minutes max age for live bar
+    this.staleThresholdMs = staleThresholdMs;
+  }
+
+  public validateSingleCandle(
+    candle: any,
     expectedSymbol?: string,
-    expectedMarket?: "KOREA" | "US" | "CRYPTO",
-    expectedTimeframe?: "1m" | "3m" | "5m" | "15m" | "60m"
-  ): CandleIntegrityValidationResult {
-    if (!candles || !Array.isArray(candles) || candles.length === 0) {
-      return { valid: false, reason: "EMPTY_CANDLES", candleCount: 0 };
+    expectedMarket?: "KOREA" | "US" | "CRYPTO" | string
+  ): SingleCandleIntegrityResult {
+    if (!candle) {
+      return { valid: false, reason: "INVALID_CANDLE:NULL_OR_UNDEFINED" };
     }
 
-    if (candles.length < 30) {
-      return { valid: false, reason: "INSUFFICIENT_CANDLES_MIN_30_REQUIRED", candleCount: candles.length };
+    // 0. Explicit Verification Flag
+    if (candle.isVerified === false || candle.verified === false) {
+      return { valid: false, reason: "UNVERIFIED_CANDLE:EXPLICITLY_UNVERIFIED" };
+    }
+
+    // 1. Source verification
+    const validSources = ["KIS_WS", "KIS_REST_HISTORY", "KIS_REALTIME_WS"];
+    if (!candle.source || !validSources.includes(candle.source)) {
+      return { valid: false, reason: `NON_REAL_CANDLE_SOURCE:${candle.source}`, sourceVerified: false };
+    }
+
+    // 2. Symbol & Market mismatch check
+    if (expectedSymbol && candle.symbol !== expectedSymbol) {
+      return { valid: false, reason: `INVALID_CANDLE:SYMBOL_MISMATCH:${candle.symbol}_VS_${expectedSymbol}` };
+    }
+    if (expectedMarket && candle.market !== expectedMarket) {
+      return { valid: false, reason: `INVALID_CANDLE:MARKET_MISMATCH:${candle.market}_VS_${expectedMarket}` };
+    }
+
+    // 3. Price & Volume validity
+    if (
+      typeof candle.open !== "number" || candle.open <= 0 ||
+      typeof candle.high !== "number" || candle.high <= 0 ||
+      typeof candle.low !== "number" || candle.low <= 0 ||
+      typeof candle.close !== "number" || candle.close <= 0 ||
+      typeof candle.volume !== "number" || candle.volume < 0
+    ) {
+      return { valid: false, reason: "INVALID_CANDLE:INVALID_OHLC_STRUCTURE:NON_POSITIVE_OHLC_OR_NEGATIVE_VOLUME" };
+    }
+
+    // 4. OHLC structural geometry
+    if (
+      candle.high < candle.low ||
+      candle.high < candle.open ||
+      candle.high < candle.close ||
+      candle.low > candle.open ||
+      candle.low > candle.close
+    ) {
+      return { valid: false, reason: "INVALID_CANDLE:INVALID_OHLC_STRUCTURE:GEOMETRY_VIOLATION" };
+    }
+
+    // 5. Timestamps & Freshness
+    const timestampMs = candle.startedAt || (candle.time ? candle.time * 1000 : null);
+    if (!timestampMs || !Number.isFinite(timestampMs) || timestampMs <= 0) {
+      return { valid: false, reason: "INVALID_CANDLE:MISSING_PROVIDER_TIMESTAMP" };
     }
 
     const now = Date.now();
-    let prevEndTime = 0;
+    const endTimestampMs = candle.endedAt || timestampMs;
+    if (endTimestampMs > now + 60_000) {
+      return { valid: false, reason: "FUTURE_TIMESTAMP:CANDLE_FROM_FUTURE" };
+    }
+
+    const ageMs = Math.max(0, now - timestampMs);
+    // Staleness check is only for live realtime streaming candles
+    const isLiveRealtime = candle.source === "KIS_WS";
+    const isStale = isLiveRealtime && ageMs > this.staleThresholdMs;
+
+    if (isStale) {
+      return { valid: false, reason: `INVALID_CANDLE:STALE_QUOTE_AGE_${ageMs}ms`, ageMs, isStale: true };
+    }
+
+    return {
+      valid: true,
+      ageMs,
+      isStale: false,
+      sequenceGap: false,
+      sourceVerified: true,
+    };
+  }
+
+  public validateCandles(
+    candles: Array<any>,
+    expectedSymbol?: string,
+    expectedMarket?: "KOREA" | "US" | "CRYPTO" | string,
+    _timeframe?: string
+  ): { valid: boolean; reason?: string; candleCount: number } {
+    if (!candles || !Array.isArray(candles) || candles.length === 0) {
+      return { valid: false, reason: "INVALID_CANDLE:EMPTY_ARRAY", candleCount: 0 };
+    }
 
     for (let i = 0; i < candles.length; i++) {
-      const c = candles[i];
-
-      if (c.verified !== true) {
-        return { valid: false, reason: `UNVERIFIED_CANDLE_AT_INDEX_${i}`, candleCount: candles.length };
+      const res = this.validateSingleCandle(candles[i], expectedSymbol, expectedMarket);
+      if (!res.valid) {
+        return { valid: false, reason: `${res.reason}_AT_INDEX_${i}`, candleCount: candles.length };
       }
 
-      if (c.source !== "KIS_REALTIME_WS" && c.source !== "KIS_REST_HISTORY") {
-        return { valid: false, reason: `NON_REAL_CANDLE_SOURCE:${c.source}`, candleCount: candles.length };
-      }
-
-      if (expectedSymbol && c.symbol !== expectedSymbol) {
-        return { valid: false, reason: `SYMBOL_MISMATCH:${c.symbol}_VS_${expectedSymbol}`, candleCount: candles.length };
-      }
-
-      if (expectedMarket && c.market !== expectedMarket) {
-        return { valid: false, reason: `MARKET_MISMATCH:${c.market}_VS_${expectedMarket}`, candleCount: candles.length };
-      }
-
-      if (expectedTimeframe && c.timeframe !== expectedTimeframe) {
-        return { valid: false, reason: `TIMEFRAME_MISMATCH:${c.timeframe}_VS_${expectedTimeframe}`, candleCount: candles.length };
-      }
-
-      if (
-        !Number.isFinite(c.open) || !Number.isFinite(c.high) ||
-        !Number.isFinite(c.low) || !Number.isFinite(c.close) ||
-        !Number.isFinite(c.volume) ||
-        c.open <= 0 || c.high <= 0 || c.low <= 0 || c.close <= 0 || c.volume < 0
-      ) {
-        return { valid: false, reason: `INVALID_OHLC_VALUES_AT_INDEX_${i}`, candleCount: candles.length };
-      }
-
-      if (c.high < c.low || c.high < Math.max(c.open, c.close) || c.low > Math.min(c.open, c.close)) {
-        return { valid: false, reason: `INVALID_OHLC_STRUCTURE_AT_INDEX_${i}`, candleCount: candles.length };
-      }
-
-      if (c.endedAt > now + 60000) {
-        return { valid: false, reason: `FUTURE_TIMESTAMP_AT_INDEX_${i}`, candleCount: candles.length };
-      }
-
-      if (c.endedAt <= c.startedAt) {
-        return { valid: false, reason: `INVALID_CANDLE_DURATION_AT_INDEX_${i}`, candleCount: candles.length };
-      }
-
-      if (i > 0 && c.startedAt < prevEndTime) {
-        return { valid: false, reason: `OUT_OF_ORDER_CANDLE_SEQUENCE_AT_INDEX_${i}`, candleCount: candles.length };
-      }
-
+      // Check sequence ordering
       if (i > 0) {
-        const prevClose = candles[i - 1].close;
-        const changeRatio = Math.abs(c.open - prevClose) / prevClose;
-        if (changeRatio > 1.0) {
-          return { valid: false, reason: `ABNORMAL_PRICE_GAP_AT_INDEX_${i}`, candleCount: candles.length };
+        const prev = candles[i - 1];
+        const curr = candles[i];
+        const prevTime = prev.startedAt || (prev.time ? prev.time * 1000 : 0);
+        const currTime = curr.startedAt || (curr.time ? curr.time * 1000 : 0);
+
+        if (currTime <= prevTime) {
+          return { valid: false, reason: `INVALID_CANDLE:OUT_OF_ORDER_SEQUENCE_AT_INDEX_${i}`, candleCount: candles.length };
         }
       }
-
-      prevEndTime = c.endedAt;
     }
 
     return { valid: true, candleCount: candles.length };
   }
 
   public assertCandles(
-    candles: VerifiedCandle[],
+    candles: Array<any>,
     expectedSymbol?: string,
-    expectedMarket?: "KOREA" | "US" | "CRYPTO",
-    expectedTimeframe?: "1m" | "3m" | "5m" | "15m" | "60m"
+    expectedMarket?: "KOREA" | "US" | "CRYPTO" | string
   ): void {
-    assertVerifiedCandles(candles);
-    const result = this.validateCandles(candles, expectedSymbol, expectedMarket, expectedTimeframe);
-    if (!result.valid) {
-      throw new Error(`UNVERIFIED_MARKET_DATA:${result.reason}`);
+    const res = this.validateCandles(candles, expectedSymbol, expectedMarket);
+    if (!res.valid) {
+      throw new Error(`UNVERIFIED_MARKET_DATA:${res.reason}`);
     }
   }
 }

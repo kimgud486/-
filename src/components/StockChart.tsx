@@ -9,26 +9,15 @@ import {
   CartesianGrid, 
   ReferenceLine, 
   Line, 
-  LineChart,
   ComposedChart
 } from "recharts";
 import { 
-  TrendingUp, 
-  TrendingDown, 
   Activity, 
   Maximize2, 
-  GitCommit, 
-  Eye, 
   Sparkles,
-  Info,
   Calendar,
   Layers,
-  LineChart as LineIcon,
-  Search,
   Bot,
-  Zap,
-  CheckCircle2,
-  Sliders,
   ShieldAlert
 } from "lucide-react";
 
@@ -142,14 +131,12 @@ export const StockChart: React.FC<StockChartProps> = ({
 
   // Calculate technical indicators
   const processedData = displayData.map((item, idx, arr) => {
-    // 5-day SMA calculation
     let sma5 = null;
     if (idx >= 4) {
       const sum = arr.slice(idx - 4, idx + 1).reduce((s, x) => s + x.price, 0);
       sma5 = Math.round((sum / 5) * 100) / 100;
     }
 
-    // 10-day SMA calculation
     let sma10 = null;
     if (idx >= 9) {
       const sum = arr.slice(idx - 9, idx + 1).reduce((s, x) => s + x.price, 0);
@@ -170,7 +157,6 @@ export const StockChart: React.FC<StockChartProps> = ({
   const minPrice = prices.length > 0 ? Math.min(...prices) : currentPrice * 0.95;
   const avgPrice = prices.length > 0 ? prices.reduce((s, p) => s + p, 0) / prices.length : currentPrice;
 
-  // Support & Resistance simulated calculations
   const resistance = maxPrice;
   const support = minPrice;
 
@@ -179,9 +165,7 @@ export const StockChart: React.FC<StockChartProps> = ({
   if (showForecast && chartWithForecast.length > 0) {
     const lastPoint = chartWithForecast[chartWithForecast.length - 1];
     const targetPrice = aiAnalysis?.targetPrice || currentPrice * 1.1;
-    const opinion = aiAnalysis?.opinion || "HOLD";
 
-    // Standard increment per interval to smoothly transition to targetPrice over 5 days
     const priceDiff = targetPrice - lastPoint.price;
     const step = priceDiff / 5;
 
@@ -194,16 +178,13 @@ export const StockChart: React.FC<StockChartProps> = ({
         date: forecastDate,
         formattedDate: `F+${i}d`,
         price: lastPoint.price + step * i,
-        // Keep moving averages null for forecasts
         sma5: null,
         sma10: null,
-        // Flag to style differently in chart if needed
         isForecast: true
       } as any);
     }
   }
 
-  // Format tick price nicely based on market KOREA/US
   const formatYAxis = (tick: number) => {
     if (market === "KOREA") {
       return tick >= 1000 ? `${Math.round(tick / 1000).toLocaleString()}k` : tick.toString();
@@ -212,7 +193,7 @@ export const StockChart: React.FC<StockChartProps> = ({
   };
 
   const isUp = changePct >= 0;
-  const strokeColor = isUp ? "#10b981" : "#ef4444"; // Green vs Red
+  const strokeColor = isUp ? "#10b981" : "#ef4444";
   const fillColorId = `colorPrice_${symbol}`;
 
   return (
@@ -236,7 +217,6 @@ export const StockChart: React.FC<StockChartProps> = ({
 
         {/* Filters */}
         <div className="flex flex-wrap items-center gap-2">
-          {/* Timeframe Buttons */}
           <div className="flex items-center bg-zinc-100 rounded-md p-0.5 border border-zinc-200">
             {[7, 15, 30].map(days => (
               <button
@@ -253,14 +233,12 @@ export const StockChart: React.FC<StockChartProps> = ({
             ))}
           </div>
 
-          {/* Indicator toggles */}
           <div className="flex items-center gap-1">
             <button
               onClick={() => setShowSMA(!showSMA)}
               className={`p-1.5 border rounded text-[10px] font-bold flex items-center gap-1 transition cursor-pointer ${
                 showSMA ? "border-amber-500/30 bg-amber-50 text-amber-700" : "border-zinc-200 bg-white text-zinc-400"
               }`}
-              title="이동평균선 (SMA 5일, 10일)"
             >
               <Layers className="h-3.5 w-3.5" />
               <span className="hidden md:inline">이평선</span>
@@ -271,7 +249,6 @@ export const StockChart: React.FC<StockChartProps> = ({
               className={`p-1.5 border rounded text-[10px] font-bold flex items-center gap-1 transition cursor-pointer ${
                 showSR ? "border-indigo-500/30 bg-indigo-50 text-indigo-700" : "border-zinc-200 bg-white text-zinc-400"
               }`}
-              title="지항/지지선 피벗 레벨 (S/R Lines)"
             >
               <Maximize2 className="h-3.5 w-3.5" />
               <span className="hidden md:inline">지지/저항선</span>
@@ -282,7 +259,6 @@ export const StockChart: React.FC<StockChartProps> = ({
               className={`p-1.5 border rounded text-[10px] font-bold flex items-center gap-1 transition cursor-pointer ${
                 showForecast ? "border-emerald-500/30 bg-emerald-50 text-emerald-700" : "border-zinc-200 bg-white text-zinc-400"
               }`}
-              title="AI 미래 5일 목표가 예측 시뮬레이션"
               disabled={!aiAnalysis}
             >
               <Sparkles className="h-3.5 w-3.5" />
@@ -292,12 +268,19 @@ export const StockChart: React.FC<StockChartProps> = ({
         </div>
       </div>
 
+      {showForecast && (
+        <div className="inline-flex items-center gap-1.5 px-2 py-0.5 bg-amber-50 border border-amber-200 text-amber-800 rounded font-mono text-[10px] font-bold">
+          <Sparkles className="h-3 w-3 text-amber-600" />
+          <span>FORECAST - NOT ACTUAL PRICE</span>
+        </div>
+      )}
+
       {/* Main Graph Canvas Container */}
       <div className="h-64 md:h-76 w-full relative">
         {loading ? (
           <div className="absolute inset-0 bg-white/70 backdrop-blur-xs flex flex-col items-center justify-center space-y-2 z-10">
             <div className="h-6 w-6 border-2 border-zinc-900 border-t-transparent rounded-full animate-spin"></div>
-            <span className="text-[10px] text-zinc-400 font-bold">Yahoo Finance 시세 정보 동기화 중...</span>
+            <span className="text-[10px] text-zinc-400 font-bold">시세 정보 동기화 중...</span>
           </div>
         ) : null}
 
@@ -340,7 +323,7 @@ export const StockChart: React.FC<StockChartProps> = ({
                     <div className="bg-zinc-950 text-white p-2.5 rounded-lg border border-zinc-800 text-[10.5px] font-mono space-y-1 shadow-lg">
                       <div className="text-zinc-400 border-b border-zinc-800 pb-1 flex items-center gap-1">
                         <Calendar className="h-3 w-3" />
-                        <span>{data.date} {data.isForecast ? "(AI Forecast)" : ""}</span>
+                        <span>{data.date} {data.isForecast ? "(FORECAST - NOT ACTUAL PRICE)" : ""}</span>
                       </div>
                       <div className="flex justify-between gap-4">
                         <span className="text-zinc-500">종가 (Price):</span>
@@ -359,9 +342,9 @@ export const StockChart: React.FC<StockChartProps> = ({
                         </div>
                       )}
                       {data.isForecast && (
-                        <div className="text-[9.5px] text-emerald-400 font-sans font-semibold pt-1 border-t border-zinc-900 mt-1 flex items-center gap-1">
+                        <div className="text-[9.5px] text-amber-400 font-sans font-semibold pt-1 border-t border-zinc-900 mt-1 flex items-center gap-1">
                           <Sparkles className="h-3 w-3" />
-                          <span>AI 모멘텀 예측 결과가 적용되었습니다.</span>
+                          <span>FORECAST - NOT ACTUAL PRICE</span>
                         </div>
                       )}
                     </div>
@@ -371,7 +354,6 @@ export const StockChart: React.FC<StockChartProps> = ({
               }}
             />
 
-            {/* Area block for history series */}
             <Area 
               type="monotone" 
               dataKey="price" 
@@ -382,12 +364,11 @@ export const StockChart: React.FC<StockChartProps> = ({
               connectNulls
             />
 
-            {/* SMA Indicators */}
             {showSMA && (
               <Line 
                 type="monotone" 
                 dataKey="sma5" 
-                stroke="#f59e0b" // Amber
+                stroke="#f59e0b" 
                 strokeWidth={1.5}
                 dot={false}
                 name="SMA 5"
@@ -398,38 +379,36 @@ export const StockChart: React.FC<StockChartProps> = ({
               <Line 
                 type="monotone" 
                 dataKey="sma10" 
-                stroke="#06b6d4" // Cyan
+                stroke="#06b6d4" 
                 strokeWidth={1.5}
                 dot={false}
                 name="SMA 10"
               />
             )}
 
-            {/* Static support & resistance indicators */}
             {showSR && (
               <ReferenceLine 
                 y={resistance} 
-                stroke="#6366f1" // Indigo
+                stroke="#6366f1" 
                 strokeDasharray="4 4" 
-                label={{ value: `저항선(Resistance): ${(resistance ?? 0).toLocaleString()}`, fill: "#6366f1", fontSize: 8, position: "top" }} 
+                label={{ value: `저항선: ${(resistance ?? 0).toLocaleString()}`, fill: "#6366f1", fontSize: 8, position: "top" }} 
               />
             )}
             {showSR && (
               <ReferenceLine 
                 y={support} 
-                stroke="#a855f7" // Purple
+                stroke="#a855f7" 
                 strokeDasharray="4 4" 
-                label={{ value: `지지선(Support): ${(support ?? 0).toLocaleString()}`, fill: "#a855f7", fontSize: 8, position: "bottom" }} 
+                label={{ value: `지지선: ${(support ?? 0).toLocaleString()}`, fill: "#a855f7", fontSize: 8, position: "bottom" }} 
               />
             )}
 
-            {/* Target and Stop levels from actual AI analysis */}
             {aiAnalysis && (
               <ReferenceLine 
                 y={aiAnalysis.targetPrice} 
                 stroke="#10b981" 
                 strokeDasharray="3 3" 
-                label={{ value: `AI 목표(Target): ${(aiAnalysis.targetPrice ?? 0).toLocaleString()}`, fill: "#10b981", fontSize: 9, position: "insideTopLeft", fontWeight: "bold" }} 
+                label={{ value: `AI 목표: ${(aiAnalysis.targetPrice ?? 0).toLocaleString()}`, fill: "#10b981", fontSize: 9, position: "insideTopLeft", fontWeight: "bold" }} 
               />
             )}
             {aiAnalysis && (
@@ -437,14 +416,14 @@ export const StockChart: React.FC<StockChartProps> = ({
                 y={aiAnalysis.stopLoss} 
                 stroke="#ef4444" 
                 strokeDasharray="3 3" 
-                label={{ value: `AI 손절(Stop): ${(aiAnalysis.stopLoss ?? 0).toLocaleString()}`, fill: "#ef4444", fontSize: 9, position: "insideBottomLeft", fontWeight: "bold" }} 
+                label={{ value: `AI 손절: ${(aiAnalysis.stopLoss ?? 0).toLocaleString()}`, fill: "#ef4444", fontSize: 9, position: "insideBottomLeft", fontWeight: "bold" }} 
               />
             )}
           </ComposedChart>
         </ResponsiveContainer>
       </div>
 
-      {/* Chart Footer Technical Analytics Panel */}
+      {/* Footer analytics */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 bg-zinc-50 border border-zinc-150 p-3 rounded text-[11px] font-sans font-medium text-zinc-600">
         <div className="space-y-0.5">
           <span className="text-[10px] text-zinc-400 uppercase tracking-tight block">최고가 (High-30d)</span>
@@ -467,7 +446,6 @@ export const StockChart: React.FC<StockChartProps> = ({
         </div>
       </div>
 
-      {/* Gemini Chart AI Pattern & Technical Analysis Trigger & Card */}
       <div className="pt-2 border-t border-zinc-150 space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-2">
