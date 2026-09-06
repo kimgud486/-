@@ -37,7 +37,11 @@ const forbidden = [
   /getSessionInfo\(symbol\)/,
   /fakeCvd\b/,
   /syntheticCvd\b/,
-  /estimatedOrderFlow\b/
+  /estimatedOrderFlow\b/,
+  /PRDY_SIGN\s*===.*"BUY"/,
+  /fakeAggressor\b/,
+  /fakeExecutionNotice\b/,
+  /estimatedInstitutionalFlow\b/
 ];
 
 const allowedFolders = [

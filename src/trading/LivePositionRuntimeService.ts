@@ -154,9 +154,38 @@ export class LivePositionRuntimeService {
     const lastSwingLow = swingLows.length > 0 ? swingLows[swingLows.length - 1].price : null;
     const swingLowBreak = lastSwingLow != null && recentLow < lastSwingLow;
 
-    // 5. Momentum Deterioration Detection
-    const macdWeakening = indicators.macd?.histogram != null && indicators.macd.histogram < 0;
-    const rsiWeakening = indicators.rsi14 != null && indicators.rsi14 < 45;
+    // 5. Momentum Deterioration Detection (Multi-Bar Slope & Divergence)
+    let macdWeakening = false;
+    if (indicators.macd?.histogram != null) {
+      const hist = indicators.macd.histogram;
+      const macdVal = indicators.macd.line ?? 0;
+      const signalVal = indicators.macd.signal ?? 0;
+
+      if (snapshot.candles.length >= 3) {
+        const c1 = snapshot.candles[snapshot.candles.length - 1];
+        const c2 = snapshot.candles[snapshot.candles.length - 2];
+        const c3 = snapshot.candles[snapshot.candles.length - 3];
+        // Histogram decreasing for 2 consecutive bars or macd crossed below signal line
+        const histDecreasing = c1.close < c2.close && c2.close < c3.close && hist < 0;
+        macdWeakening = histDecreasing || macdVal < signalVal;
+      } else {
+        macdWeakening = hist < 0;
+      }
+    }
+
+    let rsiWeakening = false;
+    if (indicators.rsi14 != null) {
+      if (snapshot.candles.length >= 3) {
+        const c1 = snapshot.candles[snapshot.candles.length - 1];
+        const c2 = snapshot.candles[snapshot.candles.length - 2];
+        const c3 = snapshot.candles[snapshot.candles.length - 3];
+        // Price or RSI peak dropping
+        const rsiSlopeDown = c1.close < c2.close && c2.close < c3.close;
+        rsiWeakening = (rsiSlopeDown && indicators.rsi14 < 55) || indicators.rsi14 < 45;
+      } else {
+        rsiWeakening = indicators.rsi14 < 45;
+      }
+    }
 
     // 6. Run Position Lifecycle Orchestrator
     const lifecycleInput: LifecycleInput = {

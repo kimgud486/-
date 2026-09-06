@@ -60,6 +60,7 @@ export interface ExitEvidence {
   exitRiskScore: number; // 0 ~ 100
   confidence: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
   recommendedAction: "HOLD" | "PROFIT_HOLD" | "SELL_WATCH" | "SELL";
+  profitHoldStrength?: "STRONG" | "NORMAL" | "WEAK";
   reasons: string[];
 }
 
@@ -194,6 +195,17 @@ export class ExitEvidenceEngine {
 
     const pnlPct = input.entryPrice > 0 ? ((input.currentPrice - input.entryPrice) / input.entryPrice) * 100 : 0;
 
+    let profitHoldStrength: "STRONG" | "NORMAL" | "WEAK" | undefined;
+    if (pnlPct > 0) {
+      if (structuralCount === 0 && warningCount === 0 && aboveVWAP && aboveEMA20 && !relativeStrengthLoss) {
+        profitHoldStrength = "STRONG";
+      } else if (warningCount >= 2 || relativeStrengthLoss || cvdDivergence) {
+        profitHoldStrength = "WEAK";
+      } else {
+        profitHoldStrength = "NORMAL";
+      }
+    }
+
     if (hardExit) {
       confidence = "CRITICAL";
       recommendedAction = "SELL";
@@ -232,6 +244,7 @@ export class ExitEvidenceEngine {
       exitRiskScore,
       confidence,
       recommendedAction,
+      profitHoldStrength,
       reasons
     };
   }

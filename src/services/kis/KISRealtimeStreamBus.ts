@@ -1,7 +1,9 @@
 // ----------------------------------------------------------------------
-// KIS REALTIME STREAM BUS V18.3
-// Official KIS WebSocket Protocol Normalizer (H0STCNT0, H0STASP0, H0STCNI0)
+// KIS REALTIME STREAM BUS V18.4
+// Official KIS WebSocket Protocol Normalizer & Order Flow Engine
 // ----------------------------------------------------------------------
+
+import { H0STCNT0, H0STASP0, H0STCNI0, classifyAggressor } from "../KISRealtimeFieldSchema";
 
 export interface VerifiedTradeTick {
   trId: "H0STCNT0";
@@ -44,20 +46,51 @@ export interface KISExecutionNotice {
   isVerified: boolean;
 }
 
+export interface OrderFlowTracker {
+  buyVolume: number;
+  sellVolume: number;
+  delta: number;
+  cvd: number;
+}
+
 export class KISRealtimeStreamBus {
+  private static lastTradePrices: Map<string, number> = new Map();
+  private static bestAsks: Map<string, number> = new Map();
+  private static bestBids: Map<string, number> = new Map();
+  private static cvdTrackers: Map<string, OrderFlowTracker> = new Map();
+
   /**
-   * Parse raw H0STCNT0 trade tick frame
+   * Parse raw H0STCNT0 trade tick frame using official field mapping
    */
   public static parseTradeTick(symbol: string, rawData: string[]): VerifiedTradeTick | null {
-    if (!rawData || rawData.length < 5) return null;
-    const price = parseFloat(rawData[2]) || 0;
-    const size = parseFloat(rawData[3]) || 0;
-    const changeRate = parseFloat(rawData[4]) || 0;
-    const sign = rawData[5] || "3"; // 1: Upper limit, 2: Up, 3: Unchanged, 4: Lower limit, 5: Down
+    if (!symbol || !rawData || rawData.length <= H0STCNT0.TRADE_VOLUME) return null;
+
+    const price = parseFloat(rawData[H0STCNT0.PRICE]) || 0;
+    const size = parseFloat(rawData[H0STCNT0.TRADE_VOLUME]) || 0;
+    const changeRate = parseFloat(rawData[H0STCNT0.CHANGE_RATE]) || 0;
+
+    const ask1 = parseFloat(rawData[H0STCNT0.ASK1]) || this.bestAsks.get(symbol) || 0;
+    const bid1 = parseFloat(rawData[H0STCNT0.BID1]) || this.bestBids.get(symbol) || 0;
 
     if (price <= 0 || size <= 0) return null;
 
-    const aggressor = sign === "1" || sign === "2" ? "BUY" : sign === "4" || sign === "5" ? "SELL" : "NEUTRAL";
+    const prevPrice = this.lastTradePrices.get(symbol) ?? null;
+    const aggressor = classifyAggressor(price, bid1, ask1, prevPrice);
+
+    this.lastTradePrices.set(symbol, price);
+
+    // Update CVD tracker
+    const tracker = this.cvdTrackers.get(symbol) || { buyVolume: 0, sellVolume: 0, delta: 0, cvd: 0 };
+    if (aggressor === "BUY") {
+      tracker.buyVolume += size;
+      tracker.delta += size;
+      tracker.cvd += size;
+    } else if (aggressor === "SELL") {
+      tracker.sellVolume += size;
+      tracker.delta -= size;
+      tracker.cvd -= size;
+    }
+    this.cvdTrackers.set(symbol, tracker);
 
     return {
       trId: "H0STCNT0",
@@ -73,16 +106,20 @@ export class KISRealtimeStreamBus {
   }
 
   /**
-   * Parse raw H0STASP0 orderbook frame
+   * Parse raw H0STASP0 orderbook frame using official field mapping
    */
   public static parseOrderbook(symbol: string, rawData: string[]): VerifiedOrderbookSnapshot | null {
-    if (!rawData || rawData.length < 10) return null;
-    const bestAsk = parseFloat(rawData[3]) || 0;
-    const bestBid = parseFloat(rawData[13]) || 0;
-    const askDepthTotal = parseFloat(rawData[23]) || 0;
-    const bidDepthTotal = parseFloat(rawData[24]) || 0;
+    if (!symbol || !rawData || rawData.length <= H0STASP0.TOTAL_BID_QTY) return null;
+
+    const bestAsk = parseFloat(rawData[H0STASP0.ASK1]) || 0;
+    const bestBid = parseFloat(rawData[H0STASP0.BID1]) || 0;
+    const askDepthTotal = parseFloat(rawData[H0STASP0.TOTAL_ASK_QTY]) || 0;
+    const bidDepthTotal = parseFloat(rawData[H0STASP0.TOTAL_BID_QTY]) || 0;
 
     if (bestAsk <= 0 || bestBid <= 0) return null;
+
+    this.bestAsks.set(symbol, bestAsk);
+    this.bestBids.set(symbol, bestBid);
 
     const spread = +(bestAsk - bestBid).toFixed(2);
     const spreadPct = +((spread / bestBid) * 100).toFixed(4);
@@ -106,17 +143,19 @@ export class KISRealtimeStreamBus {
   }
 
   /**
-   * Parse raw H0STCNI0 account execution notice frame
+   * Parse raw H0STCNI0 account execution notice frame with decryption/validation
    */
-  public static parseExecutionNotice(rawData: string[]): KISExecutionNotice | null {
-    if (!rawData || rawData.length < 8) return null;
-    const accountNo = rawData[0] || "";
-    const orderId = rawData[1] || "";
-    const symbol = rawData[2] || "";
-    const sideCode = rawData[3] || "02"; // 01: SELL, 02: BUY
-    const execQty = parseFloat(rawData[4]) || 0;
-    const execPrice = parseFloat(rawData[5]) || 0;
-    const remainingQty = parseFloat(rawData[6]) || 0;
+  public static parseExecutionNotice(rawData: string[], decryptedPayload?: string): KISExecutionNotice | null {
+    const fields = decryptedPayload ? decryptedPayload.split("|") : rawData;
+    if (!fields || fields.length <= H0STCNI0.REMAINING_QTY) return null;
+
+    const accountNo = fields[H0STCNI0.ACCOUNT_NO] || "";
+    const orderId = fields[H0STCNI0.ORDER_ID] || "";
+    const symbol = fields[H0STCNI0.SYMBOL] || "";
+    const sideCode = fields[H0STCNI0.SIDE_CODE] || "02"; // 01: SELL, 02: BUY
+    const execQty = parseFloat(fields[H0STCNI0.EXEC_QTY]) || 0;
+    const execPrice = parseFloat(fields[H0STCNI0.EXEC_PRICE]) || 0;
+    const remainingQty = parseFloat(fields[H0STCNI0.REMAINING_QTY]) || 0;
 
     if (!symbol || execQty <= 0) return null;
 
@@ -133,5 +172,12 @@ export class KISRealtimeStreamBus {
       source: "KIS_WS_H0STCNI0",
       isVerified: true
     };
+  }
+
+  /**
+   * Get verified Order Flow / Cumulative Volume Delta (CVD) stats
+   */
+  public static getOrderFlow(symbol: string): OrderFlowTracker {
+    return this.cvdTrackers.get(symbol) || { buyVolume: 0, sellVolume: 0, delta: 0, cvd: 0 };
   }
 }
