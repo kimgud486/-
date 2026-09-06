@@ -214,7 +214,7 @@ export const AiHotListWidget: React.FC<AiHotListWidgetProps> = ({
             <div>
               <div className="flex items-center gap-2">
                 <h2 className="text-base sm:text-lg font-black tracking-tight text-white font-sans flex items-center gap-1.5">
-                  <span>🔥 AI 핫 리스트</span>
+                  <span>🔥 실시간 포착 리스트</span>
                   <span className="text-[10px] font-mono font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40 px-2 py-0.5 rounded-full uppercase">
                     High Volatility & Alpha
                   </span>
@@ -251,45 +251,45 @@ export const AiHotListWidget: React.FC<AiHotListWidgetProps> = ({
         </div>
       </div>
 
-      {/* FILTER CONTROL TOOLBAR */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 bg-zinc-900/80 border border-zinc-800 p-2.5 rounded-xl text-xs">
-        
-        {/* MARKET SELECTOR */}
-        <div className="space-y-1">
-          <label className="text-[10px] font-bold text-zinc-400 flex items-center justify-between">
-            <span className="flex items-center gap-1">
-              <Filter className="h-3 w-3 text-amber-400" />
-              <span>대상 시장 (Market)</span>
-            </span>
-            {marketCounts && (marketCounts.KOREA > 0 || marketCounts.US > 0 || marketCounts.UPBIT > 0) && (
-              <span className="text-[9px] font-mono text-amber-400">
-                🇰🇷{marketCounts.KOREA} 🇺🇸{marketCounts.US} 🪙{marketCounts.UPBIT}
-              </span>
-            )}
-          </label>
-          <div className="flex bg-zinc-950 p-1 rounded-lg border border-zinc-800 gap-1">
-            {[
-              { id: "ALL", label: "전체" },
-              { id: "KOREA", label: "🇰🇷 국내" },
-              { id: "US", label: "🇺🇸 미국" },
-              { id: "BTC", label: "🪙 크립토" }
-            ].map(m => (
+      {/* PRIMARY MARKET TAB BAR (전체 / 국내 / 해외 / 업비트) */}
+      <div className="space-y-1">
+        <div className="flex bg-zinc-950 p-1.5 rounded-xl border border-zinc-800/80 gap-1.5 shadow-inner">
+          {[
+            { id: "ALL", label: "전체", icon: "✨", count: (marketCounts?.KOREA || 0) + (marketCounts?.US || 0) + (marketCounts?.UPBIT || 0) },
+            { id: "KOREA", label: "국내", icon: "🇰🇷", count: marketCounts?.KOREA },
+            { id: "US", label: "해외", icon: "🌐", count: marketCounts?.US },
+            { id: "BTC", label: "업비트", icon: "🪙", count: marketCounts?.UPBIT }
+          ].map((tab) => {
+            const isActive = marketFilter === tab.id;
+            return (
               <button
-                key={m.id}
-                onClick={() => setMarketFilter(m.id as any)}
-                className={`flex-1 py-1 rounded text-[11px] font-bold transition cursor-pointer text-center ${
-                  marketFilter === m.id
-                    ? "bg-amber-500 text-zinc-950 shadow-xs font-black"
-                    : "text-zinc-400 hover:text-zinc-200"
+                key={tab.id}
+                onClick={() => setMarketFilter(tab.id as any)}
+                className={`flex-1 py-2.5 px-3 rounded-lg text-xs sm:text-sm font-black transition-all cursor-pointer flex items-center justify-center gap-2 ${
+                  isActive
+                    ? "bg-amber-500 text-zinc-950 shadow-md font-black scale-[1.01]"
+                    : "bg-zinc-900/60 text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800/80"
                 }`}
               >
-                {m.label}
+                <span className="text-sm">{tab.icon}</span>
+                <span>{tab.label}</span>
+                {tab.count !== undefined && tab.count > 0 && (
+                  <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded-full font-bold ${
+                    isActive ? "bg-zinc-950/20 text-zinc-950" : "bg-zinc-800 text-amber-400 border border-amber-500/30"
+                  }`}>
+                    {tab.count}
+                  </span>
+                )}
               </button>
-            ))}
-          </div>
+            );
+          })}
         </div>
+      </div>
 
-        {/* US SUB-EXCHANGE SELECTOR (WHEN US OR ALL IS ACTIVE) */}
+      {/* SECONDARY FILTER CONTROL TOOLBAR */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 bg-zinc-900/80 border border-zinc-800 p-2.5 rounded-xl text-xs">
+
+        {/* US SUB-EXCHANGE SELECTOR (WHEN US OR ALL IS ACTIVE) OR PATTERN FILTER */}
         {(marketFilter === "US" || marketFilter === "ALL") ? (
           <div className="space-y-1">
             <label className="text-[10px] font-bold text-zinc-400 flex items-center gap-1">
@@ -298,7 +298,7 @@ export const AiHotListWidget: React.FC<AiHotListWidgetProps> = ({
             </label>
             <div className="flex bg-zinc-950 p-1 rounded-lg border border-zinc-800 gap-1">
               {[
-                { id: "ALL", label: "ALL US" },
+                { id: "ALL", label: "전체 해외" },
                 { id: "NASDAQ", label: "NASDAQ" },
                 { id: "NYSE", label: "NYSE" },
                 { id: "AMEX", label: "AMEX" }
@@ -318,7 +318,6 @@ export const AiHotListWidget: React.FC<AiHotListWidgetProps> = ({
             </div>
           </div>
         ) : (
-          /* PATTERN CATEGORY SELECTOR */
           <div className="space-y-1">
             <label className="text-[10px] font-bold text-zinc-400 flex items-center gap-1">
               <Sparkles className="h-3 w-3 text-cyan-400" />
