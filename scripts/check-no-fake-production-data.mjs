@@ -23,7 +23,14 @@ const forbidden = [
   /curPrice\s*\*\s*1\.0\d+/,
   /fakeBreakoutRiskPct:\s*3\.8/,
   /totalRelScore\s*=\s*93/,
-  /PRESET_STOCKS/
+  /PRESET_STOCKS/,
+  /stock\.rvol\s*\|\|\s*1\.2/,
+  /sma5:\s*price\s*\*\s*0\.99/,
+  /sma20:\s*price\s*\*\s*0\.97/,
+  /sma60:\s*price\s*\*\s*0\.93/,
+  /high52w:\s*price\s*\*\s*1\.08/,
+  /low52w:\s*price\s*\*\s*0\.75/,
+  /vwap:\s*price\s*\*\s*0\.995/
 ];
 
 const allowedFolders = [

@@ -58,14 +58,14 @@ export class DefaultMarketDiscoveryProvider implements MarketDiscoveryProvider {
         price: price,
         changeRate: stock.changeRate || 0,
         volume: parsedVol,
-        rvol: stock.rvol || 1.2,
-        sma5: price * 0.99,
-        sma20: price * 0.97,
-        sma60: price * 0.93,
-        high52w: price * 1.08,
-        low52w: price * 0.75,
-        vwap: price * 0.995,
-        adx: 28,
+        rvol: stock.rvol ?? 1.0,
+        sma5: undefined,
+        sma20: undefined,
+        sma60: undefined,
+        high52w: undefined,
+        low52w: undefined,
+        vwap: undefined,
+        adx: undefined,
         category: stock.category
       };
     });

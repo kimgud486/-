@@ -1,6 +1,7 @@
 // AISTOCK 24 v10 Global Stock Discovery Scanner Pipeline Service
 // Real Market Data Feed via MarketDiscoveryProvider & Stock Universe
 import { getAllStocks, StockItem } from "../data/stockUniverse";
+import { realCandleStore } from "./RealCandleStore";
 
 export type MarketType = "KOREA" | "US" | "BTC";
 export type ScannerGrade = "S" | "A+" | "A" | "B" | "WATCH" | "NO SETUP";
@@ -86,7 +87,8 @@ export class GlobalStockDiscoveryScannerService {
       const rvol = s.rvol || 1.2;
       const changePct = s.changeRate || 0;
       const parsedVol = typeof s.volume === "number" ? s.volume : parseInt(String(s.volume || "").replace(/[^0-9]/g, ""), 10) || 0;
-      const high52wPrice = price > 0 ? price * 1.08 : 100;
+      const candles = realCandleStore.getCachedCandles(s.symbol, "15m");
+      const high52wPrice = candles.length > 0 ? Math.max(...candles.map((c) => c.high)) : price;
 
       // Calculate dynamic score components based on actual data
       const rvolScore = Math.min(12, Math.round(rvol * 3));
@@ -133,11 +135,7 @@ export class GlobalStockDiscoveryScannerService {
       else if ((high52wPrice - s.price) / s.price <= 0.03) setup = "52W High";
       else if (changePct > 0 && changePct < 3.0) setup = "EMA Pullback";
 
-      const p1 = Math.round(s.price * 0.98);
-      const p2 = Math.round(s.price * 0.99);
-      const p3 = Math.round(s.price * 0.985);
-      const p4 = Math.round(s.price * 1.005);
-      const p5 = Math.round(s.price * 1.01);
+      const sparklineData = candles.length >= 5 ? candles.slice(-5).map((c) => c.close) : [s.price, s.price, s.price, s.price, s.price];
 
       return {
         id: `scanned_${s.symbol}_${idx}`,
@@ -179,7 +177,7 @@ export class GlobalStockDiscoveryScannerService {
         ],
         v9UnifiedShapeEligible: totalScore >= 72,
         pipelineStage: totalScore >= 80 ? "TOP_20_CANDIDATE" : "SETUP_PASS",
-        sparklineData: [p1, p2, p3, p4, p5, s.price]
+        sparklineData: [...sparklineData, s.price]
       };
     });
   }
