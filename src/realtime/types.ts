@@ -64,6 +64,7 @@ export interface IndicatorSnapshot {
   macdHistogram: number;
   atr14: number;
   rvol: number; // Excludes current bar from baseline
+  todRvol?: number; // Time-of-day normalized volume ratio
   trendStrength: number;
   bollingerUpper?: number;
   bollingerMiddle?: number;

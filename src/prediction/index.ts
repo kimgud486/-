@@ -65,7 +65,7 @@ export function runPredictionPipeline(input: PredictionPipelineInput): PipelineE
   const tripleBarrier = TripleBarrierLabeler.generateLabel(candles);
 
   const rawModel = TechnicalScoringEngine.calculate(candles, indicators, patterns);
-  const calibrated = ProbabilityCalibrator.calibrate(rawModel.score, "LIGHTGBM");
+  const calibrated = ProbabilityCalibrator.calibrate(rawModel.score, "LIGHTGBM", rawModel.probabilityVerified);
 
   const metaDecision = MetaLabelingFilter.evaluate({
     symbol,
@@ -75,7 +75,8 @@ export function runPredictionPipeline(input: PredictionPipelineInput): PipelineE
     sectorName,
     currentSectorExposurePct,
     volatilityAnomalous: false,
-    modelAgreementPct: rawModel.modelAgreement
+    modelAgreementPct: rawModel.modelAgreement,
+    probabilityVerified: rawModel.probabilityVerified
   });
 
   return {

@@ -229,7 +229,7 @@ describe("AISTOCK v13.5 Observability & Live Readiness Test Suite", () => {
     });
 
     assert.strictEqual(result.symbol, "005930");
-    assert.ok(result.calibratedOutput);
+    assert.strictEqual(result.calibratedOutput, null);
     assert.ok(result.metaDecision);
   });
 });

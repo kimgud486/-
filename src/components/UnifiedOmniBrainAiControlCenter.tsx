@@ -1224,7 +1224,7 @@ export const UnifiedOmniBrainAiControlCenter: React.FC = () => {
             const isKr = /^\d{6}$/.test(item.symbol);
             const src: BrokerageSource = isCrypto ? "UPBIT" : "KIS";
 
-            const p = item.price || 10000;
+            const p = item.price || 0;
             const cPct = item.changePct ?? item.changePercent ?? 0;
             const chg = item.change || Math.round(p * (cPct / 100));
 

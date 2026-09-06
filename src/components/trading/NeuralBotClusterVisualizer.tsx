@@ -110,7 +110,7 @@ export const NeuralBotClusterVisualizer: React.FC<NeuralBotClusterVisualizerProp
     return UnifiedMasterDecisionEngine.analyze(
       currentStock.symbol,
       currentStock.name,
-      currentStock.price || 100000,
+      currentStock.price || 0,
       currentStock.changeRate || 0,
       (currentStock.market as any) || "KOREA"
     );

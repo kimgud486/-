@@ -123,4 +123,29 @@ describe("v14 Real Market Core Engine Tests", () => {
     assert.strictEqual(filterRes.pass, false);
     assert.strictEqual(filterRes.extendedFromVWAP, true);
   });
+
+  it("ProbabilityCalibrator and MetaLabelingFilter strictly block unverified ML probabilities", () => {
+    const { ProbabilityCalibrator } = require("../src/prediction/calibration");
+    const { MetaLabelingFilter } = require("../src/prediction/metaLabeling");
+
+    // Unverified probability calibration must return null
+    const calRes = ProbabilityCalibrator.calibrate(85, "LIGHTGBM", false);
+    assert.strictEqual(calRes, null);
+
+    // Meta labeling without verified probability must issue NO_TRADE
+    const metaRes = MetaLabelingFilter.evaluate({
+      symbol: "005930",
+      market: "KOREA",
+      calibratedResult: calRes,
+      riskRewardRatio: 2.5,
+      sectorName: "Semiconductor",
+      currentSectorExposurePct: 10,
+      volatilityAnomalous: false,
+      modelAgreementPct: null,
+      probabilityVerified: false
+    });
+
+    assert.strictEqual(metaRes.decision, "NO_TRADE");
+    assert.ok(metaRes.noTradeReason?.includes("REAL_ML_REQUIRED"));
+  });
 });

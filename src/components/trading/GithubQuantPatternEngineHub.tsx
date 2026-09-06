@@ -199,18 +199,9 @@ export const GithubQuantPatternEngineHub: React.FC = () => {
 
   // Calculated StructureBrain Analysis Result
   const structureBrainResult: StructureBrainAnalysisResult = useMemo(() => {
-    const basePrice = currentBrainStock.price || 70000;
-    const now = Date.now();
-    const candles = Array.from({ length: 60 }, (_, i) => ({
-      timestamp: new Date(now - (60 - i) * 60000).toISOString(),
-      open: basePrice,
-      high: basePrice,
-      low: basePrice,
-      close: basePrice,
-      volume: 10000
-    }));
+    // Requires real verified candles
     return StructureBrain.analyze(
-      candles,
+      [],
       {
         swingWindowLeft,
         swingWindowRight,

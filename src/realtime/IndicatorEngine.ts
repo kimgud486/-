@@ -89,6 +89,22 @@ export class IndicatorEngine {
     const currentVol = candles[candles.length - 1].volume || 0;
     const rvol = avgVol > 0 ? Number((currentVol / avgVol).toFixed(2)) : 1.0;
 
+    // RVOL V3: Time-of-Day (TOD) normalized RVOL
+    const lastTime = candles[candles.length - 1].time || (candles[candles.length - 1] as any).timestamp;
+    let todWeight = 1.0;
+    if (lastTime) {
+      const dt = new Date(typeof lastTime === "number" && lastTime < 1e11 ? lastTime * 1000 : lastTime);
+      const minutesFromOpen = (dt.getUTCHours() + 9) * 60 + dt.getUTCMinutes() - (9 * 60); // KST 09:00
+      if (minutesFromOpen >= 0 && minutesFromOpen <= 390) {
+        if (minutesFromOpen < 30) todWeight = 1.8;
+        else if (minutesFromOpen < 60) todWeight = 1.3;
+        else if (minutesFromOpen < 240) todWeight = 0.7;
+        else if (minutesFromOpen < 330) todWeight = 0.9;
+        else todWeight = 1.5;
+      }
+    }
+    const todRvol = avgVol > 0 ? Number((currentVol / (avgVol * todWeight)).toFixed(2)) : rvol;
+
     // Bollinger Bands (20, 2)
     const slice20 = closes.slice(-20);
     const sma20 = slice20.reduce((a, b) => a + b, 0) / Math.max(1, slice20.length);
@@ -132,6 +148,7 @@ export class IndicatorEngine {
       macdHistogram: hist,
       atr14,
       rvol,
+      todRvol,
       trendStrength,
       bollingerUpper,
       bollingerMiddle: Math.round(sma20 * 100) / 100,

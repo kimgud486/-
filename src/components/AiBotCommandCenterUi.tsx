@@ -229,7 +229,7 @@ export const AiBotCommandCenterUi: React.FC<AiBotCommandCenterUiProps> = ({
       return;
     }
 
-    const price = currentAsset.price || 100000;
+    const price = currentAsset.price || 0;
     const qty = currentAsset.market === "UPBIT" || currentAsset.symbol.includes("BTC") ? 0.05 : 10;
     
     try {

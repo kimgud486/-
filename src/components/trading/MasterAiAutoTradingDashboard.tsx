@@ -679,7 +679,7 @@ export const MasterAiAutoTradingDashboard: React.FC<{
   const [tradeLogs, setTradeLogs] = useState<any[]>([]);
 
   // AI Autonomous Buy/Sell Triggering
-  const triggerAiExecution = (type: "BUY" | "SELL", symbolArg: string, price: number) => {
+  const triggerAiExecution = async (type: "BUY" | "SELL", symbolArg: string, price: number) => {
     const symbol = typeof symbolArg === "string" ? symbolArg : String((symbolArg as any)?.symbol || symbolArg || "");
     const stockName = watchlist.find(w => w.symbol === symbol)?.name || symbol;
     const isUs = currentStock.market === "US" || (!/^\d{6}$/.test(symbol) && !symbol.startsWith("KRW-"));
@@ -688,40 +688,71 @@ export const MasterAiAutoTradingDashboard: React.FC<{
     const timeStr = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}:${String(now.getSeconds()).padStart(2, "0")}`;
     const pnl = Number((currentStock.chgPct || 0).toFixed(2));
 
-    const newLog = {
-      id: `trade_${Date.now()}`,
-      time: timeStr,
-      symbol: stockName,
-      action: type,
-      price,
-      pnlPct: pnl
-    };
+    addToast?.({
+      type: "info",
+      title: `[주문 요청] AI 자율 ${type === "BUY" ? "매수" : "매도"} 전송`,
+      message: `${stockName} ${isUs ? `$${price}` : price.toLocaleString() + '원'} 주문 요청 중...`
+    });
 
-    setTradeLogs(prev => [newLog, ...prev.slice(0, 7)]);
     if (executeTrade) {
       const marketCode = isCrypto ? "UPBIT" : isUs ? "US" : "KR";
       const targetQty = isCrypto
         ? Number((50000 / price).toFixed(6))
         : isUs
-        ? Number((50 / price).toFixed(4)) // 미국 주식 소수점 체결 ($50 기준 0.0001주 단위 분할)
+        ? Number((50 / price).toFixed(4))
         : Math.max(1, Math.floor(1000000 / price));
 
-      executeTrade({
-        symbol,
-        name: stockName,
-        side: type,
-        price,
-        quantity: targetQty,
-        type: "MARKET",
-        market: marketCode
-      });
-    }
+      try {
+        const res = await executeTrade({
+          symbol,
+          name: stockName,
+          side: type,
+          price,
+          quantity: targetQty,
+          type: "MARKET",
+          market: marketCode
+        });
 
-    addToast?.({
-      type: "success",
-      title: `AI 자율 ${type === "BUY" ? "매수" : "매도"} 체결 완료`,
-      message: `${stockName} ${isUs ? `$${price}` : price.toLocaleString() + '원'}에 자율 ${type === "BUY" ? "매수" : "매도"} 완료 (신호 신뢰도 87%)`
-    });
+        if (res?.success) {
+          if (res?.status === "FILLED" || res?.filled) {
+            const newLog = {
+              id: `trade_${Date.now()}`,
+              time: timeStr,
+              symbol: stockName,
+              action: type,
+              price: res.filledPrice || price,
+              pnlPct: pnl,
+              orderNo: res.orderNo || res.odno
+            };
+            setTradeLogs(prev => [newLog, ...prev.slice(0, 7)]);
+
+            addToast?.({
+              type: "success",
+              title: `[체결 완료] ${type === "BUY" ? "매수" : "매도"} 체결 확인`,
+              message: `${stockName} ${res.filledQty || targetQty}주 ${isUs ? `$${res.filledPrice || price}` : (res.filledPrice || price).toLocaleString() + '원'} 체결 완료 (ODNO: ${res.orderNo || 'OK'})`
+            });
+          } else {
+            addToast?.({
+              type: "info",
+              title: `[주문 접수] 브로커 주문 접수 완료`,
+              message: `${stockName} 주문 번호 ${res.orderNo || '접수됨'} - 체결 대기 중`
+            });
+          }
+        } else {
+          addToast?.({
+            type: "error",
+            title: `[주문 거부] ${type === "BUY" ? "매수" : "매도"} 실패`,
+            message: res?.message || "브로커 주문 거부"
+          });
+        }
+      } catch (err: any) {
+        addToast?.({
+          type: "error",
+          title: `[주문 오류] 전송 실패`,
+          message: err.message || "주문 전송 중 오류 발생"
+        });
+      }
+    }
   };
 
   // Dimensions & Scale for SVG Multi-Panel Chart
@@ -735,7 +766,8 @@ export const MasterAiAutoTradingDashboard: React.FC<{
   // Dynamic Price Bounds calculated directly from real candles
   const { minPrice, maxPrice } = useMemo(() => {
     if (!candles || candles.length === 0) {
-      const base = currentStock.price || 10000;
+      const base = currentStock.price && currentStock.price > 0 ? currentStock.price : 0;
+      if (base === 0) return { minPrice: 0, maxPrice: 0 };
       return { minPrice: base * 0.9, maxPrice: base * 1.1 };
     }
     const lows = candles.map(c => c.low).filter(v => v > 0);

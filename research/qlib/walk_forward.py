@@ -1,13 +1,18 @@
 # AISTOCK Qlib Walk-Forward Optimization Engine
 
 class WalkForwardEvaluator:
-    def execute(self, train_window_days=180, test_window_days=30):
-        print(f"[QLIB WALK-FORWARD] Train Window: {train_window_days}d | Test Window: {test_window_days}d")
+    def execute(self, train_window_days=180, test_window_days=30, dataset_hash=None):
+        print(f"[QLIB WALK-FORWARD] Train Window: {train_window_days}d | Test Window: {test_window_days}d | Dataset Hash: {dataset_hash}")
+        if not dataset_hash:
+            return {
+                "status": "NOT_EVALUATED",
+                "reason": "MISSING_DATASET_HASH",
+                "metrics": None
+            }
         return {
-            "mean_ic": 0.082,
-            "ic_ir": 0.64,
-            "rank_ic": 0.076,
-            "annualized_return": 0.245
+            "status": "NOT_EVALUATED",
+            "reason": "RUN_ARTIFACT_REQUIRED",
+            "metrics": None
         }
 
 if __name__ == "__main__":

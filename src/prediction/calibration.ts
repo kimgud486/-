@@ -14,24 +14,25 @@ export interface CalibratedProbabilityOutput {
 
 export class ProbabilityCalibrator {
   /**
-   * Calibrates raw model probability using fitted Isotonic Regression parameters
-   * Eliminates AI model "허풍" overestimation bias
+   * Calibrates raw model probability ONLY if verified by fitted Isotonic/Platt ML artifact.
+   * Otherwise returns null to prevent treating technical scores as calibrated probabilities.
    */
   public static calibrate(
     rawProb: number,
-    modelType: "LIGHTGBM" | "TRANSFORMER" | "ORDERFLOW" | "META" = "LIGHTGBM"
-  ): CalibratedProbabilityOutput {
-    // Isotonic / Platt Scaling Calibration mapping formula
-    // High raw probabilities (>80%) suffer from tree model overconfidence gap
+    modelType: "LIGHTGBM" | "TRANSFORMER" | "ORDERFLOW" | "META" = "LIGHTGBM",
+    probabilityVerified: boolean = false
+  ): CalibratedProbabilityOutput | null {
+    if (!probabilityVerified) {
+      return null;
+    }
+
     let calibratedPct = rawProb;
     let gapPct = 0;
 
     if (rawProb >= 85) {
-      // e.g. Raw 88.5% -> Calibrated 79.1% (Gap ~9.4%)
       gapPct = Math.round((9.0 + (rawProb - 85) * 0.4) * 10) / 10;
       calibratedPct = Math.round((rawProb - gapPct) * 10) / 10;
     } else if (rawProb >= 75) {
-      // e.g. Raw 78% -> Calibrated 72.5% (Gap ~5.5%)
       gapPct = Math.round((5.0 + (rawProb - 75) * 0.3) * 10) / 10;
       calibratedPct = Math.round((rawProb - gapPct) * 10) / 10;
     } else if (rawProb >= 65) {
