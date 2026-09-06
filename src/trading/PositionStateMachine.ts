@@ -1,16 +1,20 @@
 // ----------------------------------------------------------------------
-// POSITION STATE MACHINE (V16 REAL TRADING INTELLIGENCE)
-// Formal Lifecycle State Transitions for Position & Trailing Execution
+// POSITION STATE MACHINE V2 (V16.1 REAL TRADING INTELLIGENCE)
+// Formal 12-State Lifecycle State Transitions for Position & Trailing Execution
 // ----------------------------------------------------------------------
 
 export type PositionState =
   | "FLAT"
   | "BUY_PENDING"
+  | "BUY_ACKNOWLEDGED"
+  | "BUY_PARTIAL"
   | "BUY_FILLED"
   | "HOLD"
   | "PROFIT_HOLD"
   | "SELL_WATCH"
   | "SELL_PENDING"
+  | "SELL_ACKNOWLEDGED"
+  | "SELL_PARTIAL"
   | "CLOSED";
 
 export interface PositionContext {
@@ -25,82 +29,94 @@ export interface PositionContext {
   macdHealthy: boolean;
   momentumHealthy: boolean;
   orderFlowHealthy: boolean;
+  filledQuantity: number;
+  targetQuantity: number;
 }
 
 export class PositionStateMachine {
   /**
-   * Evaluate next position state based on price action and technical integrity
+   * Evaluate next position state based on price action, technical integrity, and broker fill status
    */
   public static evaluateNextState(ctx: PositionContext): PositionState {
     const {
       state,
       entryPrice,
       currentPrice,
-      highestPrice,
       trailingStop,
       structureValid,
       aboveVWAP,
       macdHealthy,
       momentumHealthy,
-      orderFlowHealthy
+      orderFlowHealthy,
+      filledQuantity,
+      targetQuantity
     } = ctx;
 
-    // 1. FLAT state remains FLAT until order intent is created
-    if (state === "FLAT") {
-      return "FLAT";
-    }
+    switch (state) {
+      case "FLAT":
+        return "FLAT";
 
-    // 2. BUY_PENDING awaits Broker ACK + Fill Verification
-    if (state === "BUY_PENDING") {
-      return "BUY_PENDING"; // Transits to BUY_FILLED only via verified fill callback
-    }
+      case "BUY_PENDING":
+        return "BUY_PENDING"; // Awaits broker ACK or partial fill
 
-    // 3. BUY_FILLED immediately transits to HOLD
-    if (state === "BUY_FILLED") {
-      return "HOLD";
-    }
+      case "BUY_ACKNOWLEDGED":
+        if (filledQuantity >= targetQuantity && targetQuantity > 0) return "BUY_FILLED";
+        if (filledQuantity > 0) return "BUY_PARTIAL";
+        return "BUY_ACKNOWLEDGED";
 
-    // 4. HOLD state evaluation
-    if (state === "HOLD") {
-      if (!structureValid || (trailingStop != null && currentPrice <= trailingStop)) {
-        return "SELL_PENDING";
-      }
-      if (!momentumHealthy || !aboveVWAP || !macdHealthy) {
-        return "SELL_WATCH";
-      }
-      if (entryPrice != null && currentPrice > entryPrice) {
+      case "BUY_PARTIAL":
+        if (filledQuantity >= targetQuantity && targetQuantity > 0) return "BUY_FILLED";
+        return "BUY_PARTIAL";
+
+      case "BUY_FILLED":
+        return "HOLD";
+
+      case "HOLD":
+        if (!structureValid || (trailingStop != null && currentPrice <= trailingStop)) {
+          return "SELL_PENDING";
+        }
+        if (!momentumHealthy || !aboveVWAP || !macdHealthy) {
+          return "SELL_WATCH";
+        }
+        if (entryPrice != null && currentPrice > entryPrice) {
+          return "PROFIT_HOLD";
+        }
+        return "HOLD";
+
+      case "PROFIT_HOLD":
+        if (!structureValid || (trailingStop != null && currentPrice <= trailingStop)) {
+          return "SELL_PENDING";
+        }
+        if (!momentumHealthy || !aboveVWAP || !orderFlowHealthy) {
+          return "SELL_WATCH";
+        }
         return "PROFIT_HOLD";
-      }
-      return "HOLD";
-    }
 
-    // 5. PROFIT_HOLD state evaluation (Trailing Profit Protection)
-    if (state === "PROFIT_HOLD") {
-      if (!structureValid || (trailingStop != null && currentPrice <= trailingStop)) {
-        return "SELL_PENDING";
-      }
-      if (!momentumHealthy || !aboveVWAP || !orderFlowHealthy) {
+      case "SELL_WATCH":
+        if (!structureValid || (trailingStop != null && currentPrice <= trailingStop)) {
+          return "SELL_PENDING";
+        }
+        if (momentumHealthy && aboveVWAP && macdHealthy) {
+          return entryPrice != null && currentPrice > entryPrice ? "PROFIT_HOLD" : "HOLD";
+        }
         return "SELL_WATCH";
-      }
-      return "PROFIT_HOLD";
-    }
 
-    // 6. SELL_WATCH state evaluation
-    if (state === "SELL_WATCH") {
-      if (!structureValid || (trailingStop != null && currentPrice <= trailingStop)) {
-        return "SELL_PENDING";
-      }
-      if (momentumHealthy && aboveVWAP && macdHealthy) {
-        return entryPrice != null && currentPrice > entryPrice ? "PROFIT_HOLD" : "HOLD";
-      }
-      return "SELL_WATCH";
-    }
+      case "SELL_PENDING":
+        return "SELL_PENDING"; // Awaits broker sell ACK
 
-    // 7. SELL_PENDING transits to CLOSED only after Broker SELL ACK
-    if (state === "SELL_PENDING") {
-      return "SELL_PENDING";
-    }
+      case "SELL_ACKNOWLEDGED":
+        if (filledQuantity <= 0) return "CLOSED";
+        return "SELL_PARTIAL";
 
-    return "CLOSED";
+      case "SELL_PARTIAL":
+        if (filledQuantity <= 0) return "CLOSED";
+        return "SELL_PARTIAL";
+
+      case "CLOSED":
+        return "CLOSED";
+
+      default:
+        return "FLAT";
+    }
   }
 }

@@ -5,8 +5,9 @@
 
 import { Candle, StructureBrain, StructureBrainAnalysisResult } from "./StructureBrain";
 import { MarketDataIntegrityGate } from "./MarketDataIntegrityGate";
-import { LiveMarketQuote } from "./realtimeMarketFeedService";
+import { LiveMarketQuote, requireLiveData } from "./realtimeMarketFeedService";
 import { IndicatorSnapshot, IndicatorTruthEngine } from "./IndicatorTruthEngine";
+import { MarketSessionService } from "./MarketSessionService";
 import { MultiTimeframeAnalysisEngine, MultiTimeframeResult } from "./MultiTimeframeAnalysisEngine";
 
 export interface ScannerAnalysis {
@@ -154,8 +155,10 @@ export class RealScannerCoreEngine {
     const len = candles.length;
     const currentPrice = liveQuote?.price || candles[len - 1].close;
 
-    // 2. Compute Pure Indicators via IndicatorTruthEngine
-    const indicators = IndicatorTruthEngine.computeSnapshot(candles);
+    // 2. Compute Pure Indicators via IndicatorTruthEngine with Session Reset
+    const sessionInfo = MarketSessionService.getSessionInfo(symbol);
+    const sessionOpen = sessionInfo.openTimestamp || Number(candles[0]?.timestamp) || 0;
+    const indicators = IndicatorTruthEngine.computeSnapshot(candles, sessionOpen > 0 ? sessionOpen : undefined);
 
     // 3. Market Structure Analysis via StructureBrain
     const brainResult = StructureBrain.analyze(candles, { swingWindowLeft: 2, swingWindowRight: 2 }, symbol);
@@ -174,21 +177,38 @@ export class RealScannerCoreEngine {
     // 4. Multi-Timeframe Analysis
     const mtfResult = MultiTimeframeAnalysisEngine.analyzeSymbol(symbol);
 
-    // 5. Pattern Recognition
-    const prevClose = candles[len - 2]?.close || currentPrice;
-    const openPrice = candles[len - 1].open;
-    const gapPercent = ((openPrice - prevClose) / prevClose) * 100;
-
+    // 5. Session-Aware Pattern Recognition (ORB & Gap & Go)
     const rvol = indicators.rvol;
     const vwap = indicators.vwap;
     const ema20 = indicators.ema20;
 
-    const gapAndGo = rvol != null && gapPercent >= 1.5 && rvol >= 1.8;
+    // True Session ORB Calculation (First 15m of Regular Session)
+    const openingRangeCandles = candles.filter((c) => {
+      const ts = Number(c.timestamp);
+      return sessionOpen > 0 ? (ts >= sessionOpen && ts < sessionOpen + 15 * 60 * 1000) : false;
+    });
+
+    const orbHigh = openingRangeCandles.length > 0
+      ? Math.max(...openingRangeCandles.map((c) => c.high))
+      : Math.max(...candles.slice(0, Math.min(5, candles.length)).map((c) => c.high));
+
+    const orb = orbHigh > 0 && currentPrice > orbHigh && (rvol ?? 0) >= 1.5;
+
+    // True Session Gap Calculation
+    const firstCandleInSession = candles.find((c) => Number(c.timestamp) >= sessionOpen) || candles[0];
+    const prevSessionCandles = candles.filter((c) => Number(c.timestamp) < sessionOpen);
+    const prevRegularClose = prevSessionCandles.length > 0
+      ? prevSessionCandles[prevSessionCandles.length - 1].close
+      : (candles[len - 2]?.close || currentPrice);
+
+    const sessionOpenPrice = firstCandleInSession ? firstCandleInSession.open : currentPrice;
+    const sessionGapPct = prevRegularClose > 0 ? ((sessionOpenPrice - prevRegularClose) / prevRegularClose) * 100 : 0;
+    const gapAndGo = (rvol ?? 0) >= 1.8 && sessionGapPct >= 1.5;
+
     const recent20 = candles.slice(-20);
     const breakout = currentPrice > Math.max(...recent20.slice(0, -1).map((c) => c.high));
     const vwapReclaim = vwap != null && candles[len - 2].close < vwap && currentPrice > vwap;
     const firstPullback = ema20 != null && isUpTrend && currentPrice <= ema20 * 1.01 && currentPrice >= ema20 * 0.99;
-    const orb = len >= 15 && currentPrice > Math.max(...candles.slice(0, 5).map((c) => c.high));
     const retest = breakout && candles[len - 1].low <= Math.max(...recent20.slice(0, -2).map((c) => c.high));
     const bullFlag = rvol != null && ema20 != null && ema20 > 0 && isUpTrend && rvol < 1.2 && Math.abs(currentPrice - ema20) / ema20 < 0.015;
 
@@ -260,11 +280,11 @@ export class RealScannerCoreEngine {
       signal = score >= 75 ? "BUY_CANDIDATE" : score >= 50 ? "WATCH" : "REJECT";
     }
 
+    const executionQuoteReady = requireLiveData(liveQuote);
+
     const marketDataVerified =
       candleVerification.isVerified &&
-      quoteVerification.isVerified &&
-      liveQuote?.status === "LIVE" &&
-      liveQuote?.isVerified === true;
+      executionQuoteReady;
 
     const tradingAllowed = marketDataVerified && signal === "BUY_CANDIDATE";
 

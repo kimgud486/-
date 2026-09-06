@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// ZERO FAKE DATA PRODUCTION AUDIT SCRIPT V2
+// ZERO FAKE DATA PRODUCTION AUDIT SCRIPT V3
 // ----------------------------------------------------------------------
 
 import fs from "node:fs";
@@ -72,7 +72,7 @@ function scanFile(fullPath) {
   }
 }
 
-console.log("🔍 Running Production Zero Fake Data Audit V2...");
+console.log("🔍 Running Production Zero Fake Data Audit V3...");
 for (const rootPath of ROOTS) {
   scanPath(rootPath);
 }
