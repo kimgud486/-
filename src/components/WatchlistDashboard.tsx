@@ -312,7 +312,7 @@ export const WatchlistDashboard: React.FC = () => {
                             <div>
                               <span className="font-bold text-zinc-400">타겟 희망가:</span>{" "}
                               <span className="font-bold font-mono text-zinc-800">
-                                {item.market === "US" ? `$${item.targetBuyPrice.toLocaleString()}` : `${item.targetBuyPrice.toLocaleString()}원`}
+                                {item.market === "US" ? `$${(item.targetBuyPrice ?? 0).toLocaleString()}` : `${(item.targetBuyPrice ?? 0).toLocaleString()}원`}
                               </span>
                             </div>
                           ) : null}

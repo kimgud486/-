@@ -214,7 +214,7 @@ export const ExpectedProfitabilityPanel: React.FC<ExpectedProfitabilityPanelProp
 
   // Format Helpers
   const formatVal = (val: number) => {
-    if (isUS) return `$${val.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    if (isUS) return `$${(val ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
     return `${Math.round(val).toLocaleString()}원`;
   };
 
@@ -517,7 +517,7 @@ export const ExpectedProfitabilityPanel: React.FC<ExpectedProfitabilityPanelProp
                   style={{ width: `${ask.pct}%` }} 
                 />
                 <span className="text-rose-400 font-bold relative z-10">{formatVal(ask.price)}</span>
-                <span className="text-zinc-400 relative z-10 text-[11px]">{ask.volume.toLocaleString()} 주</span>
+                <span className="text-zinc-400 relative z-10 text-[11px]">{(ask.volume ?? 0).toLocaleString()} 주</span>
               </div>
             ))}
 
@@ -538,7 +538,7 @@ export const ExpectedProfitabilityPanel: React.FC<ExpectedProfitabilityPanelProp
                   style={{ width: `${bid.pct}%` }} 
                 />
                 <span className="text-emerald-400 font-bold relative z-10">{formatVal(bid.price)}</span>
-                <span className="text-zinc-400 relative z-10 text-[11px]">{bid.volume.toLocaleString()} 주</span>
+                <span className="text-zinc-400 relative z-10 text-[11px]">{(bid.volume ?? 0).toLocaleString()} 주</span>
               </div>
             ))}
           </div>
@@ -546,10 +546,10 @@ export const ExpectedProfitabilityPanel: React.FC<ExpectedProfitabilityPanelProp
           {/* Total Volumes Footer */}
           <div className="flex items-center justify-between text-[11px] border-t border-slate-800 pt-2 text-zinc-400">
             <div>
-              매도 총잔량: <span className="text-rose-400 font-bold">{orderBook.totalAskVol.toLocaleString()}</span>
+              매도 총잔량: <span className="text-rose-400 font-bold">{(orderBook.totalAskVol ?? 0).toLocaleString()}</span>
             </div>
             <div>
-              매수 총잔량: <span className="text-emerald-400 font-bold">{orderBook.totalBidVol.toLocaleString()}</span>
+              매수 총잔량: <span className="text-emerald-400 font-bold">{(orderBook.totalBidVol ?? 0).toLocaleString()}</span>
             </div>
           </div>
         </div>

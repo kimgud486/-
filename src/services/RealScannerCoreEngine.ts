@@ -179,18 +179,18 @@ export class RealScannerCoreEngine {
     const openPrice = candles[len - 1].open;
     const gapPercent = ((openPrice - prevClose) / prevClose) * 100;
 
-    const rvol = indicators.rvol ?? 1.0;
-    const vwap = indicators.vwap ?? currentPrice;
-    const ema20 = indicators.ema20 ?? currentPrice;
+    const rvol = indicators.rvol;
+    const vwap = indicators.vwap;
+    const ema20 = indicators.ema20;
 
-    const gapAndGo = gapPercent >= 1.5 && rvol >= 1.8;
+    const gapAndGo = rvol != null && gapPercent >= 1.5 && rvol >= 1.8;
     const recent20 = candles.slice(-20);
     const breakout = currentPrice > Math.max(...recent20.slice(0, -1).map((c) => c.high));
-    const vwapReclaim = candles[len - 2].close < vwap && currentPrice > vwap;
-    const firstPullback = isUpTrend && currentPrice <= ema20 * 1.01 && currentPrice >= ema20 * 0.99;
+    const vwapReclaim = vwap != null && candles[len - 2].close < vwap && currentPrice > vwap;
+    const firstPullback = ema20 != null && isUpTrend && currentPrice <= ema20 * 1.01 && currentPrice >= ema20 * 0.99;
     const orb = len >= 15 && currentPrice > Math.max(...candles.slice(0, 5).map((c) => c.high));
     const retest = breakout && candles[len - 1].low <= Math.max(...recent20.slice(0, -2).map((c) => c.high));
-    const bullFlag = isUpTrend && rvol < 1.2 && Math.abs(currentPrice - ema20) / ema20 < 0.015;
+    const bullFlag = rvol != null && ema20 != null && ema20 > 0 && isUpTrend && rvol < 1.2 && Math.abs(currentPrice - ema20) / ema20 < 0.015;
 
     // 6. SMC Components
     const hasFvg = brainResult.fairValueGaps.some((g) => !g.isFilled);
@@ -199,7 +199,7 @@ export class RealScannerCoreEngine {
     const hasSweep = Boolean(brainResult.keyLevels.lastSweep);
 
     // 7. Risk Metrics
-    const chaseRisk = vwap > 0 ? +(Math.max(0, ((currentPrice - vwap) / vwap) * 100 * 5)).toFixed(1) : null;
+    const chaseRisk = vwap != null && vwap > 0 ? +(Math.max(0, ((currentPrice - vwap) / vwap) * 100 * 5)).toFixed(1) : null;
     const falseBreakoutRisk = rvol !== null && chaseRisk !== null ? +((1 - Math.min(rvol / 2.0, 1.0)) * 50 + (chaseRisk > 30 ? 30 : 0)).toFixed(1) : null;
     const spreadRisk = null; // null if orderbook spread unavailable
 
@@ -264,7 +264,11 @@ export class RealScannerCoreEngine {
       symbol,
       dataStatus: quoteVerification.isVerified ? "LIVE" : "STALE",
       analysisAllowed: true,
-      tradingAllowed: signal === "BUY_CANDIDATE",
+      tradingAllowed:
+        quoteVerification.isVerified &&
+        liveQuote?.status === "LIVE" &&
+        liveQuote?.isVerified === true &&
+        signal === "BUY_CANDIDATE",
       score,
       grade,
       signal,
@@ -272,7 +276,7 @@ export class RealScannerCoreEngine {
       indicators,
       mtfResult,
       brainResult,
-      summary: `점수: ${score ?? "NO_DATA"}점 (${grade ?? "N/A"}) | 추세: ${trendState} | RVOL: ${indicators.rvol ?? "--"} | VWAP: ${indicators.vwap ? `₩${indicators.vwap.toLocaleString()}` : "--"}`
+      summary: `점수: ${score ?? "NO_DATA"}점 (${grade ?? "N/A"}) | 추세: ${trendState} | RVOL: ${indicators.rvol ?? "--"} | VWAP: ${indicators.vwap ? `₩${(indicators.vwap ?? 0).toLocaleString()}` : "--"}`
     };
   }
 }

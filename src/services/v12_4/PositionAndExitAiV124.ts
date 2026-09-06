@@ -138,7 +138,7 @@ export class PositionAndExitAiV124 {
     if (currentPrice <= dynamicExitFloor) {
       state = "SELL";
       aiActionAdvice = "EXECUTE_SELL";
-      explanation = `🚨 [동적 트레일링 스탑 이탈] 현재가(${currentPrice.toLocaleString()}원)가 동적 이탈 바닥가(${dynamicExitFloor.toLocaleString()}원)를 하향 이탈하여 매도를 이행합니다.`;
+      explanation = `🚨 [동적 트레일링 스탑 이탈] 현재가(${(currentPrice ?? 0).toLocaleString()}원)가 동적 이탈 바닥가(${(dynamicExitFloor ?? 0).toLocaleString()}원)를 하향 이탈하여 매도를 이행합니다.`;
     } else if (pnlPct <= -3.5) {
       state = "EMERGENCY EXIT";
       aiActionAdvice = "EXECUTE_SELL";
@@ -158,7 +158,7 @@ export class PositionAndExitAiV124 {
     } else if (pnlPct >= 3.0) {
       state = "TRAIL UP";
       aiActionAdvice = "TRAIL_FLOOR_RAISED";
-      explanation = `🚀 [트레일링 업] 수익률 +${pnlPct.toFixed(2)}% 상승. 동적 이탈 바닥가를 ${dynamicExitFloor.toLocaleString()}원으로 상향 고정합니다.`;
+      explanation = `🚀 [트레일링 업] 수익률 +${pnlPct.toFixed(2)}% 상승. 동적 이탈 바닥가를 ${(dynamicExitFloor ?? 0).toLocaleString()}원으로 상향 고정합니다.`;
     } else {
       state = "HOLD";
       aiActionAdvice = "HOLD";

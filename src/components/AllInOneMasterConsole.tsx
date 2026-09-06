@@ -125,15 +125,15 @@ export const AllInOneMasterConsole: React.FC = () => {
 ALL-IN-ONE AI TRADING MASTER SUMMARY
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 종목명      : ${stock.name} (${stock.symbol})
-현재가      : ${stock.price.toLocaleString()}원 (+${stock.changePct}%)
+현재가      : ${(stock.price ?? 0).toLocaleString()}원 (+${stock.changePct}%)
 거래대금    : ${stock.tradingValue}억원 (RVOL ${stock.rvol}배)
 체결강도    : ${stock.executionPower}%
 
 170-Bot Setup Score: ${v7SecuritiesAnalysis.setupQualityScore}점 [${v7SecuritiesAnalysis.grade}등급]
 Long vs Short      : Long ${v7SecuritiesAnalysis.longShortArmy.longScore}점 VS Short ${v7SecuritiesAnalysis.longShortArmy.shortScore}점
-추천 진입존        : ${v7SecuritiesAnalysis.entryZoneMin.toLocaleString()} ~ ${v7SecuritiesAnalysis.entryZoneMax.toLocaleString()}원
-목표가            : ${v7SecuritiesAnalysis.targetPrice1.toLocaleString()}원
-손절가            : ${v7SecuritiesAnalysis.invalidationPrice.toLocaleString()}원
+추천 진입존        : ${(v7SecuritiesAnalysis.entryZoneMin ?? 0).toLocaleString()} ~ ${(v7SecuritiesAnalysis.entryZoneMax ?? 0).toLocaleString()}원
+목표가            : ${(v7SecuritiesAnalysis.targetPrice1 ?? 0).toLocaleString()}원
+손절가            : ${(v7SecuritiesAnalysis.invalidationPrice ?? 0).toLocaleString()}원
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`;
 
     navigator.clipboard.writeText(summary);
@@ -313,11 +313,11 @@ Long vs Short      : Long ${v7SecuritiesAnalysis.longShortArmy.longScore}점 VS 
                 </div>
                 <div className="flex justify-between text-zinc-400 text-[11px]">
                   <span>보유 수량: {activePosition.qty}주</span>
-                  <span>평단가: {activePosition.buyPrice.toLocaleString()}원</span>
+                  <span>평단가: {(activePosition.buyPrice ?? 0).toLocaleString()}원</span>
                 </div>
                 <div className="flex justify-between text-zinc-400 text-[11px]">
-                  <span>현재가: {activePosition.currentPrice.toLocaleString()}원</span>
-                  <span className="text-amber-300 font-bold">익절보장선: {activePosition.shieldPrice.toLocaleString()}원</span>
+                  <span>현재가: {(activePosition.currentPrice ?? 0).toLocaleString()}원</span>
+                  <span className="text-amber-300 font-bold">익절보장선: {(activePosition.shieldPrice ?? 0).toLocaleString()}원</span>
                 </div>
               </div>
             ) : (
@@ -382,9 +382,9 @@ Long vs Short      : Long ${v7SecuritiesAnalysis.longShortArmy.longScore}점 VS 
 
             {/* Target Map */}
             <div className="bg-zinc-900/80 p-3 rounded-2xl border border-zinc-800 space-y-1">
-              <div className="flex justify-between"><span className="text-amber-300 font-bold">🟡 관심 진입구간</span> <span className="text-white font-bold">{v7SecuritiesAnalysis.entryZoneMin.toLocaleString()} ~ {v7SecuritiesAnalysis.entryZoneMax.toLocaleString()}원</span></div>
-              <div className="flex justify-between"><span className="text-emerald-400 font-bold">🎯 목표 저항가</span> <span className="text-white font-bold">{v7SecuritiesAnalysis.targetPrice1.toLocaleString()}원 / {v7SecuritiesAnalysis.targetPrice2.toLocaleString()}원</span></div>
-              <div className="flex justify-between"><span className="text-rose-400 font-bold">🔴 구조 무효 (손절가)</span> <span className="text-white font-bold">{v7SecuritiesAnalysis.invalidationPrice.toLocaleString()}원</span></div>
+              <div className="flex justify-between"><span className="text-amber-300 font-bold">🟡 관심 진입구간</span> <span className="text-white font-bold">{(v7SecuritiesAnalysis.entryZoneMin ?? 0).toLocaleString()} ~ {(v7SecuritiesAnalysis.entryZoneMax ?? 0).toLocaleString()}원</span></div>
+              <div className="flex justify-between"><span className="text-emerald-400 font-bold">🎯 목표 저항가</span> <span className="text-white font-bold">{(v7SecuritiesAnalysis.targetPrice1 ?? 0).toLocaleString()}원 / {(v7SecuritiesAnalysis.targetPrice2 ?? 0).toLocaleString()}원</span></div>
+              <div className="flex justify-between"><span className="text-rose-400 font-bold">🔴 구조 무효 (손절가)</span> <span className="text-white font-bold">{(v7SecuritiesAnalysis.invalidationPrice ?? 0).toLocaleString()}원</span></div>
             </div>
           </div>
         </div>

@@ -368,7 +368,7 @@ export const AiPerformanceAnalysisDashboard: React.FC = () => {
             <Coins className="w-4 h-4 text-cyan-400" />
           </div>
           <div className={`text-2xl sm:text-3xl font-black ${totalNetPnlKRW >= 0 ? "text-cyan-300" : "text-rose-400"}`}>
-            {totalNetPnlKRW >= 0 ? `+${totalNetPnlKRW.toLocaleString()}원` : `${totalNetPnlKRW.toLocaleString()}원`}
+            {totalNetPnlKRW >= 0 ? `+${(totalNetPnlKRW ?? 0).toLocaleString()}원` : `${(totalNetPnlKRW ?? 0).toLocaleString()}원`}
           </div>
           <div className="text-[11px] text-slate-400 mt-1 font-sans">
             수수료 공제 후 실질 수익
@@ -538,7 +538,7 @@ export const AiPerformanceAnalysisDashboard: React.FC = () => {
                     <span className={`w-2 h-2 rounded-full ${isCrypto ? "bg-amber-400" : "bg-blue-400"}`} />
                     <div>
                       <div className="font-bold">{stk.name} ({stk.symbol})</div>
-                      <div className="text-[10px] text-slate-400 font-mono">{stk.price.toLocaleString()}원</div>
+                      <div className="text-[10px] text-slate-400 font-mono">{(stk.price ?? 0).toLocaleString()}원</div>
                     </div>
                   </div>
 
@@ -547,7 +547,7 @@ export const AiPerformanceAnalysisDashboard: React.FC = () => {
                       +{expectedProfitPct}% 기대
                     </span>
                     <span className="text-[10px] text-slate-400 block">
-                      BEP: {feeAnalysis.bepPrice.toLocaleString()}원
+                      BEP: {(feeAnalysis.bepPrice ?? 0).toLocaleString()}원
                     </span>
                   </div>
                 </div>
@@ -594,8 +594,8 @@ export const AiPerformanceAnalysisDashboard: React.FC = () => {
                     <div className="text-[10px] text-slate-500">{tr.symbol} ({tr.marketType})</div>
                   </td>
                   <td className="py-3 px-3 text-right">
-                    <div className="text-slate-300">{tr.buyPrice.toLocaleString()}원</div>
-                    <div className="text-emerald-400 font-bold">{tr.sellPrice.toLocaleString()}원</div>
+                    <div className="text-slate-300">{(tr.buyPrice ?? 0).toLocaleString()}원</div>
+                    <div className="text-emerald-400 font-bold">{(tr.sellPrice ?? 0).toLocaleString()}원</div>
                   </td>
                   <td className="py-3 px-3 text-right text-cyan-300 font-bold">
                     +{tr.predictedPeakPct}%
@@ -616,7 +616,7 @@ export const AiPerformanceAnalysisDashboard: React.FC = () => {
                   </td>
                   <td className="py-3 px-3 text-right font-black">
                     <span className={tr.netPnlAmount >= 0 ? "text-cyan-300" : "text-rose-400"}>
-                      {tr.netPnlAmount >= 0 ? `+${tr.netPnlAmount.toLocaleString()}원` : `${tr.netPnlAmount.toLocaleString()}원`}
+                      {tr.netPnlAmount >= 0 ? `+${(tr.netPnlAmount ?? 0).toLocaleString()}원` : `${(tr.netPnlAmount ?? 0).toLocaleString()}원`}
                     </span>
                   </td>
                   <td className="py-3 px-3 font-sans text-[11px] text-slate-300 max-w-[280px]">

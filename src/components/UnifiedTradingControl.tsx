@@ -238,7 +238,7 @@ export const UnifiedTradingControl: React.FC = () => {
               <span>수동 매매 제어 패널 (MANUAL TRADING CONTROL)</span>
             </span>
             <span className="text-xs text-indigo-400 font-mono font-bold">
-              선택종목: {currentAnalysis.name} ({currentAnalysis.currentPrice.toLocaleString()}원)
+              선택종목: {currentAnalysis.name} ({(currentAnalysis.currentPrice ?? 0).toLocaleString()}원)
             </span>
           </div>
 
@@ -309,16 +309,16 @@ export const UnifiedTradingControl: React.FC = () => {
               <div className="flex justify-between items-center">
                 <span className="text-white font-black text-sm">{realDisplayPosition.name} ({realDisplayPosition.symbol})</span>
                 <span className={`${realDisplayPosition.pnlPct >= 0 ? "text-emerald-400" : "text-rose-400"} font-black text-sm`}>
-                  {realDisplayPosition.pnlPct >= 0 ? `+${realDisplayPosition.pnlPct}%` : `${realDisplayPosition.pnlPct}%`} ({realDisplayPosition.pnlAmount >= 0 ? `+${realDisplayPosition.pnlAmount.toLocaleString()}원` : `${realDisplayPosition.pnlAmount.toLocaleString()}원`})
+                  {realDisplayPosition.pnlPct >= 0 ? `+${realDisplayPosition.pnlPct}%` : `${realDisplayPosition.pnlPct}%`} ({realDisplayPosition.pnlAmount >= 0 ? `+${(realDisplayPosition.pnlAmount ?? 0).toLocaleString()}원` : `${(realDisplayPosition.pnlAmount ?? 0).toLocaleString()}원`})
                 </span>
               </div>
               <div className="flex justify-between text-zinc-400 text-[11px] border-t border-zinc-800/80 pt-2">
                 <span>보유 수량: {realDisplayPosition.qty}주</span>
-                <span>매수 평단가: {realDisplayPosition.buyPrice.toLocaleString()}원</span>
+                <span>매수 평단가: {(realDisplayPosition.buyPrice ?? 0).toLocaleString()}원</span>
               </div>
               <div className="flex justify-between text-zinc-400 text-[11px]">
-                <span>현재가: {realDisplayPosition.currentPrice.toLocaleString()}원</span>
-                <span className="text-amber-300 font-bold">익절보장선: {realDisplayPosition.trailingShieldPrice.toLocaleString()}원</span>
+                <span>현재가: {(realDisplayPosition.currentPrice ?? 0).toLocaleString()}원</span>
+                <span className="text-amber-300 font-bold">익절보장선: {(realDisplayPosition.trailingShieldPrice ?? 0).toLocaleString()}원</span>
               </div>
             </div>
           ) : (

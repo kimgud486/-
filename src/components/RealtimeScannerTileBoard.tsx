@@ -119,7 +119,7 @@ export const RealtimeScannerTileBoard: React.FC<RealtimeScannerTileBoardProps> =
     const stopLoss = Math.round(price - slDelta);
     const targetPrice = Math.round(price + tpDelta);
     const bestEntry = Math.round(price * 0.995);
-    const entryZone = `${Math.round(price * 0.99).toLocaleString()} ~ ${price.toLocaleString()}`;
+    const entryZone = `${Math.round(price * 0.99).toLocaleString()} ~ ${(price ?? 0).toLocaleString()}`;
     const riskReward = "1 : 2.5";
     const rationale = isPositive
       ? `실시간 체결 수급 유입 (${changePct > 0 ? "+" : ""}${changePct}%). 거래량 상대강도 ${rvol}x 돌파 및 지지선 수성`
@@ -547,8 +547,8 @@ export const RealtimeScannerTileBoard: React.FC<RealtimeScannerTileBoardProps> =
               {filteredStocks.map((item) => {
                 const isUp = item.changePct >= 0;
                 const priceStr = item.market === "US"
-                  ? `$${item.currentPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-                  : `${item.currentPrice.toLocaleString()}원`;
+                  ? `$${(item.currentPrice ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                  : `${(item.currentPrice ?? 0).toLocaleString()}원`;
 
                 return (
                   <div
@@ -633,8 +633,8 @@ export const RealtimeScannerTileBoard: React.FC<RealtimeScannerTileBoardProps> =
                   {filteredStocks.map((item) => {
                     const isUp = item.changePct >= 0;
                     const priceStr = item.market === "US" 
-                      ? `$${item.currentPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-                      : `${item.currentPrice.toLocaleString()}원`;
+                      ? `$${(item.currentPrice ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                      : `${(item.currentPrice ?? 0).toLocaleString()}원`;
 
                     return (
                       <tr
@@ -714,9 +714,9 @@ export const RealtimeScannerTileBoard: React.FC<RealtimeScannerTileBoardProps> =
 
                         {/* 6. Target Price / Stop Loss */}
                         <td className="py-1 px-2 text-center whitespace-nowrap font-mono text-[10px]">
-                          <span className="text-emerald-400 font-bold">TP {item.targetPrice.toLocaleString()}</span>
+                          <span className="text-emerald-400 font-bold">TP {(item.targetPrice ?? 0).toLocaleString()}</span>
                           <span className="text-slate-500 mx-1">/</span>
-                          <span className="text-rose-400 font-bold">SL {item.stopLoss.toLocaleString()}</span>
+                          <span className="text-rose-400 font-bold">SL {(item.stopLoss ?? 0).toLocaleString()}</span>
                         </td>
 
                         {/* 7. Action Buttons */}

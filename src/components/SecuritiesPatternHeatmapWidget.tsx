@@ -608,7 +608,7 @@ export const SecuritiesPatternHeatmapWidget: React.FC = () => {
   };
 
   const formatPrice = (val: number, market: string) => {
-    if (market === "US") return `$${val.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    if (market === "US") return `$${(val ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
     return `${Math.round(val).toLocaleString()}원`;
   };
 

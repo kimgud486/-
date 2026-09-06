@@ -224,19 +224,19 @@ export const AiWarRoomModal: React.FC<AiWarRoomModalProps> = ({
               <div className="p-3 bg-slate-900 rounded-xl border border-slate-800">
                 <span className="text-xs text-slate-400 block mb-1">이상적 분할 매수가</span>
                 <span className="text-emerald-400 font-black text-base">
-                  ₩{stock.idealEntryRange[0].toLocaleString()} ~ ₩{stock.idealEntryRange[1].toLocaleString()}
+                  ₩{(stock.idealEntryRange[0] ?? 0).toLocaleString()} ~ ₩{(stock.idealEntryRange[1] ?? 0).toLocaleString()}
                 </span>
               </div>
               <div className="p-3 bg-slate-900 rounded-xl border border-slate-800">
                 <span className="text-xs text-slate-400 block mb-1">칼손절 기준선 (이탈 시 즉시 청산)</span>
                 <span className="text-rose-400 font-black text-base">
-                  ₩{stock.stopLossPrice.toLocaleString()} (손실폭 -1.28%)
+                  ₩{(stock.stopLossPrice ?? 0).toLocaleString()} (손실폭 -1.28%)
                 </span>
               </div>
               <div className="p-3 bg-slate-900 rounded-xl border border-slate-800">
                 <span className="text-xs text-slate-400 block mb-1">1차 목표가 / 기대 손익비</span>
                 <span className="text-cyan-400 font-black text-base">
-                  ₩{stock.targetPrice1.toLocaleString()} (손익비 1 : 2.85)
+                  ₩{(stock.targetPrice1 ?? 0).toLocaleString()} (손익비 1 : 2.85)
                 </span>
               </div>
             </div>

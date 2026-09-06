@@ -165,7 +165,7 @@ export const FractionalStockOrderModal: React.FC<FractionalStockOrderModalProps>
     setIsSubmitting(true);
     try {
       const sideText = orderSide === 'BUY' ? '소수점 매수' : '소수점 매도';
-      const orderRationale = `[해외주식 소수점 체결] ${activeStock.name}(${activeStock.symbol}) ${calculatedShares.toFixed(4)}주 ($${calculatedUsdCost.toFixed(2)} / ₩${calculatedKrwCost.toLocaleString()}) 소수점 분할 주문을 체결하였습니다.`;
+      const orderRationale = `[해외주식 소수점 체결] ${activeStock.name}(${activeStock.symbol}) ${calculatedShares.toFixed(4)}주 ($${calculatedUsdCost.toFixed(2)} / ₩${(calculatedKrwCost ?? 0).toLocaleString()}) 소수점 분할 주문을 체결하였습니다.`;
 
       await executeTrade(
         activeStock.symbol,
@@ -259,7 +259,7 @@ export const FractionalStockOrderModal: React.FC<FractionalStockOrderModalProps>
               </div>
               <div className="flex items-baseline gap-2 mt-1 font-mono">
                 <span className={`text-lg font-black ${isWhiteTheme ? "text-slate-900" : "text-slate-100"}`}>
-                  ${currentPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  ${(currentPrice ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </span>
                 <span className={`text-xs font-bold ${(activeStock.chgPct || 0) >= 0 ? "text-emerald-500" : "text-rose-500"}`}>
                   {(activeStock.chgPct || 0) >= 0 ? "+" : ""}{activeStock.chgPct}%
@@ -273,7 +273,7 @@ export const FractionalStockOrderModal: React.FC<FractionalStockOrderModalProps>
             <div className={`text-right text-[11px] font-mono ${isWhiteTheme ? "text-slate-600" : "text-slate-400"}`}>
               <div className="flex items-center justify-end gap-1 text-[10px] font-bold">
                 <ArrowRightLeft className="w-3 h-3 text-cyan-500" />
-                <span>기준환율 <b>1$ = {fxRate.toLocaleString()}원</b></span>
+                <span>기준환율 <b>1$ = {(fxRate ?? 0).toLocaleString()}원</b></span>
               </div>
               {existingQty > 0 && (
                 <div className="mt-1">
@@ -453,7 +453,7 @@ export const FractionalStockOrderModal: React.FC<FractionalStockOrderModalProps>
                               : (isWhiteTheme ? "bg-slate-100 hover:bg-slate-200 border-slate-200 text-slate-700" : "bg-[#071120] hover:bg-[#0f213b] border-slate-800 text-slate-300")
                           }`}
                         >
-                          {krw >= 10000 ? `${krw / 10000}만` : `${krw.toLocaleString()}`}
+                          {krw >= 10000 ? `${krw / 10000}만` : `${(krw ?? 0).toLocaleString()}`}
                         </button>
                       ))}
                 </div>
@@ -531,7 +531,7 @@ export const FractionalStockOrderModal: React.FC<FractionalStockOrderModalProps>
                   <div className="text-base font-black text-slate-900 dark:text-white">
                     ${calculatedUsdCost.toFixed(2)}
                     <span className="text-[10px] font-normal text-slate-500 ml-1">
-                      (₩{calculatedKrwCost.toLocaleString()}원)
+                      (₩{(calculatedKrwCost ?? 0).toLocaleString()}원)
                     </span>
                   </div>
                 </div>

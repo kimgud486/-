@@ -154,7 +154,7 @@ export const ExchangeRateInfoModal: React.FC<ExchangeRateInfoModalProps> = ({
                 </div>
                 <div className="flex items-baseline gap-2">
                   <span className="text-3xl sm:text-4xl font-black font-mono tracking-tight text-white">
-                    ₩{fxRate.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 2 })}
+                    ₩{(fxRate ?? 0).toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 2 })}
                   </span>
                   <span className="text-sm font-bold text-slate-300">/ 1 USD</span>
                 </div>
@@ -195,7 +195,7 @@ export const ExchangeRateInfoModal: React.FC<ExchangeRateInfoModalProps> = ({
                 <h3 className="text-sm font-black text-slate-900 dark:text-white">실시간 양방향 통화 계산기</h3>
               </div>
               <span className="text-[11px] text-slate-500 font-mono">
-                적용 환율: $1 = ₩{fxRate.toLocaleString()}
+                적용 환율: $1 = ₩{(fxRate ?? 0).toLocaleString()}
               </span>
             </div>
 
@@ -246,7 +246,7 @@ export const ExchangeRateInfoModal: React.FC<ExchangeRateInfoModalProps> = ({
                   onClick={() => handleUsdChange(String(amt))}
                   className="px-2.5 py-1 text-xs font-bold rounded-lg bg-slate-200/80 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-emerald-100 hover:text-emerald-700 transition cursor-pointer"
                 >
-                  ${amt.toLocaleString()}
+                  ${(amt ?? 0).toLocaleString()}
                 </button>
               ))}
             </div>
@@ -308,9 +308,9 @@ export const ExchangeRateInfoModal: React.FC<ExchangeRateInfoModalProps> = ({
                   {simTicker} {simShares}주 총 매수 금액 (달러 & 원화):
                 </div>
                 <div className="text-base font-black font-mono text-indigo-600 dark:text-indigo-400">
-                  ${simCostUsd.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  ${(simCostUsd ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   <span className="text-xs font-bold text-slate-700 dark:text-slate-300 ml-2">
-                    (₩{simCostKrw.toLocaleString()}원)
+                    (₩{(simCostKrw ?? 0).toLocaleString()}원)
                   </span>
                 </div>
               </div>
@@ -363,7 +363,7 @@ export const ExchangeRateInfoModal: React.FC<ExchangeRateInfoModalProps> = ({
 
                       <div className="text-right">
                         <div className="font-black text-slate-900 dark:text-white">
-                          ${itemUsdEval.toFixed(2)} <span className="text-[11px] font-normal text-slate-500">(₩{itemKrwEval.toLocaleString()}원)</span>
+                          ${itemUsdEval.toFixed(2)} <span className="text-[11px] font-normal text-slate-500">(₩{(itemKrwEval ?? 0).toLocaleString()}원)</span>
                         </div>
                         <div className={`text-[11px] font-bold ${isPlus ? 'text-rose-500' : 'text-sky-500'}`}>
                           {isPlus ? '+' : ''}{pnlRate.toFixed(2)}%

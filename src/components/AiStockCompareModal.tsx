@@ -143,7 +143,7 @@ export const AiStockCompareModal: React.FC<AiStockCompareModalProps> = ({
                       <div>
                         <span className="text-[10px] text-zinc-500 block">현재가</span>
                         <span className="text-base font-black text-white">
-                          {st.price ? st.price.toLocaleString() : "-"}
+                          {st.price ? (st.price ?? 0).toLocaleString() : "-"}
                         </span>
                       </div>
                       <div className="text-right">

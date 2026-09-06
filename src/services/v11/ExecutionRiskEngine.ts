@@ -119,7 +119,7 @@ export class ExecutionRiskEngine {
     if (this.metrics.isDailyLossBreached || this.metrics.dailyRealizedPnLKRW <= this.config.dailyLossLimitAmtKRW) {
       return {
         passed: false,
-        rejectReason: `⚠️ 일일 최대 손실한도 초과 (현재 손실: ${this.metrics.dailyRealizedPnLKRW.toLocaleString()}원 <= 한도: ${this.config.dailyLossLimitAmtKRW.toLocaleString()}원)`,
+        rejectReason: `⚠️ 일일 최대 손실한도 초과 (현재 손실: ${(this.metrics.dailyRealizedPnLKRW ?? 0).toLocaleString()}원 <= 한도: ${(this.config.dailyLossLimitAmtKRW ?? 0).toLocaleString()}원)`,
         ruleViolated: "DAILY_LOSS_LIMIT_EXCEEDED",
         timestamp: timestampStr
       };
@@ -161,7 +161,7 @@ export class ExecutionRiskEngine {
       if (orderAmountUSD > this.config.maxPositionValueUSD) {
         return {
           passed: false,
-          rejectReason: `💵 미국주식 단일 주문 한도 초과 ($${orderAmountUSD.toLocaleString()} > 한도: $${this.config.maxPositionValueUSD.toLocaleString()})`,
+          rejectReason: `💵 미국주식 단일 주문 한도 초과 ($${(orderAmountUSD ?? 0).toLocaleString()} > 한도: $${(this.config.maxPositionValueUSD ?? 0).toLocaleString()})`,
           ruleViolated: "MAX_POSITION_VALUE_USD_EXCEEDED",
           timestamp: timestampStr
         };
@@ -170,7 +170,7 @@ export class ExecutionRiskEngine {
       if (orderAmountKRW > this.config.maxPositionValueKRW) {
         return {
           passed: false,
-          rejectReason: `💰 국내주식 단일 주문 한도 초과 (${orderAmountKRW.toLocaleString()}원 > 한도: ${this.config.maxPositionValueKRW.toLocaleString()}원)`,
+          rejectReason: `💰 국내주식 단일 주문 한도 초과 (${(orderAmountKRW ?? 0).toLocaleString()}원 > 한도: ${(this.config.maxPositionValueKRW ?? 0).toLocaleString()}원)`,
           ruleViolated: "MAX_POSITION_VALUE_KRW_EXCEEDED",
           timestamp: timestampStr
         };

@@ -836,7 +836,7 @@ export const AiPricePredictionEngine: React.FC = () => {
         notify({
           type: "WARNING",
           title: "예수금 한도 부족",
-          message: `현재 가용 예수금(₩${Math.round(depositCash).toLocaleString()}원)이 ${target.name} 1주 단가(₩${targetPrice.toLocaleString()}원)보다 부족합니다. 계좌 충전 후 이용하세요.`
+          message: `현재 가용 예수금(₩${Math.round(depositCash).toLocaleString()}원)이 ${target.name} 1주 단가(₩${(targetPrice ?? 0).toLocaleString()}원)보다 부족합니다. 계좌 충전 후 이용하세요.`
         });
         return;
       }
@@ -1083,7 +1083,7 @@ export const AiPricePredictionEngine: React.FC = () => {
       notify({
         type: "INFO",
         title: "🔄 실시간 체결가 앵커 동기화 완료",
-        message: `시세 변동에 따라 AI 예측 앵커 기준가를 최신 실시간 체결가(₩${executionPrice.toLocaleString()})로 자동 동기화하여 주문을 체결합니다.`
+        message: `시세 변동에 따라 AI 예측 앵커 기준가를 최신 실시간 체결가(₩${(executionPrice ?? 0).toLocaleString()})로 자동 동기화하여 주문을 체결합니다.`
       });
       setData(prev => prev ? { ...prev, predictionAnchorPrice: executionPrice } : null);
     }
@@ -1116,7 +1116,7 @@ export const AiPricePredictionEngine: React.FC = () => {
         qty,
         executionPrice,
         "AI 미래 가격 경로 예측 기반 자동 매수",
-        `[AI 퀀트 경로 진입] 실시간 체결가: ₩${executionPrice.toLocaleString()}원 / 목표가 TP1: ₩${(data.tradePlan?.tp1 || executionPrice).toLocaleString()}원 / 손절가: ₩${(data.tradePlan?.stopLoss || executionPrice).toLocaleString()}원 / 예상 반전 확률: ${data.reversalAnalysis?.reversalProbability || 85}%`
+        `[AI 퀀트 경로 진입] 실시간 체결가: ₩${(executionPrice ?? 0).toLocaleString()}원 / 목표가 TP1: ₩${(data.tradePlan?.tp1 || executionPrice).toLocaleString()}원 / 손절가: ₩${(data.tradePlan?.stopLoss || executionPrice).toLocaleString()}원 / 예상 반전 확률: ${data.reversalAnalysis?.reversalProbability || 85}%`
       );
 
       notify({
@@ -1340,18 +1340,18 @@ export const AiPricePredictionEngine: React.FC = () => {
                   
                   <div className="flex items-center gap-1 text-[11px]">
                     <span className="text-zinc-400 font-semibold">🇰🇷 한국투:</span>
-                    <span className="font-mono font-bold text-emerald-400">₩{koreaCash.toLocaleString()}원</span>
+                    <span className="font-mono font-bold text-emerald-400">₩{(koreaCash ?? 0).toLocaleString()}원</span>
                   </div>
 
                   <div className="flex items-center gap-1 text-[11px]">
                     <span className="text-zinc-400 font-semibold">🪙 업비트:</span>
-                    <span className="font-mono font-bold text-amber-300">₩{upbitCash.toLocaleString()}원</span>
+                    <span className="font-mono font-bold text-amber-300">₩{(upbitCash ?? 0).toLocaleString()}원</span>
                   </div>
 
                   <div className="flex items-center gap-1 text-[11px]">
                     <span className="text-zinc-400 font-semibold">🇺🇸 미국(KIS):</span>
-                    <span className="font-mono font-bold text-cyan-300">${usCashUsd.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                    <span className="text-[10px] text-zinc-500 font-mono">(₩{usCashKrw.toLocaleString()})</span>
+                    <span className="font-mono font-bold text-cyan-300">${(usCashUsd ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                    <span className="text-[10px] text-zinc-500 font-mono">(₩{(usCashKrw ?? 0).toLocaleString()})</span>
                   </div>
 
                   <button
@@ -1368,7 +1368,7 @@ export const AiPricePredictionEngine: React.FC = () => {
                   <Wallet className="w-4 h-4 text-amber-400" />
                   <span className="text-zinc-400 font-semibold">🪙 업비트 가상자산 전용 예수금:</span>
                   <span className="font-mono font-bold text-amber-400 text-sm">
-                    ₩{upbitCash.toLocaleString()}원
+                    ₩{(upbitCash ?? 0).toLocaleString()}원
                   </span>
                 </div>
               ) : rankingMarketFilter === "KOREA" ? (
@@ -1376,7 +1376,7 @@ export const AiPricePredictionEngine: React.FC = () => {
                   <Wallet className="w-4 h-4 text-emerald-400" />
                   <span className="text-zinc-400 font-semibold">🇰🇷 한국투자증권(국내) 전용 예수금:</span>
                   <span className="font-mono font-bold text-emerald-400 text-sm">
-                    ₩{koreaCash.toLocaleString()}원
+                    ₩{(koreaCash ?? 0).toLocaleString()}원
                   </span>
                 </div>
               ) : (
@@ -1385,9 +1385,9 @@ export const AiPricePredictionEngine: React.FC = () => {
                     <Wallet className="w-4 h-4 text-cyan-400" />
                     <span className="text-zinc-400 font-semibold">🇺🇸 미국주식 전용 예수금 (USD):</span>
                     <span className="font-mono font-bold text-cyan-300 text-sm">
-                      ${usCashUsd.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      ${(usCashUsd ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </span>
-                    <span className="text-[10px] text-zinc-500 font-mono">(₩{usCashKrw.toLocaleString()}원)</span>
+                    <span className="text-[10px] text-zinc-500 font-mono">(₩{(usCashKrw ?? 0).toLocaleString()}원)</span>
                   </div>
 
                   <button
@@ -1522,8 +1522,8 @@ export const AiPricePredictionEngine: React.FC = () => {
                         <span className="text-zinc-400 block text-[10px]">현재가</span>
                         <span className="text-sm font-mono font-bold text-white">
                           {isUsStock
-                            ? `$${item.target.price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-                            : `₩${item.target.price.toLocaleString()}원`}
+                            ? `$${(item.target.price ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                            : `₩${(item.target.price ?? 0).toLocaleString()}원`}
                         </span>
                       </div>
                     </div>
@@ -1558,7 +1558,7 @@ export const AiPricePredictionEngine: React.FC = () => {
                         <span className="font-mono">
                           {isUsStock
                             ? `$${item.buyPrice.toFixed(2)}`
-                            : `₩${item.buyPrice.toLocaleString()}원`}
+                            : `₩${(item.buyPrice ?? 0).toLocaleString()}원`}
                         </span>
                       </div>
                       <div className="flex items-center justify-between text-zinc-300">
@@ -1566,7 +1566,7 @@ export const AiPricePredictionEngine: React.FC = () => {
                         <span className="font-mono text-cyan-300">
                           {isUsStock
                             ? `$${item.tp1Price.toFixed(2)}`
-                            : `₩${item.tp1Price.toLocaleString()}원`}
+                            : `₩${(item.tp1Price ?? 0).toLocaleString()}원`}
                         </span>
                       </div>
                     </div>
@@ -1580,7 +1580,7 @@ export const AiPricePredictionEngine: React.FC = () => {
                             예수금 한도 내 매수:
                           </span>
                           <span className="font-mono font-bold text-emerald-300">
-                            {item.maxSharesAffordable.toLocaleString()} {item.target.market === "BTC" ? "코인" : "주"}
+                            {(item.maxSharesAffordable ?? 0).toLocaleString()} {item.target.market === "BTC" ? "코인" : "주"}
                           </span>
                         </div>
                       ) : (
@@ -1592,7 +1592,7 @@ export const AiPricePredictionEngine: React.FC = () => {
                           <span className="font-mono font-bold text-rose-400">
                             {isUsStock
                               ? `$${item.target.price.toFixed(2)}`
-                              : `₩${item.target.price.toLocaleString()}원`}
+                              : `₩${(item.target.price ?? 0).toLocaleString()}원`}
                           </span>
                         </div>
                       )}
@@ -1747,7 +1747,7 @@ export const AiPricePredictionEngine: React.FC = () => {
 
                           <div className="text-right shrink-0">
                             <div className="text-xs font-mono font-black text-cyan-300">
-                              {isUs ? `$${currentP.toLocaleString()}` : `₩${Math.round(currentP).toLocaleString()}원`}
+                              {isUs ? `$${(currentP ?? 0).toLocaleString()}` : `₩${Math.round(currentP).toLocaleString()}원`}
                             </div>
                             <div className={`text-[10px] font-mono font-bold flex items-center justify-end gap-1 mt-0.5 ${isUp ? "text-emerald-400" : "text-rose-400"}`}>
                               <span>{isUp ? "+" : ""}{chgPct.toFixed(2)}%</span>
@@ -2106,7 +2106,7 @@ export const AiPricePredictionEngine: React.FC = () => {
                   </span>
                 </div>
                 <h3 className="text-base md:text-lg font-black text-white mt-1">
-                  AI 예측 앵커가(Anchor: {selectedPreset.market === "US" ? `$${predictionAnchorPrice?.toFixed(2)}` : `₩${predictionAnchorPrice?.toLocaleString()}원`}) ≠ 실시간 시장가(Live: {selectedPreset.market === "US" ? `$${currentRealtimePrice.toFixed(2)}` : `₩${currentRealtimePrice.toLocaleString()}원`})
+                  AI 예측 앵커가(Anchor: {selectedPreset.market === "US" ? `$${predictionAnchorPrice?.toFixed(2)}` : `₩${predictionAnchorPrice?.toLocaleString()}원`}) ≠ 실시간 시장가(Live: {selectedPreset.market === "US" ? `$${currentRealtimePrice.toFixed(2)}` : `₩${(currentRealtimePrice ?? 0).toLocaleString()}원`})
                 </h3>
                 <p className="text-xs text-red-200 mt-1 leading-relaxed">
                   실시간 시세 변동으로 인해 이전 AI 미래 예측 파동의 기준점(Anchor)이 현재 실시간 시장 상태와 유효하게 일치하지 않습니다. 
@@ -2399,14 +2399,14 @@ export const AiPricePredictionEngine: React.FC = () => {
                   <div className="text-xs font-mono space-y-1 pt-1">
                     <div className="flex justify-between text-emerald-400">
                       <span>목표가 (+2.0x ATR):</span>
-                      <span className="font-bold">₩{quantEngineV3Result.tripleBarrier.upperBarrierPrice.toLocaleString()} (+{quantEngineV3Result.tripleBarrier.targetGainPct}%)</span>
+                      <span className="font-bold">₩{(quantEngineV3Result.tripleBarrier.upperBarrierPrice ?? 0).toLocaleString()} (+{quantEngineV3Result.tripleBarrier.targetGainPct}%)</span>
                     </div>
                     <div className="flex justify-between text-rose-400">
                       <span>손절가 (-1.0x ATR):</span>
-                      <span className="font-bold">₩{quantEngineV3Result.tripleBarrier.lowerBarrierPrice.toLocaleString()} ({quantEngineV3Result.tripleBarrier.stopLossPct}%)</span>
+                      <span className="font-bold">₩{(quantEngineV3Result.tripleBarrier.lowerBarrierPrice ?? 0).toLocaleString()} ({quantEngineV3Result.tripleBarrier.stopLossPct}%)</span>
                     </div>
                     <div className="text-[10.5px] text-zinc-400 pt-0.5">
-                      ATR: ₩{quantEngineV3Result.tripleBarrier.atrValue.toLocaleString()} ({quantEngineV3Result.tripleBarrier.atrPct}%)
+                      ATR: ₩{(quantEngineV3Result.tripleBarrier.atrValue ?? 0).toLocaleString()} ({quantEngineV3Result.tripleBarrier.atrPct}%)
                     </div>
                   </div>
                 </div>
@@ -2451,7 +2451,7 @@ export const AiPricePredictionEngine: React.FC = () => {
                     <div className="flex justify-between">
                       <span>80% 예상 범위:</span>
                       <span className="font-bold text-white">
-                        ₩{quantEngineV3Result.conformal.range80.min.toLocaleString()} ~ ₩{quantEngineV3Result.conformal.range80.max.toLocaleString()}
+                        ₩{(quantEngineV3Result.conformal.range80.min ?? 0).toLocaleString()} ~ ₩{(quantEngineV3Result.conformal.range80.max ?? 0).toLocaleString()}
                       </span>
                     </div>
                     <div className="flex justify-between text-zinc-400 text-[10px]">
@@ -2551,13 +2551,13 @@ export const AiPricePredictionEngine: React.FC = () => {
                   <div className="flex justify-between items-center text-zinc-300 border-b border-zinc-800/60 pb-1">
                     <span className="text-zinc-400 font-sans">1차 목표가 (TP1):</span>
                     <span className="font-bold text-emerald-400 text-sm">
-                      {selectedPreset.market === "US" ? `$${(data.tradePlan.tp1 / (customPrice || selectedPreset.price || 1)).toFixed(2)}` : `₩${data.tradePlan.tp1.toLocaleString()}원`}
+                      {selectedPreset.market === "US" ? `$${(data.tradePlan.tp1 / (customPrice || selectedPreset.price || 1)).toFixed(2)}` : `₩${(data.tradePlan.tp1 ?? 0).toLocaleString()}원`}
                     </span>
                   </div>
                   <div className="flex justify-between items-center text-zinc-300 border-b border-zinc-800/60 pb-1">
                     <span className="text-zinc-400 font-sans">단기 손절가 (SL):</span>
                     <span className="font-bold text-rose-400">
-                      {selectedPreset.market === "US" ? `$${(data.tradePlan.stopLoss / (customPrice || selectedPreset.price || 1)).toFixed(2)}` : `₩${data.tradePlan.stopLoss.toLocaleString()}원`}
+                      {selectedPreset.market === "US" ? `$${(data.tradePlan.stopLoss / (customPrice || selectedPreset.price || 1)).toFixed(2)}` : `₩${(data.tradePlan.stopLoss ?? 0).toLocaleString()}원`}
                     </span>
                   </div>
                   <div className="flex justify-between items-center text-zinc-300">
@@ -2597,13 +2597,13 @@ export const AiPricePredictionEngine: React.FC = () => {
                   <div className="flex justify-between items-center text-zinc-300 border-b border-zinc-800/60 pb-1">
                     <span className="text-zinc-400 font-sans">2차 목표가 (TP2):</span>
                     <span className="font-bold text-emerald-400 text-sm">
-                      {selectedPreset.market === "US" ? `$${(data.tradePlan.tp2 / (customPrice || selectedPreset.price || 1)).toFixed(2)}` : `₩${data.tradePlan.tp2.toLocaleString()}원`}
+                      {selectedPreset.market === "US" ? `$${(data.tradePlan.tp2 / (customPrice || selectedPreset.price || 1)).toFixed(2)}` : `₩${(data.tradePlan.tp2 ?? 0).toLocaleString()}원`}
                     </span>
                   </div>
                   <div className="flex justify-between items-center text-zinc-300 border-b border-zinc-800/60 pb-1">
                     <span className="text-zinc-400 font-sans">추세 지지선:</span>
                     <span className="font-bold text-cyan-300">
-                      {selectedPreset.market === "US" ? `$${(data.reversalAnalysis.reboundSupportPrice / (customPrice || selectedPreset.price || 1)).toFixed(2)}` : `₩${data.reversalAnalysis.reboundSupportPrice.toLocaleString()}원`}
+                      {selectedPreset.market === "US" ? `$${(data.reversalAnalysis.reboundSupportPrice / (customPrice || selectedPreset.price || 1)).toFixed(2)}` : `₩${(data.reversalAnalysis.reboundSupportPrice ?? 0).toLocaleString()}원`}
                     </span>
                   </div>
                   <div className="flex justify-between items-center text-zinc-300">
@@ -2700,14 +2700,14 @@ export const AiPricePredictionEngine: React.FC = () => {
                   <div className="bg-zinc-950/80 p-2.5 rounded-lg border border-zinc-800/80">
                     <span className="text-zinc-400 block mb-0.5">🟢 현재 진입가 (매수가)</span>
                     <span className="text-sm font-bold text-emerald-400 font-mono">
-                      ₩{data.tradePlan.entryPrice.toLocaleString()}원
+                      ₩{(data.tradePlan.entryPrice ?? 0).toLocaleString()}원
                     </span>
                   </div>
 
                   <div className="bg-zinc-950/80 p-2.5 rounded-lg border border-cyan-900/50">
                     <span className="text-zinc-400 block mb-0.5">🎯 1차 익절 목표가 (TP1)</span>
                     <span className="text-sm font-bold text-cyan-300 font-mono">
-                      ₩{data.tradePlan.tp1.toLocaleString()}원
+                      ₩{(data.tradePlan.tp1 ?? 0).toLocaleString()}원
                     </span>
                     <span className="text-[10px] text-emerald-400 font-mono block">
                       (+{(((data.tradePlan.tp1 - data.tradePlan.entryPrice) / data.tradePlan.entryPrice) * 100).toFixed(1)}% 기대수익)
@@ -2717,7 +2717,7 @@ export const AiPricePredictionEngine: React.FC = () => {
                   <div className="bg-zinc-950/80 p-2.5 rounded-lg border border-purple-900/50">
                     <span className="text-zinc-400 block mb-0.5">🚀 2차 최고 목표가 (TP2)</span>
                     <span className="text-sm font-bold text-purple-300 font-mono">
-                      ₩{data.tradePlan.tp2.toLocaleString()}원
+                      ₩{(data.tradePlan.tp2 ?? 0).toLocaleString()}원
                     </span>
                     <span className="text-[10px] text-purple-400 font-mono block">
                       (+{(((data.tradePlan.tp2 - data.tradePlan.entryPrice) / data.tradePlan.entryPrice) * 100).toFixed(1)}% 최대수익)
@@ -2727,7 +2727,7 @@ export const AiPricePredictionEngine: React.FC = () => {
                   <div className="bg-zinc-950/80 p-2.5 rounded-lg border border-rose-900/50">
                     <span className="text-zinc-400 block mb-0.5">🛡️ 필수 위험 손절선 (SL)</span>
                     <span className="text-sm font-bold text-rose-400 font-mono">
-                      ₩{data.tradePlan.stopLoss.toLocaleString()}원
+                      ₩{(data.tradePlan.stopLoss ?? 0).toLocaleString()}원
                     </span>
                     <span className="text-[10px] text-rose-500 font-mono block">
                       ({(((data.tradePlan.stopLoss - data.tradePlan.entryPrice) / data.tradePlan.entryPrice) * 100).toFixed(1)}% 손실제한)
@@ -2799,14 +2799,14 @@ export const AiPricePredictionEngine: React.FC = () => {
                 <div className="bg-zinc-950 p-3 rounded-xl border border-zinc-800/80">
                   <span className="text-zinc-400 block mb-1">예상 목표 구간</span>
                   <span className="text-sm font-bold text-emerald-400 font-mono">
-                    ₩{data.reversalAnalysis.bullTargetRange[0].toLocaleString()} ~ ₩{data.reversalAnalysis.bullTargetRange[1].toLocaleString()}
+                    ₩{(data.reversalAnalysis.bullTargetRange[0] ?? 0).toLocaleString()} ~ ₩{(data.reversalAnalysis.bullTargetRange[1] ?? 0).toLocaleString()}
                   </span>
                 </div>
 
                 <div className="bg-zinc-950 p-3 rounded-xl border border-zinc-800/80">
                   <span className="text-zinc-400 block mb-1">예상 최고가 (Peak) & 도달 시각</span>
                   <span className="text-sm font-bold text-cyan-400 font-mono block">
-                    ₩{data.reversalAnalysis.expectedPeak.toLocaleString()}
+                    ₩{(data.reversalAnalysis.expectedPeak ?? 0).toLocaleString()}
                   </span>
                   <span className="text-[10px] text-zinc-500 mt-0.5 block">{data.reversalAnalysis.peakETA}</span>
                 </div>
@@ -2814,7 +2814,7 @@ export const AiPricePredictionEngine: React.FC = () => {
                 <div className="bg-zinc-950 p-3 rounded-xl border border-zinc-800/80">
                   <span className="text-zinc-400 block mb-1">반전 후 예상 조정 구간</span>
                   <span className="text-sm font-bold text-amber-400 font-mono">
-                    ₩{data.reversalAnalysis.retracementRange[0].toLocaleString()} ~ ₩{data.reversalAnalysis.retracementRange[1].toLocaleString()}
+                    ₩{(data.reversalAnalysis.retracementRange[0] ?? 0).toLocaleString()} ~ ₩{(data.reversalAnalysis.retracementRange[1] ?? 0).toLocaleString()}
                   </span>
                 </div>
 
@@ -2824,7 +2824,7 @@ export const AiPricePredictionEngine: React.FC = () => {
                     {data.reversalAnalysis.maxRetracementPct}%
                   </span>
                   <span className="text-[10px] text-zinc-500 mt-0.5 block">
-                    재상승 지지선: ₩{data.reversalAnalysis.reboundSupportPrice.toLocaleString()}원
+                    재상승 지지선: ₩{(data.reversalAnalysis.reboundSupportPrice ?? 0).toLocaleString()}원
                   </span>
                 </div>
               </div>
@@ -2834,10 +2834,10 @@ export const AiPricePredictionEngine: React.FC = () => {
                 <span className="text-zinc-400 font-semibold block">🎯 분할 익절 스케줄 전략</span>
                 <div className="flex flex-wrap items-center gap-2 font-mono text-[11px]">
                   <span className="px-2 py-0.5 bg-emerald-950 text-emerald-300 rounded border border-emerald-800">
-                    TP1({data.tradePlan.tp1.toLocaleString()}원): {data.tradePlan.tp1SellRatio}% 매도
+                    TP1({(data.tradePlan.tp1 ?? 0).toLocaleString()}원): {data.tradePlan.tp1SellRatio}% 매도
                   </span>
                   <span className="px-2 py-0.5 bg-emerald-950 text-emerald-300 rounded border border-emerald-800">
-                    TP2({data.tradePlan.tp2.toLocaleString()}원): 추가 {data.tradePlan.tp2SellRatio}% 매도
+                    TP2({(data.tradePlan.tp2 ?? 0).toLocaleString()}원): 추가 {data.tradePlan.tp2SellRatio}% 매도
                   </span>
                   <span className="px-2 py-0.5 bg-cyan-950 text-cyan-300 rounded border border-cyan-800">
                     Trailing Stop: 잔여 {data.tradePlan.trailingStopRatio}%
@@ -2854,7 +2854,7 @@ export const AiPricePredictionEngine: React.FC = () => {
                   투자금 기준 손익 예측 (PnL Matrix)
                 </h4>
                 <span className="text-xs text-zinc-400 font-mono">
-                  투자금: ₩{investmentAmt.toLocaleString()}원
+                  투자금: ₩{(investmentAmt ?? 0).toLocaleString()}원
                 </span>
               </div>
 
@@ -2862,7 +2862,7 @@ export const AiPricePredictionEngine: React.FC = () => {
                 <div className="bg-emerald-950/30 border border-emerald-900/50 p-3 rounded-xl">
                   <span className="text-emerald-400/80 font-medium block mb-1">예상 최고 수익</span>
                   <span className="text-base font-extrabold text-emerald-400 font-mono block">
-                    +{data.pnlEstimates.maxProfit.toLocaleString()}원
+                    +{(data.pnlEstimates.maxProfit ?? 0).toLocaleString()}원
                   </span>
                   <span className="text-[11px] text-emerald-500 font-mono">+{data.pnlEstimates.maxProfitPct}%</span>
                 </div>
@@ -2870,7 +2870,7 @@ export const AiPricePredictionEngine: React.FC = () => {
                 <div className="bg-cyan-950/30 border border-cyan-900/50 p-3 rounded-xl">
                   <span className="text-cyan-400/80 font-medium block mb-1">기준 목표 수익</span>
                   <span className="text-base font-extrabold text-cyan-400 font-mono block">
-                    +{data.pnlEstimates.expectedProfit.toLocaleString()}원
+                    +{(data.pnlEstimates.expectedProfit ?? 0).toLocaleString()}원
                   </span>
                   <span className="text-[11px] text-cyan-500 font-mono">+{data.pnlEstimates.expectedProfitPct}%</span>
                 </div>
@@ -2878,7 +2878,7 @@ export const AiPricePredictionEngine: React.FC = () => {
                 <div className="bg-rose-950/30 border border-rose-900/50 p-3 rounded-xl">
                   <span className="text-rose-400/80 font-medium block mb-1">손절 시 최대 손실</span>
                   <span className="text-base font-extrabold text-rose-400 font-mono block">
-                    {data.pnlEstimates.maxLoss.toLocaleString()}원
+                    {(data.pnlEstimates.maxLoss ?? 0).toLocaleString()}원
                   </span>
                   <span className="text-[11px] text-rose-500 font-mono">{data.pnlEstimates.maxLossPct}%</span>
                 </div>
@@ -2894,7 +2894,7 @@ export const AiPricePredictionEngine: React.FC = () => {
               <div className="flex items-start gap-2 bg-rose-500/10 border border-rose-500/20 p-2.5 rounded-xl text-xs text-rose-300">
                 <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
                 <p>
-                  손절가(₩{data.tradePlan.stopLoss.toLocaleString()}원) 이탈 시 지지선 붕괴 위험으로 인해 상승 예측 시나리오는 완전히 무효화됩니다.
+                  손절가(₩{(data.tradePlan.stopLoss ?? 0).toLocaleString()}원) 이탈 시 지지선 붕괴 위험으로 인해 상승 예측 시나리오는 완전히 무효화됩니다.
                 </p>
               </div>
             </div>
@@ -2939,11 +2939,11 @@ export const AiPricePredictionEngine: React.FC = () => {
                 <div className="grid grid-cols-2 gap-2 text-[11px] pt-1 border-t border-zinc-900 font-mono">
                   <div>
                     <span className="text-zinc-500 block text-[9.5px]">상승 돌파 타겟가</span>
-                    <span className="font-bold text-emerald-400">₩{data.tradePlan.tp1.toLocaleString()}원</span>
+                    <span className="font-bold text-emerald-400">₩{(data.tradePlan.tp1 ?? 0).toLocaleString()}원</span>
                   </div>
                   <div className="text-right">
                     <span className="text-zinc-500 block text-[9.5px]">패턴 무효화 손절가</span>
-                    <span className="font-bold text-rose-400">₩{data.tradePlan.stopLoss.toLocaleString()}원</span>
+                    <span className="font-bold text-rose-400">₩{(data.tradePlan.stopLoss ?? 0).toLocaleString()}원</span>
                   </div>
                 </div>
               </div>
@@ -3015,7 +3015,7 @@ export const AiPricePredictionEngine: React.FC = () => {
               <div className="space-y-2 text-xs">
                 <div className="bg-zinc-950 p-2.5 rounded-xl border border-zinc-800 flex items-center justify-between font-mono">
                   <span className="text-zinc-400">총 가용 예수금:</span>
-                  <span className="font-bold text-white">₩{activeDepositCash.toLocaleString()}원</span>
+                  <span className="font-bold text-white">₩{(activeDepositCash ?? 0).toLocaleString()}원</span>
                 </div>
 
                 <div className="bg-zinc-950 p-2.5 rounded-xl border border-zinc-800 flex items-center justify-between font-mono">
@@ -3139,7 +3139,7 @@ export const AiPricePredictionEngine: React.FC = () => {
                   <span>원금 보호 손절선(SL) 100% 가동</span>
                 </div>
                 <p className="text-zinc-300 leading-relaxed">
-                  AI 산출 손절가(<strong className="text-rose-400 font-mono">₩{data.tradePlan.stopLoss.toLocaleString()}원</strong>) 이탈 시 주가 변동성 확대로 상승 파동 시나리오가 즉시 무효화되므로 감정을 배제하고 기계적으로 청산합니다.
+                  AI 산출 손절가(<strong className="text-rose-400 font-mono">₩{(data.tradePlan.stopLoss ?? 0).toLocaleString()}원</strong>) 이탈 시 주가 변동성 확대로 상승 파동 시나리오가 즉시 무효화되므로 감정을 배제하고 기계적으로 청산합니다.
                 </p>
               </div>
 
@@ -3250,11 +3250,11 @@ export const AiPricePredictionEngine: React.FC = () => {
               <div className="bg-zinc-950 p-4 rounded-xl border border-emerald-500/30 space-y-1.5">
                 <span className="text-xs text-zinc-400 block font-medium">미국 주식 가용 예수금 (Buying Power)</span>
                 <div className="text-2xl font-black font-mono text-emerald-400 flex items-baseline justify-between">
-                  <span>${usCashUsd.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                  <span>${(usCashUsd ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                   <span className="text-xs text-emerald-500 font-normal">USD</span>
                 </div>
                 <p className="text-[11px] text-zinc-400 font-mono">
-                  원화 환산 금액: ₩{usCashKrw.toLocaleString()}원 (환율 $1 = ₩1,380 기준)
+                  원화 환산 금액: ₩{(usCashKrw ?? 0).toLocaleString()}원 (환율 $1 = ₩1,380 기준)
                 </p>
               </div>
 
@@ -4050,13 +4050,13 @@ export const AiPricePredictionEngine: React.FC = () => {
                   <div>
                     <span className="text-zinc-400 block text-[11px]">매수 평균가</span>
                     <span className="text-base font-bold text-zinc-300 mt-0.5 block font-mono">
-                      ₩{quantEngineV3Result.userHoldingInfo.avgPrice?.toLocaleString() || quantEngineV3Result.currentPrice.toLocaleString()}원
+                      ₩{quantEngineV3Result.userHoldingInfo.avgPrice?.toLocaleString() || (quantEngineV3Result.currentPrice ?? 0).toLocaleString()}원
                     </span>
                   </div>
                   <div>
                     <span className="text-zinc-400 block text-[11px]">현재가</span>
                     <span className="text-base font-bold text-cyan-400 mt-0.5 block font-mono">
-                      ₩{quantEngineV3Result.currentPrice.toLocaleString()}원
+                      ₩{(quantEngineV3Result.currentPrice ?? 0).toLocaleString()}원
                     </span>
                   </div>
                   <div>
@@ -4093,13 +4093,13 @@ export const AiPricePredictionEngine: React.FC = () => {
                   <div className="bg-zinc-900 p-3.5 rounded-xl border border-emerald-900/50">
                     <span className="text-zinc-400 text-[11px] block">익절 목표가 (Upper ATR Barrier)</span>
                     <span className="text-sm font-bold text-emerald-400 mt-1 block">
-                      ₩{quantEngineV3Result.sellAnalysisReport.targetExitPrice.toLocaleString()}원
+                      ₩{(quantEngineV3Result.sellAnalysisReport.targetExitPrice ?? 0).toLocaleString()}원
                     </span>
                   </div>
                   <div className="bg-zinc-900 p-3.5 rounded-xl border border-rose-900/50">
                     <span className="text-zinc-400 text-[11px] block">손절 퇴출가 (Lower ATR Barrier)</span>
                     <span className="text-sm font-bold text-rose-400 mt-1 block">
-                      ₩{quantEngineV3Result.sellAnalysisReport.stopLossExitPrice.toLocaleString()}원
+                      ₩{(quantEngineV3Result.sellAnalysisReport.stopLossExitPrice ?? 0).toLocaleString()}원
                     </span>
                   </div>
                 </div>

@@ -396,7 +396,7 @@ export const PortfolioHoldingsModal: React.FC<PortfolioHoldingsModalProps> = ({
               {Math.round(totalAssets).toLocaleString()}원
             </div>
             <div className="text-[10px] text-slate-400 font-sans mt-0.5 truncate">
-              예수금: {availableCash.toLocaleString()}원
+              예수금: {(availableCash ?? 0).toLocaleString()}원
             </div>
           </div>
 
@@ -463,8 +463,8 @@ export const PortfolioHoldingsModal: React.FC<PortfolioHoldingsModalProps> = ({
                 const isPlus = h.pnlRate >= 0;
                 const isCrypto = h.category === "가상자산" || h.symbol.startsWith("KRW-") || h.symbol === "BTC";
                 const qtyDisplay = isCrypto
-                  ? `${h.qty.toLocaleString(undefined, { maximumFractionDigits: 6 })}개`
-                  : `${h.qty.toLocaleString()}주`;
+                  ? `${(h.qty ?? 0).toLocaleString(undefined, { maximumFractionDigits: 6 })}개`
+                  : `${(h.qty ?? 0).toLocaleString()}주`;
 
                 return (
                   <div
@@ -512,14 +512,14 @@ export const PortfolioHoldingsModal: React.FC<PortfolioHoldingsModalProps> = ({
                             <span>
                               평균매수가:{" "}
                               <strong className="text-slate-800 font-mono">
-                                {isUs ? `$${h.avgBuyPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : `${h.avgBuyPrice.toLocaleString()}원`}
+                                {isUs ? `$${(h.avgBuyPrice ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : `${(h.avgBuyPrice ?? 0).toLocaleString()}원`}
                               </strong>
                             </span>
                             <span>•</span>
                             <span>
                               현재가:{" "}
                               <strong className="text-slate-900 font-mono">
-                                {isUs ? `$${h.currentPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : `${h.currentPrice.toLocaleString()}원`}
+                                {isUs ? `$${(h.currentPrice ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : `${(h.currentPrice ?? 0).toLocaleString()}원`}
                               </strong>
                             </span>
                           </div>
@@ -531,7 +531,7 @@ export const PortfolioHoldingsModal: React.FC<PortfolioHoldingsModalProps> = ({
                           <div className="text-xs font-black text-slate-900">
                             {isUs ? (
                               <>
-                                <span>평가액 ${itemTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                                <span>평가액 ${(itemTotal ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                                 <span className="block text-[10px] text-slate-400 font-normal">₩{Math.round(itemTotal * fxRate).toLocaleString()}</span>
                               </>
                             ) : (
@@ -548,7 +548,7 @@ export const PortfolioHoldingsModal: React.FC<PortfolioHoldingsModalProps> = ({
                               {isPlus ? "+" : ""}
                               {h.pnlRate.toFixed(2)}% (
                               {isUs ? (
-                                `${isPlus ? "+" : ""}$${h.pnlAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                                `${isPlus ? "+" : ""}$${(h.pnlAmount ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
                               ) : (
                                 `${isPlus ? "+" : ""}${Math.round(h.pnlAmount).toLocaleString()}원`
                               )}
@@ -593,7 +593,7 @@ export const PortfolioHoldingsModal: React.FC<PortfolioHoldingsModalProps> = ({
                     <div className="p-2.5 bg-slate-50 rounded-xl border border-slate-200/80 space-y-1 text-[11px] font-mono">
                       <div className="flex items-center justify-between text-slate-500">
                         <span className="text-blue-600 font-bold">🔴 손절가(SL -2.5%): {Math.round(h.avgBuyPrice * 0.975).toLocaleString()}원</span>
-                        <span className="text-slate-700 font-black">📍 현재가: {h.currentPrice.toLocaleString()}원</span>
+                        <span className="text-slate-700 font-black">📍 현재가: {(h.currentPrice ?? 0).toLocaleString()}원</span>
                         <span className="text-emerald-600 font-bold">🟢 1차 목표가(TP +3.5%): {Math.round(h.avgBuyPrice * 1.035).toLocaleString()}원</span>
                       </div>
                       <div className="w-full bg-slate-200 h-2 rounded-full overflow-hidden p-0.5 relative">

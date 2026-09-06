@@ -169,9 +169,9 @@ export function buildBrainStockTargetFromRecord(record: MasterStockRecord): Brai
     masterSignal: masterSig,
     bearishRiskScore: decision.factors.bearishRiskScore,
     entryTiming: isLong 
-      ? `현재가 ${finalPrice.toLocaleString()}원 지지 확인 후 즉시 분할 매수 승인`
+      ? `현재가 ${(finalPrice ?? 0).toLocaleString()}원 지지 확인 후 즉시 분할 매수 승인`
       : `⚠️ [매수 관망] ${decision.conflictResolution.resolutionMessage}`,
-    exitTiming: `1차 TP1: ${decision.exitStrategy.steps[0]?.price.toLocaleString()}원 (+${decision.exitStrategy.steps[0]?.gainPct}%), 손절가: ${decision.exitStrategy.stopLossPrice.toLocaleString()}원`,
+    exitTiming: `1차 TP1: ${(decision.exitStrategy.steps[0]?.price ?? 0).toLocaleString()}원 (+${decision.exitStrategy.steps[0]?.gainPct}%), 손절가: ${(decision.exitStrategy.stopLossPrice ?? 0).toLocaleString()}원`,
     buyLayer1: finalPrice,
     buyLayer2: marketType === "US" ? Number((finalPrice * 0.985).toFixed(2)) : Math.round(finalPrice * 0.985),
     buyLayer3: marketType === "US" ? Number((finalPrice * 0.970).toFixed(2)) : Math.round(finalPrice * 0.970),
@@ -379,7 +379,7 @@ export function generateDynamicNeuronsForStock(stock: BrainStockTarget): NeuronB
       confidence: 85,
       vote: isHighBearish ? "NEUTRAL_WAIT" : "BUY_LONG",
       opinionText: isHighBearish 
-        ? `하단 피보나치 0.618 지지선(₩${stock.buyLayer1.toLocaleString()}) 도달 여부 대기 중.` 
+        ? `하단 피보나치 0.618 지지선(₩${(stock.buyLayer1 ?? 0).toLocaleString()}) 도달 여부 대기 중.` 
         : `전고점 대비 0.618 되돌림선에서 양봉 지지 발생.`,
       keyMetric: "0.618 지지선 감시"
     },
@@ -447,7 +447,7 @@ export function generateDynamicNeuronsForStock(stock: BrainStockTarget): NeuronB
       confidence: isHighBearish ? 70 : 97,
       vote: isHighBearish ? "NEUTRAL_WAIT" : "BUY_LONG",
       opinionText: isHighBearish 
-        ? `하단 주요 오더블록 지지선(₩${stock.buyLayer1.toLocaleString()}) 부근까지 건강한 조정 대기.` 
+        ? `하단 주요 오더블록 지지선(₩${(stock.buyLayer1 ?? 0).toLocaleString()}) 부근까지 건강한 조정 대기.` 
         : `수요 오더블록(Order Block) 상단 정확히 터치 후 강한 양봉 반등.`,
       keyMetric: isHighBearish ? "OB 수요구간 대기" : "OB 수요구간 터치"
     },
@@ -558,7 +558,7 @@ export function generateDynamicNeuronsForStock(stock: BrainStockTarget): NeuronB
       status: "SIGNAL_PASS",
       confidence: 90,
       vote: "BUY_LONG",
-      opinionText: `증권사 평균 목표주가 대비 현재가 상승 여력 잔존 (중장기 목표: ₩${stock.sellLayer2.toLocaleString()}).`,
+      opinionText: `증권사 평균 목표주가 대비 현재가 상승 여력 잔존 (중장기 목표: ₩${(stock.sellLayer2 ?? 0).toLocaleString()}).`,
       keyMetric: "목표가 상향 리포트"
     },
 
@@ -600,8 +600,8 @@ export function generateDynamicNeuronsForStock(stock: BrainStockTarget): NeuronB
 
 // Helper for market currency symbol
 const fmtPrice = (price: number, market?: string) => {
-  if (market === "US") return `$${price.toLocaleString()}`;
-  return `₩${price.toLocaleString()}`;
+  if (market === "US") return `$${(price ?? 0).toLocaleString()}`;
+  return `₩${(price ?? 0).toLocaleString()}`;
 };
 
 export const NeuralBrainMasterControlCenter: React.FC = () => {
@@ -718,13 +718,13 @@ export const NeuralBrainMasterControlCenter: React.FC = () => {
           addToast({
             type: "SUCCESS",
             title: `⚡ [${layerIndex}차 실계좌 주문 체결 완료]`,
-            message: `${selectedStock.name} (단가 ₩${targetBuyPrice.toLocaleString()}) 실거래 계좌 체결 완료!`
+            message: `${selectedStock.name} (단가 ₩${(targetBuyPrice ?? 0).toLocaleString()}) 실거래 계좌 체결 완료!`
           });
         } else {
           addToast({
             type: "INFO",
             title: `🚀 [${layerIndex}차 실거래 주문 발주 접수]`,
-            message: `${selectedStock.name} (단가 ₩${targetBuyPrice.toLocaleString()}) 실거래 발주 접수 완료!`
+            message: `${selectedStock.name} (단가 ₩${(targetBuyPrice ?? 0).toLocaleString()}) 실거래 발주 접수 완료!`
           });
         }
       }

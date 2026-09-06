@@ -253,7 +253,7 @@ export const AIAnalysis: React.FC = () => {
         tradeQty,
         price,
         "AI 승인 신호 매매",
-        `[${sideText} 처리 완료]\n${aiText}\n\n손절 제안가: ${analysis?.stopLoss ? analysis.stopLoss.toLocaleString() : "계산 중"}원\n목표 제안가: ${analysis?.targetPrice ? analysis.targetPrice.toLocaleString() : "계산 중"}원`
+        `[${sideText} 처리 완료]\n${aiText}\n\n손절 제안가: ${analysis?.stopLoss ? (analysis.stopLoss ?? 0).toLocaleString() : "계산 중"}원\n목표 제안가: ${analysis?.targetPrice ? (analysis.targetPrice ?? 0).toLocaleString() : "계산 중"}원`
       );
       addToast({
         type: "SUCCESS",
@@ -555,11 +555,11 @@ export const AIAnalysis: React.FC = () => {
               <div className="bg-zinc-50 border border-zinc-200 rounded-xl p-4 flex flex-col justify-center h-36 font-mono text-xs space-y-2">
                 <div className="flex justify-between items-center pb-1.5 border-b border-zinc-200">
                   <span className="text-zinc-500 font-sans">목표 제안가 (Target)</span>
-                  <span className="font-black text-emerald-600 text-sm">+{analysis.targetPrice ? analysis.targetPrice.toLocaleString() : "계산중"}원</span>
+                  <span className="font-black text-emerald-600 text-sm">+{analysis.targetPrice ? (analysis.targetPrice ?? 0).toLocaleString() : "계산중"}원</span>
                 </div>
                 <div className="flex justify-between items-center pt-0.5">
                   <span className="text-zinc-500 font-sans">손절 제한선 (Stop)</span>
-                  <span className="font-black text-rose-600 text-sm">{analysis.stopLoss ? analysis.stopLoss.toLocaleString() : "계산중"}원</span>
+                  <span className="font-black text-rose-600 text-sm">{analysis.stopLoss ? (analysis.stopLoss ?? 0).toLocaleString() : "계산중"}원</span>
                 </div>
               </div>
             </div>

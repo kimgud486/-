@@ -45,7 +45,7 @@ export const WhyExplainerModal: React.FC<WhyExplainerModalProps> = ({
             <div>
               <h3 className="text-lg font-black tracking-tight">{getTitle()}</h3>
               <span className="text-xs text-slate-300">
-                {stock.name} ({stock.symbol}) | 현재가 ₩{stock.currentPrice.toLocaleString()}
+                {stock.name} ({stock.symbol}) | 현재가 ₩{(stock.currentPrice ?? 0).toLocaleString()}
               </span>
             </div>
           </div>
@@ -95,15 +95,15 @@ export const WhyExplainerModal: React.FC<WhyExplainerModalProps> = ({
             <ul className="space-y-2 text-slate-200 text-xs">
               <li className="flex items-start gap-2">
                 <span className="text-amber-400 font-bold">⚠</span>
-                <span>상단 저항선(₩{stock.chaseThreshold.toLocaleString()})까지 거리 +1.4% (고점 추격 시 손실 위험)</span>
+                <span>상단 저항선(₩{(stock.chaseThreshold ?? 0).toLocaleString()})까지 거리 +1.4% (고점 추격 시 손실 위험)</span>
               </li>
               <li className="flex items-start gap-2">
                 <span className="text-amber-400 font-bold">⚠</span>
-                <span>변동성 확장으로 인해 <strong>₩{stock.chaseThreshold.toLocaleString()} 이상에서는 시장가 매수 금지</strong></span>
+                <span>변동성 확장으로 인해 <strong>₩{(stock.chaseThreshold ?? 0).toLocaleString()} 이상에서는 시장가 매수 금지</strong></span>
               </li>
               <li className="flex items-start gap-2">
                 <span className="text-amber-400 font-bold">⚠</span>
-                <span>손절 기준가(₩{stock.stopLossPrice.toLocaleString()}) 이탈 시 모든 상승 시나리오 즉시 무효화 및 손절</span>
+                <span>손절 기준가(₩{(stock.stopLossPrice ?? 0).toLocaleString()}) 이탈 시 모든 상승 시나리오 즉시 무효화 및 손절</span>
               </li>
             </ul>
           </div>
@@ -115,7 +115,7 @@ export const WhyExplainerModal: React.FC<WhyExplainerModalProps> = ({
               <span>AI 증권사 30인 종합 결론</span>
             </div>
             <p className="text-xs md:text-sm leading-relaxed text-slate-200 font-medium">
-              "종목의 모멘텀과 수급 펀더멘털은 매우 우수하지만, <strong>현재 가격대에서 성급하게 추격 매수하지 않고</strong> 지정가 이상적 진입 밴드(<strong>₩{stock.idealEntryRange[0].toLocaleString()} ~ ₩{stock.idealEntryRange[1].toLocaleString()}</strong>)로 눌려줄 때 분할 진입하는 것이 통계적으로 승률 78% 이상의 우위를 확보합니다."
+              "종목의 모멘텀과 수급 펀더멘털은 매우 우수하지만, <strong>현재 가격대에서 성급하게 추격 매수하지 않고</strong> 지정가 이상적 진입 밴드(<strong>₩{(stock.idealEntryRange[0] ?? 0).toLocaleString()} ~ ₩{(stock.idealEntryRange[1] ?? 0).toLocaleString()}</strong>)로 눌려줄 때 분할 진입하는 것이 통계적으로 승률 78% 이상의 우위를 확보합니다."
             </p>
           </div>
         </div>

@@ -309,14 +309,14 @@ export const AiTradeHistoryViewer: React.FC<AiTradeHistoryViewerProps> = ({
                     <div>
                       <span className="text-[10px] text-slate-500 block">체결단가</span>
                       <strong className="text-slate-200">
-                        {mStatus.marketType === "US" ? `$${entryPrice.toLocaleString(undefined, { minimumFractionDigits: 2 })}` : `${entryPrice.toLocaleString()}원`}
+                        {mStatus.marketType === "US" ? `$${(entryPrice ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}` : `${(entryPrice ?? 0).toLocaleString()}원`}
                       </strong>
                     </div>
 
                     <div>
                       <span className="text-[10px] text-slate-500 block">체결수량</span>
                       <strong className="text-slate-200">
-                        {item.quantity.toLocaleString(undefined, { maximumFractionDigits: 4 })}
+                        {(item.quantity ?? 0).toLocaleString(undefined, { maximumFractionDigits: 4 })}
                       </strong>
                     </div>
 

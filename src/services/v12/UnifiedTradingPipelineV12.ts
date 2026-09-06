@@ -276,7 +276,7 @@ export class UnifiedTradingPipelineV12 {
     if (orderRes.success && orderRes.status === "FILLED") {
       const pnlAmt = Math.round((pos.currentPrice - pos.buyPrice) * pos.qty);
       this.stateMachine.confirmSellFill(30000);
-      this.addLog("SELL_EXEC", "✅ SELL 체결 완료 (청산 완료)", `수익금: ${pnlAmt.toLocaleString()}원 | ${reason}`);
+      this.addLog("SELL_EXEC", "✅ SELL 체결 완료 (청산 완료)", `수익금: ${(pnlAmt ?? 0).toLocaleString()}원 | ${reason}`);
     } else {
       this.addLog("EMERGENCY", "❌ SELL 주문 실패", orderRes.message);
     }

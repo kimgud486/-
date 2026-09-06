@@ -388,7 +388,7 @@ export const PositionReturnDistributionChart: React.FC<PositionReturnDistributio
                           <div className="flex justify-between gap-4">
                             <span className="text-zinc-400">평가손익:</span>
                             <span className={`font-bold ${data.profitLoss >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
-                              {data.profitLoss >= 0 ? '+' : ''}₩{data.profitLoss.toLocaleString()}원
+                              {data.profitLoss >= 0 ? '+' : ''}₩{(data.profitLoss ?? 0).toLocaleString()}원
                             </span>
                           </div>
                           <div className="flex justify-between gap-4">
@@ -397,11 +397,11 @@ export const PositionReturnDistributionChart: React.FC<PositionReturnDistributio
                           </div>
                           <div className="flex justify-between gap-4">
                             <span className="text-zinc-400">현재가 / 평단가:</span>
-                            <span className="text-zinc-200">₩{data.currentPrice.toLocaleString()} / ₩{data.avgPrice.toLocaleString()}</span>
+                            <span className="text-zinc-200">₩{(data.currentPrice ?? 0).toLocaleString()} / ₩{(data.avgPrice ?? 0).toLocaleString()}</span>
                           </div>
                           <div className="flex justify-between gap-4 pt-1 border-t border-slate-800 text-[10px]">
-                            <span className="text-rose-400 font-bold">손절가 ₩{data.stopLossPrice.toLocaleString()}</span>
-                            <span className="text-emerald-400 font-bold">목표가 ₩{data.targetPrice.toLocaleString()}</span>
+                            <span className="text-rose-400 font-bold">손절가 ₩{(data.stopLossPrice ?? 0).toLocaleString()}</span>
+                            <span className="text-emerald-400 font-bold">목표가 ₩{(data.targetPrice ?? 0).toLocaleString()}</span>
                           </div>
                         </div>
                       </div>
@@ -471,7 +471,7 @@ export const PositionReturnDistributionChart: React.FC<PositionReturnDistributio
                 <div className="grid grid-cols-2 gap-2 text-xs font-mono bg-slate-950/60 p-2 rounded-lg border border-slate-800">
                   <div>
                     <span className="text-zinc-400 block text-[10px]">평가 손익:</span>
-                    <span className="font-bold text-rose-400">₩{item.profitLoss.toLocaleString()}원</span>
+                    <span className="font-bold text-rose-400">₩{(item.profitLoss ?? 0).toLocaleString()}원</span>
                   </div>
                   <div>
                     <span className="text-zinc-400 block text-[10px]">수익 발생 확률:</span>

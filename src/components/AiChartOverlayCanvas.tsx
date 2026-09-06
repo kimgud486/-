@@ -61,7 +61,7 @@ export const AiChartOverlayCanvas: React.FC<AiChartOverlayCanvasProps> = ({
   // Detect market currency unit
   const isUS = /^[A-Z]{1,5}$/.test(symbol) && symbol !== "BTC" && symbol !== "ETH" && symbol !== "SOL" && symbol !== "XRP" && symbol !== "DOGE";
   const currencyUnit = isUS ? "$" : "원";
-  const formatPrice = (val: number) => isUS ? `${val.toLocaleString()}` : `${val.toLocaleString()}원`;
+  const formatPrice = (val: number) => isUS ? `${(val ?? 0).toLocaleString()}` : `${(val ?? 0).toLocaleString()}원`;
 
   // Calculate percentage returns & risk
   const tp1Return = price > 0 ? (((tpPrice1 - price) / price) * 100).toFixed(1) : "0.0";
@@ -412,7 +412,7 @@ export const AiChartOverlayCanvas: React.FC<AiChartOverlayCanvasProps> = ({
                         {typeText} [{marker.timestamp}]
                       </text>
                       <text x="6" y="22" fill="#f8fafc" fontSize="9" fontWeight="bold" className="font-mono">
-                        @{marker.price.toLocaleString()}원
+                        @{(marker.price ?? 0).toLocaleString()}원
                       </text>
                     </g>
                   </g>

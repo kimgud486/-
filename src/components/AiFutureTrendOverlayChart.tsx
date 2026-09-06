@@ -216,7 +216,7 @@ export const AiFutureTrendOverlayChart: React.FC<AiFutureTrendOverlayChartProps>
                 fontSize: '12px'
               }}
               formatter={(val: any, nameKey: any) => [
-                typeof val === 'number' ? (market === 'US' ? `$${val.toLocaleString()}` : `${val.toLocaleString()}원`) : val, 
+                typeof val === 'number' ? (market === 'US' ? `$${(val ?? 0).toLocaleString()}` : `${(val ?? 0).toLocaleString()}원`) : val, 
                 nameKey
               ]}
             />
@@ -240,13 +240,13 @@ export const AiFutureTrendOverlayChart: React.FC<AiFutureTrendOverlayChartProps>
               y={aiOverlayTargets.target1} 
               stroke="#10b981" 
               strokeDasharray="3 3" 
-              label={{ value: `목표가: ${aiOverlayTargets.target1.toLocaleString()}`, fill: '#10b981', fontSize: 10, position: 'right' }} 
+              label={{ value: `목표가: ${(aiOverlayTargets.target1 ?? 0).toLocaleString()}`, fill: '#10b981', fontSize: 10, position: 'right' }} 
             />
             <ReferenceLine 
               y={aiOverlayTargets.stopLoss} 
               stroke="#ef4444" 
               strokeDasharray="3 3" 
-              label={{ value: `손절가: ${aiOverlayTargets.stopLoss.toLocaleString()}`, fill: '#ef4444', fontSize: 10, position: 'right' }} 
+              label={{ value: `손절가: ${(aiOverlayTargets.stopLoss ?? 0).toLocaleString()}`, fill: '#ef4444', fontSize: 10, position: 'right' }} 
             />
 
             {/* VWAP Trend Line */}

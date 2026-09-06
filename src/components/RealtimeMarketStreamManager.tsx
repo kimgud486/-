@@ -38,7 +38,7 @@ export const RealtimeMarketStreamManager: React.FC = () => {
           newPrice: tick.price,
           shiftPct: tick.changePct,
           timestamp: tick.time,
-          message: `⚡ [KIS 0.1초 연동] ${tick.name} (${tick.symbol}) ${tick.price.toLocaleString()}원 (${tick.changePct >= 0 ? "+" : ""}${tick.changePct}%) [지연시간: ${tick.latencyMs}ms]`
+          message: `⚡ [KIS 0.1초 연동] ${tick.name} (${tick.symbol}) ${(tick.price ?? 0).toLocaleString()}원 (${tick.changePct >= 0 ? "+" : ""}${tick.changePct}%) [지연시간: ${tick.latencyMs}ms]`
         };
 
         setActiveAlerts((prev) => [alertObj, ...prev.slice(0, 3)]);

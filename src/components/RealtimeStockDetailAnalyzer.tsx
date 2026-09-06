@@ -459,7 +459,7 @@ export const RealtimeStockDetailAnalyzer: React.FC<StockDetailProps> = ({
                       <YAxis domain={["auto", "auto"]} stroke="#71717a" fontSize={11} />
                       <Tooltip
                         contentStyle={{ backgroundColor: "#09090b", borderColor: "#27272a", color: "#ffffff", borderRadius: "10px" }}
-                        formatter={(val: any, nameKey: any) => [typeof val === 'number' ? val.toLocaleString() : val, nameKey]}
+                        formatter={(val: any, nameKey: any) => [typeof val === 'number' ? (val ?? 0).toLocaleString() : val, nameKey]}
                       />
 
                       {/* VWAP Line */}

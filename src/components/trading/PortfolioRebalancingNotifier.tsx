@@ -235,7 +235,7 @@ export const PortfolioRebalancingNotifier: React.FC<PortfolioRebalancingNotifier
                   <strong className="text-amber-300 font-bold mr-1">AI 비중 리포트:</strong>
                   {item.rationale}
                   <div className="mt-1 font-mono text-[11px] text-cyan-400 font-bold">
-                    권장 조절 금액: 약 {item.recommendedAmount.toLocaleString()}원
+                    권장 조절 금액: 약 {(item.recommendedAmount ?? 0).toLocaleString()}원
                   </div>
                 </div>
               </div>

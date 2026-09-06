@@ -483,8 +483,8 @@ export const AiTradeFeedbackAnalyzerModal: React.FC<AiTradeFeedbackAnalyzerModal
                   </span>
                 </div>
                 <p className="text-xs text-slate-400 mt-1">
-                  평단가: <strong className="text-white">{currentStock.avgPrice.toLocaleString()}원</strong> • 
-                  현재가: <strong className="text-white">{currentStock.currentPrice.toLocaleString()}원</strong> • 
+                  평단가: <strong className="text-white">{(currentStock.avgPrice ?? 0).toLocaleString()}원</strong> • 
+                  현재가: <strong className="text-white">{(currentStock.currentPrice ?? 0).toLocaleString()}원</strong> • 
                   수량: <strong className="text-white">{currentStock.quantity}</strong>주
                 </p>
               </div>
@@ -493,7 +493,7 @@ export const AiTradeFeedbackAnalyzerModal: React.FC<AiTradeFeedbackAnalyzerModal
                 <div className="text-xs text-slate-400">평가 손실금 및 수익률</div>
                 <div className="text-xl font-black text-rose-400 flex items-center justify-end gap-1">
                   <ArrowDownRight className="w-5 h-5" />
-                  <span>{currentStock.pnlRate}% ({currentStock.pnlAmount.toLocaleString()}원)</span>
+                  <span>{currentStock.pnlRate}% ({(currentStock.pnlAmount ?? 0).toLocaleString()}원)</span>
                 </div>
               </div>
             </div>

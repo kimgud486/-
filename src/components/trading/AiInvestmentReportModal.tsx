@@ -184,7 +184,7 @@ export const AiInvestmentReportModal: React.FC<AiInvestmentReportModalProps> = (
 --------------------------------------------------
 - 분석 종목: ${currentMinusStock.name} (${currentMinusStock.symbol})
 - 현재 수익률: ${currentMinusStock.returnRate}%
-- 평가 손익: ${currentMinusStock.pnlAmount.toLocaleString()}원
+- 평가 손익: ${(currentMinusStock.pnlAmount ?? 0).toLocaleString()}원
 
 [🕯️ 캔들스틱 패턴 진단]
 5분봉 이동평균선 하향 음봉 이탈 + 위꼬리 유성형(Shooting Star) 반락 패턴 출회.
@@ -368,7 +368,7 @@ export const AiInvestmentReportModal: React.FC<AiInvestmentReportModalProps> = (
                         </span>
                       </div>
                       <p className="text-xs text-slate-500 dark:text-zinc-400 mt-1">
-                        매수평단가: <strong className="text-slate-800 dark:text-white">{currentMinusStock.avgPrice.toLocaleString()}원</strong> | 현재가: <strong className="text-slate-800 dark:text-white">{currentMinusStock.currentPrice.toLocaleString()}원</strong>
+                        매수평단가: <strong className="text-slate-800 dark:text-white">{(currentMinusStock.avgPrice ?? 0).toLocaleString()}원</strong> | 현재가: <strong className="text-slate-800 dark:text-white">{(currentMinusStock.currentPrice ?? 0).toLocaleString()}원</strong>
                       </p>
                     </div>
 
@@ -379,7 +379,7 @@ export const AiInvestmentReportModal: React.FC<AiInvestmentReportModalProps> = (
                         <span>{currentMinusStock.returnRate}%</span>
                       </div>
                       <span className="text-xs text-slate-500 block">
-                        평가 손익: {currentMinusStock.pnlAmount.toLocaleString()}원
+                        평가 손익: {(currentMinusStock.pnlAmount ?? 0).toLocaleString()}원
                       </span>
                     </div>
                   </div>

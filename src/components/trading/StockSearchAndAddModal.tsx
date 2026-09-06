@@ -405,7 +405,7 @@ export const StockSearchAndAddModal: React.FC<StockSearchAndAddModalProps> = ({
                     <div className="flex items-center gap-3">
                       <div className="text-right font-mono">
                         <div className="text-xs sm:text-sm font-black text-slate-900 flex items-center justify-end gap-1">
-                          <span>{isUS ? "$" : ""}{displayPrice.toLocaleString()}{isUS ? "" : "원"}</span>
+                          <span>{isUS ? "$" : ""}{(displayPrice ?? 0).toLocaleString()}{isUS ? "" : "원"}</span>
                           {live && <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping" />}
                         </div>
                         <div className={`text-[11px] font-bold ${displayRate >= 0 ? "text-rose-600" : "text-blue-600"}`}>

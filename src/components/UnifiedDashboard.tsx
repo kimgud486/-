@@ -338,7 +338,7 @@ export const UnifiedDashboard: React.FC<UnifiedDashboardProps> = ({ onNavigateTo
                 <div className="p-2 bg-slate-950/80 border border-slate-800 rounded-lg">
                   <span className="text-[10px] text-zinc-400 block font-sans font-medium">한국투자 예수금</span>
                   <strong className="text-amber-300 font-black text-sm block mt-0.5">
-                    ₩{koreaCash.toLocaleString()}원
+                    ₩{(koreaCash ?? 0).toLocaleString()}원
                   </strong>
                   <span className="text-[9px] text-zinc-500 font-sans block">매수대기 현금</span>
                 </div>
@@ -407,7 +407,7 @@ export const UnifiedDashboard: React.FC<UnifiedDashboardProps> = ({ onNavigateTo
                 <div className="p-2 bg-slate-950/80 border border-slate-800 rounded-lg">
                   <span className="text-[10px] text-zinc-400 block font-sans font-medium">업비트 예수금</span>
                   <strong className="text-amber-300 font-black text-sm block mt-0.5">
-                    ₩{upbitCash.toLocaleString()}원
+                    ₩{(upbitCash ?? 0).toLocaleString()}원
                   </strong>
                   <span className="text-[9px] text-zinc-500 font-sans block">KRW 원화예수금</span>
                 </div>
@@ -452,7 +452,7 @@ export const UnifiedDashboard: React.FC<UnifiedDashboardProps> = ({ onNavigateTo
                 </span>
               </span>
               <div className="flex items-center gap-3 text-[11px]">
-                <span className="text-amber-300 font-bold">총 예수금: ₩{totalCash.toLocaleString()}원</span>
+                <span className="text-amber-300 font-bold">총 예수금: ₩{(totalCash ?? 0).toLocaleString()}원</span>
                 <span className="text-cyan-300 font-bold">총 투자금: ₩{(cashBreakdown?.totalInvested ?? (koreaStockValue + usStockValue + btcStockValue)).toLocaleString()}원</span>
               </div>
             </div>
@@ -460,12 +460,12 @@ export const UnifiedDashboard: React.FC<UnifiedDashboardProps> = ({ onNavigateTo
               <div
                 style={{ width: `${totalCash > 0 ? Math.max(5, (koreaCash / totalCash) * 100) : 50}%` }}
                 className="bg-emerald-500 h-full transition-all duration-500"
-                title={`KIS: ${koreaCash.toLocaleString()}원`}
+                title={`KIS: ${(koreaCash ?? 0).toLocaleString()}원`}
               ></div>
               <div
                 style={{ width: `${totalCash > 0 ? Math.max(5, (upbitCash / totalCash) * 100) : 50}%` }}
                 className="bg-cyan-500 h-full transition-all duration-500"
-                title={`Upbit: ${upbitCash.toLocaleString()}원`}
+                title={`Upbit: ${(upbitCash ?? 0).toLocaleString()}원`}
               ></div>
             </div>
             <div className="flex justify-between text-[11px] font-mono text-zinc-400 pt-0.5">
@@ -1096,7 +1096,7 @@ export const UnifiedDashboard: React.FC<UnifiedDashboardProps> = ({ onNavigateTo
                 </span>
               </div>
               <div className="text-lg font-black font-mono text-white">
-                {koreaCash.toLocaleString()} <span className="text-xs text-slate-400 font-sans font-normal">원</span>
+                {(koreaCash ?? 0).toLocaleString()} <span className="text-xs text-slate-400 font-sans font-normal">원</span>
               </div>
               <p className="text-[10px] text-slate-400 font-sans">
                 D+2 주식 매수 대기 원화 예수금
@@ -1115,7 +1115,7 @@ export const UnifiedDashboard: React.FC<UnifiedDashboardProps> = ({ onNavigateTo
                 </span>
               </div>
               <div className="text-lg font-black font-mono text-white">
-                {upbitCash.toLocaleString()} <span className="text-xs text-slate-400 font-sans font-normal">원</span>
+                {(upbitCash ?? 0).toLocaleString()} <span className="text-xs text-slate-400 font-sans font-normal">원</span>
               </div>
               <p className="text-[10px] text-slate-400 font-sans">
                 KRW 마켓 암호화폐 매수 가용 원화
@@ -1134,7 +1134,7 @@ export const UnifiedDashboard: React.FC<UnifiedDashboardProps> = ({ onNavigateTo
                 </span>
               </div>
               <div className="text-xl font-black font-mono text-amber-400">
-                {cashBalance.toLocaleString()} <span className="text-xs text-amber-200 font-sans font-normal">원</span>
+                {(cashBalance ?? 0).toLocaleString()} <span className="text-xs text-amber-200 font-sans font-normal">원</span>
               </div>
               <p className="text-[10px] text-amber-200/70 font-sans">
                 J.A.R.V.I.S. 및 AI 자동매매 엔진 주문 즉시 가동 금액
@@ -1228,15 +1228,15 @@ export const UnifiedDashboard: React.FC<UnifiedDashboardProps> = ({ onNavigateTo
                       : "🪙 가상자산";
 
                   const formattedPrice = p.market === "US"
-                    ? `$${p.currentPrice.toLocaleString(undefined, { minimumFractionDigits: 2 })}`
-                    : `${p.currentPrice.toLocaleString()}원`;
+                    ? `$${(p.currentPrice ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}`
+                    : `${(p.currentPrice ?? 0).toLocaleString()}원`;
 
                   const formattedAvg = p.market === "US"
-                    ? `$${p.avgPrice.toLocaleString(undefined, { minimumFractionDigits: 2 })}`
-                    : `${p.avgPrice.toLocaleString()}원`;
+                    ? `$${(p.avgPrice ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}`
+                    : `${(p.avgPrice ?? 0).toLocaleString()}원`;
 
                   const formattedEval = p.market === "US"
-                    ? `$${evalAmt.toLocaleString(undefined, { minimumFractionDigits: 2 })}`
+                    ? `$${(evalAmt ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}`
                     : `${Math.round(evalAmt).toLocaleString()}원`;
 
                   return (
@@ -1253,7 +1253,7 @@ export const UnifiedDashboard: React.FC<UnifiedDashboardProps> = ({ onNavigateTo
                       </td>
                       <td className="p-3 text-[11px] font-mono text-zinc-600">{marketBadge}</td>
                       <td className="p-3 text-right font-mono font-bold text-zinc-800">
-                        {p.quantity.toLocaleString()} {p.market === "BTC" ? "BTC" : "주"}
+                        {(p.quantity ?? 0).toLocaleString()} {p.market === "BTC" ? "BTC" : "주"}
                       </td>
                       <td className="p-3 text-right font-mono text-zinc-600">{formattedAvg}</td>
                       <td className="p-3 text-right font-mono font-bold text-zinc-900">{formattedPrice}</td>
@@ -1344,7 +1344,7 @@ export const UnifiedDashboard: React.FC<UnifiedDashboardProps> = ({ onNavigateTo
                     </span>
                   </td>
                   <td className="p-3 text-right font-mono font-bold text-zinc-900">
-                    {b.amount.toLocaleString()} 원
+                    {(b.amount ?? 0).toLocaleString()} 원
                   </td>
                   <td className="p-3 text-zinc-500 text-[11px] font-mono">{b.type}</td>
                 </tr>

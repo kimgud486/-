@@ -83,9 +83,9 @@ export class TripleBarrierLabeler {
       realizedReturnPct,
       holdingDurationBars: duration,
       pathDescription: outcome === "TAKE_PROFIT"
-        ? `상단 목표 장벽(${takeProfitPrice.toLocaleString()}원) ${duration}봉 이내 스피디 달성 (+${realizedReturnPct}%)`
+        ? `상단 목표 장벽(${(takeProfitPrice ?? 0).toLocaleString()}원) ${duration}봉 이내 스피디 달성 (+${realizedReturnPct}%)`
         : outcome === "STOP_LOSS"
-        ? `하단 손절 장벽(${stopLossPrice.toLocaleString()}원) 터치 자동 방어 (${realizedReturnPct}%)`
+        ? `하단 손절 장벽(${(stopLossPrice ?? 0).toLocaleString()}원) 터치 자동 방어 (${realizedReturnPct}%)`
         : `시간 만료 장벽(${timeHorizon}봉) 도달 후 청산 (${realizedReturnPct}%)`
     };
   }

@@ -54,9 +54,9 @@ export const TaLibQuantSuitePanel: React.FC<TaLibQuantSuitePanelProps> = ({
 
   const formatPrice = (val: number) => {
     if (market === "US" || symbol.length <= 5) {
-      return `$${val.toLocaleString()}`;
+      return `$${(val ?? 0).toLocaleString()}`;
     }
-    return `₩${val.toLocaleString()}`;
+    return `₩${(val ?? 0).toLocaleString()}`;
   };
 
   return (
@@ -338,11 +338,11 @@ export const TaLibQuantSuitePanel: React.FC<TaLibQuantSuitePanelProps> = ({
             <div className="space-y-2 font-mono text-xs">
               <div className="flex justify-between border-b border-slate-800 pb-1.5">
                 <span className="text-slate-400">On Balance Volume (OBV):</span>
-                <span className="text-emerald-400 font-bold">{result.obv.toLocaleString()}</span>
+                <span className="text-emerald-400 font-bold">{(result.obv ?? 0).toLocaleString()}</span>
               </div>
               <div className="flex justify-between border-b border-slate-800 pb-1.5">
                 <span className="text-slate-400">Chaikin A/D:</span>
-                <span className="text-cyan-400 font-bold">{result.chaikinAD.toLocaleString()}</span>
+                <span className="text-cyan-400 font-bold">{(result.chaikinAD ?? 0).toLocaleString()}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-400">Chaikin Oscillator:</span>

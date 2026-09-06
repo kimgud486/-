@@ -542,17 +542,17 @@ export const AiBotCommandCenterUi: React.FC<AiBotCommandCenterUiProps> = ({
                     <div className={`text-5xl sm:text-6xl md:text-7xl font-mono font-black tracking-tight drop-shadow-[0_0_20px_rgba(0,229,153,0.45)] ${
                       displayRealizedPnlKrw >= 0 ? "text-[#00E599]" : "text-rose-500"
                     }`}>
-                      ${displayRealizedPnlUsd.toLocaleString()}
+                      ${(displayRealizedPnlUsd ?? 0).toLocaleString()}
                     </div>
                     <div className="text-sm sm:text-base font-mono font-bold text-slate-300">
-                      ≈ ₩{displayRealizedPnlKrw.toLocaleString()} KRW
+                      ≈ ₩{(displayRealizedPnlKrw ?? 0).toLocaleString()} KRW
                     </div>
                   </div>
 
                   {/* Sub-stats line */}
                   <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs sm:text-sm font-mono font-bold">
                     <span className="text-[#00E599] flex items-center gap-1">
-                      ▲ {displayTotalTrades.toLocaleString()} 체결
+                      ▲ {(displayTotalTrades ?? 0).toLocaleString()} 체결
                     </span>
                     <span className="opacity-30 text-slate-500">•</span>
                     <span className="text-[#00E599] flex items-center gap-1">
@@ -628,9 +628,9 @@ export const AiBotCommandCenterUi: React.FC<AiBotCommandCenterUiProps> = ({
                     <span className="text-[#00E599]">● LIVE 실시간</span>
                   </div>
                   <div className="text-2xl sm:text-3xl font-mono font-black text-slate-100 flex flex-col">
-                    <span>${displayRealizedPnlUsd.toLocaleString()}</span>
+                    <span>${(displayRealizedPnlUsd ?? 0).toLocaleString()}</span>
                     <span className="text-xs text-slate-400 font-sans font-medium mt-0.5">
-                      (≈ ₩{displayRealizedPnlKrw.toLocaleString()}원)
+                      (≈ ₩{(displayRealizedPnlKrw ?? 0).toLocaleString()}원)
                     </span>
                   </div>
                   <div className="text-xs font-mono text-slate-400 mb-4">
@@ -702,7 +702,7 @@ export const AiBotCommandCenterUi: React.FC<AiBotCommandCenterUiProps> = ({
                   <div className="flex items-center gap-2 font-mono">
                     <span className="text-xs font-bold text-slate-300">24시간 실시간 누적 손익 곡선</span>
                     <span className="text-xs font-extrabold text-[#00E599] bg-[#00E599]/10 px-2 py-0.5 rounded border border-[#00E599]/30">
-                      실현손익: {displayRealizedPnlKrw >= 0 ? "+" : ""}₩{displayRealizedPnlKrw.toLocaleString()}원
+                      실현손익: {displayRealizedPnlKrw >= 0 ? "+" : ""}₩{(displayRealizedPnlKrw ?? 0).toLocaleString()}원
                     </span>
                   </div>
 
@@ -1024,7 +1024,7 @@ export const AiBotCommandCenterUi: React.FC<AiBotCommandCenterUiProps> = ({
           <span className="text-slate-600">•</span>
           <span>BTC ▲ 상승 5분봉</span>
           <span className="text-slate-600">•</span>
-          <span className="text-[#00E599]">실시간 달러 환율: ₩{usdRate.toLocaleString()}원</span>
+          <span className="text-[#00E599]">실시간 달러 환율: ₩{(usdRate ?? 0).toLocaleString()}원</span>
         </footer>
 
       </main>

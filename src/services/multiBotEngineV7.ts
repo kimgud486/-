@@ -43,7 +43,7 @@ export function runMasterV7SecuritiesEngine(stock: {
     { id: "dq1", code: "DQ001", name: "Missing Data Check", moduleGroup: "DATA", status: "PASS", score: 100, value: "Zero Missing (0.00%)" },
     { id: "dq2", code: "DQ002", name: "Duplicate Data Check", moduleGroup: "DATA", status: "PASS", score: 100, value: "No Duplicates (Deduped)" },
     { id: "dq3", code: "DQ003", name: "Timestamp Gap Check", moduleGroup: "DATA", status: "PASS", score: 99, value: "0.01s Precision" },
-    { id: "dq4", code: "DQ004", name: "Price Error Sanity", moduleGroup: "DATA", status: "PASS", score: 100, value: `Valid Tick: ${price.toLocaleString()}` },
+    { id: "dq4", code: "DQ004", name: "Price Error Sanity", moduleGroup: "DATA", status: "PASS", score: 100, value: `Valid Tick: ${(price ?? 0).toLocaleString()}` },
     { id: "dq5", code: "DQ005", name: "Volume Error Sanity", moduleGroup: "DATA", status: "PASS", score: 100, value: "Realtime Volume Validated" },
     { id: "dq6", code: "DQ006", name: "Order Book Depth Integrity", moduleGroup: "DATA", status: "PASS", score: 96, value: "10-Level Real Depth Active" },
     { id: "dq7", code: "DQ007", name: "Execution Feed Quality", moduleGroup: "DATA", status: "PASS", score: 98, value: "Tick Flow Integrity OK" },

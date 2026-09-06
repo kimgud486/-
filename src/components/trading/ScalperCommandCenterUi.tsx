@@ -201,7 +201,7 @@ export const ScalperCommandCenterUi: React.FC = () => {
             className="flex-1 sm:flex-initial px-5 py-2.5 bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-600 hover:from-emerald-500 hover:to-cyan-500 text-white font-bold text-xs rounded-xl shadow-lg shadow-emerald-900/30 transition transform active:scale-95 flex items-center justify-center gap-2 cursor-pointer border border-emerald-400/30"
           >
             <Flame className="h-4 w-4 text-amber-300 animate-bounce" />
-            <span>AI 스캘핑 1클릭 포지션 진입 ({basePrice.toLocaleString()}원)</span>
+            <span>AI 스캘핑 1클릭 포지션 진입 ({(basePrice ?? 0).toLocaleString()}원)</span>
           </button>
         </div>
       </div>
@@ -365,7 +365,7 @@ export const ScalperCommandCenterUi: React.FC = () => {
                     진입 구역 / 손절선 / 익절 목표가 스케줄
                   </h3>
                 </div>
-                <span className="text-xs text-slate-400 font-mono">현재가: <strong className="text-white">{basePrice.toLocaleString()}원</strong></span>
+                <span className="text-xs text-slate-400 font-mono">현재가: <strong className="text-white">{(basePrice ?? 0).toLocaleString()}원</strong></span>
               </div>
 
               {/* Ladder Visualizer */}
@@ -376,7 +376,7 @@ export const ScalperCommandCenterUi: React.FC = () => {
                     <span className="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-bold text-[10px]">TP2 (목표2)</span>
                     <span className="text-slate-300">최종 목표가 (+3.2%)</span>
                   </div>
-                  <span className="text-emerald-400 font-bold">{tp2Level.toLocaleString()}원</span>
+                  <span className="text-emerald-400 font-bold">{(tp2Level ?? 0).toLocaleString()}원</span>
                 </div>
 
                 {/* TP1 */}
@@ -385,7 +385,7 @@ export const ScalperCommandCenterUi: React.FC = () => {
                     <span className="px-2 py-0.5 rounded bg-emerald-500/30 text-emerald-300 font-bold text-[10px]">TP1 (목표1)</span>
                     <span className="text-slate-300">1차 분할 익절가 (+1.8%)</span>
                   </div>
-                  <span className="text-emerald-400 font-bold">{tp1Level.toLocaleString()}원</span>
+                  <span className="text-emerald-400 font-bold">{(tp1Level ?? 0).toLocaleString()}원</span>
                 </div>
 
                 {/* BUY ZONE */}
@@ -394,7 +394,7 @@ export const ScalperCommandCenterUi: React.FC = () => {
                     <span className="px-2 py-0.5 rounded bg-cyan-500/30 text-cyan-200 font-bold text-[10px] animate-pulse">BUY ZONE</span>
                     <span className="text-white font-bold">추천 매수 권장 구간</span>
                   </div>
-                  <span className="text-cyan-300 font-bold">{buyZoneLow.toLocaleString()}원 ~ {buyZoneHigh.toLocaleString()}원</span>
+                  <span className="text-cyan-300 font-bold">{(buyZoneLow ?? 0).toLocaleString()}원 ~ {(buyZoneHigh ?? 0).toLocaleString()}원</span>
                 </div>
 
                 {/* INVALIDATION */}
@@ -403,7 +403,7 @@ export const ScalperCommandCenterUi: React.FC = () => {
                     <span className="px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 font-bold text-[10px]">INVALIDATION</span>
                     <span className="text-slate-300">패턴 무효화 관망 라인</span>
                   </div>
-                  <span className="text-amber-400 font-bold">{invalidationLevel.toLocaleString()}원</span>
+                  <span className="text-amber-400 font-bold">{(invalidationLevel ?? 0).toLocaleString()}원</span>
                 </div>
 
                 {/* STOP LOSS */}
@@ -412,7 +412,7 @@ export const ScalperCommandCenterUi: React.FC = () => {
                     <span className="px-2 py-0.5 rounded bg-rose-500/20 text-rose-300 font-bold text-[10px]">STOP LOSS</span>
                     <span className="text-slate-300">AI 자동 칼손절선 (-1.0%)</span>
                   </div>
-                  <span className="text-rose-400 font-bold">{stopLossLevel.toLocaleString()}원</span>
+                  <span className="text-rose-400 font-bold">{(stopLossLevel ?? 0).toLocaleString()}원</span>
                 </div>
               </div>
             </div>

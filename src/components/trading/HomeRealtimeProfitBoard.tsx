@@ -115,7 +115,7 @@ export const HomeRealtimeProfitBoard: React.FC<HomeRealtimeProfitBoardProps> = (
           ok: true,
           status: res.status,
           latencyMs: Math.round(t1 - t0),
-          samplePrice: price ? `${price.toLocaleString()} KRW (비트코인)` : "OK",
+          samplePrice: price ? `${(price ?? 0).toLocaleString()} KRW (비트코인)` : "OK",
           time: nowStr()
         };
       }
@@ -454,7 +454,7 @@ export const HomeRealtimeProfitBoard: React.FC<HomeRealtimeProfitBoardProps> = (
             <Globe2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
             {hasFxRateData && fxRate ? (
               <>
-                <span>USD/KRW ₩{fxRate.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}</span>
+                <span>USD/KRW ₩{(fxRate ?? 0).toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}</span>
                 <span className={fxChange < 0 ? "text-blue-600 dark:text-blue-400 font-bold" : "text-rose-600 dark:text-rose-400 font-bold"}>
                   ({fxChange < 0 ? "" : "+"}{fxChange.toFixed(1)}원)
                 </span>
@@ -653,13 +653,13 @@ export const HomeRealtimeProfitBoard: React.FC<HomeRealtimeProfitBoardProps> = (
           <div className="flex flex-wrap items-baseline justify-between gap-2">
             <div>
               <div className="text-2xl sm:text-3xl font-black font-mono tracking-tight text-white">
-                {totalCombinedAssets.toLocaleString()}
+                {(totalCombinedAssets ?? 0).toLocaleString()}
                 <span className="text-sm font-sans font-bold text-slate-300 ml-1">원</span>
               </div>
               <div className="text-xs text-slate-300 mt-0.5 flex flex-wrap items-center gap-2 font-mono">
-                <span>예수금: {totalCombinedCash.toLocaleString()}원</span>
+                <span>예수금: {(totalCombinedCash ?? 0).toLocaleString()}원</span>
                 <span>•</span>
-                <span>보유평가: {totalCombinedEval.toLocaleString()}원</span>
+                <span>보유평가: {(totalCombinedEval ?? 0).toLocaleString()}원</span>
                 {isRealTrade && (
                   <span className="text-[11px] text-emerald-300">
                     (한국투자 · 업비트 · 토스 연동)
@@ -691,7 +691,7 @@ export const HomeRealtimeProfitBoard: React.FC<HomeRealtimeProfitBoardProps> = (
                 {totalCombinedPnl >= 0 ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
                 <span>{totalCombinedPnl >= 0 ? "+" : ""}{totalCombinedReturnRate.toFixed(2)}%</span>
                 <span className="text-xs font-bold opacity-90 ml-1">
-                  ({totalCombinedPnl >= 0 ? "+" : ""}{totalCombinedPnl.toLocaleString()}원)
+                  ({totalCombinedPnl >= 0 ? "+" : ""}{(totalCombinedPnl ?? 0).toLocaleString()}원)
                 </span>
               </div>
               {!isRealTrade && positions.length === 0 && (
@@ -879,13 +879,13 @@ export const HomeRealtimeProfitBoard: React.FC<HomeRealtimeProfitBoardProps> = (
 
             <div className="font-mono">
               <div className="text-[10px] text-slate-400">계좌 총자산</div>
-              <div className="text-sm font-black text-slate-900 dark:text-white">{kisTotalAssets.toLocaleString()}원</div>
+              <div className="text-sm font-black text-slate-900 dark:text-white">{(kisTotalAssets ?? 0).toLocaleString()}원</div>
             </div>
 
             <div className="grid grid-cols-2 gap-1 text-[11px] font-mono pt-1 border-t border-slate-200/60 dark:border-slate-700">
               <div>
                 <span className="text-[10px] text-slate-400 block font-sans">예수금</span>
-                <span className="font-bold text-slate-700 dark:text-slate-300">{koreaCash.toLocaleString()}원</span>
+                <span className="font-bold text-slate-700 dark:text-slate-300">{(koreaCash ?? 0).toLocaleString()}원</span>
               </div>
               <div className="text-right">
                 <span className="text-[10px] text-slate-400 block font-sans">보유수익률</span>
@@ -915,7 +915,7 @@ export const HomeRealtimeProfitBoard: React.FC<HomeRealtimeProfitBoardProps> = (
             <div className="font-mono">
               <div className="text-[10px] text-slate-400">총 평가 ($ / ₩)</div>
               <div className="text-sm font-black text-slate-900 dark:text-white">
-                ${usTotalAssetsUsd.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
+                ${(usTotalAssetsUsd ?? 0).toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
                 <span className="text-[11px] font-normal text-slate-500 ml-1">
                   (₩{Math.round(usTotalAssetsKrw).toLocaleString()})
                 </span>
@@ -925,7 +925,7 @@ export const HomeRealtimeProfitBoard: React.FC<HomeRealtimeProfitBoardProps> = (
             <div className="grid grid-cols-2 gap-1 text-[11px] font-mono pt-1 border-t border-slate-200/60 dark:border-slate-700">
               <div>
                 <span className="text-[10px] text-slate-400 block font-sans">달러 예수금</span>
-                <span className="font-bold text-slate-700 dark:text-slate-300">${usCash.toLocaleString()}</span>
+                <span className="font-bold text-slate-700 dark:text-slate-300">${(usCash ?? 0).toLocaleString()}</span>
               </div>
               <div className="text-right">
                 <span className="text-[10px] text-slate-400 block font-sans">달러 수익률</span>
@@ -959,13 +959,13 @@ export const HomeRealtimeProfitBoard: React.FC<HomeRealtimeProfitBoardProps> = (
 
             <div className="font-mono">
               <div className="text-[10px] text-slate-400">계좌 총자산</div>
-              <div className="text-sm font-black text-slate-900 dark:text-white">{tossTotalAssets.toLocaleString()}원</div>
+              <div className="text-sm font-black text-slate-900 dark:text-white">{(tossTotalAssets ?? 0).toLocaleString()}원</div>
             </div>
 
             <div className="grid grid-cols-2 gap-1 text-[11px] font-mono pt-1 border-t border-slate-200/60 dark:border-slate-700">
               <div>
                 <span className="text-[10px] text-slate-400 block font-sans">예수금</span>
-                <span className="font-bold text-slate-700 dark:text-slate-300">{tossCash.toLocaleString()}원</span>
+                <span className="font-bold text-slate-700 dark:text-slate-300">{(tossCash ?? 0).toLocaleString()}원</span>
               </div>
               <div className="text-right">
                 <span className="text-[10px] text-slate-400 block font-sans">보유수익률</span>
@@ -999,13 +999,13 @@ export const HomeRealtimeProfitBoard: React.FC<HomeRealtimeProfitBoardProps> = (
 
             <div className="font-mono">
               <div className="text-[10px] text-slate-400">계좌 총자산</div>
-              <div className="text-sm font-black text-slate-900 dark:text-white">{upbitTotalAssets.toLocaleString()}원</div>
+              <div className="text-sm font-black text-slate-900 dark:text-white">{(upbitTotalAssets ?? 0).toLocaleString()}원</div>
             </div>
 
             <div className="grid grid-cols-2 gap-1 text-[11px] font-mono pt-1 border-t border-slate-200/60 dark:border-slate-700">
               <div>
                 <span className="text-[10px] text-slate-400 block font-sans">원화 잔고</span>
-                <span className="font-bold text-slate-700 dark:text-slate-300">{upbitCash.toLocaleString()}원</span>
+                <span className="font-bold text-slate-700 dark:text-slate-300">{(upbitCash ?? 0).toLocaleString()}원</span>
               </div>
               <div className="text-right">
                 <span className="text-[10px] text-slate-400 block font-sans">가상자산 수익률</span>
@@ -1124,11 +1124,11 @@ export const HomeRealtimeProfitBoard: React.FC<HomeRealtimeProfitBoardProps> = (
                       <div className="text-[10px] font-mono text-slate-400 mt-0.5">
                         {isUs ? (
                           <span>
-                            수량: {qty.toLocaleString()}주 | 평단가: <strong className="text-slate-700 dark:text-slate-200">${avgPrice.toFixed(2)}</strong> (₩{Math.round(avgPrice * fxRate).toLocaleString()}원)
+                            수량: {(qty ?? 0).toLocaleString()}주 | 평단가: <strong className="text-slate-700 dark:text-slate-200">${avgPrice.toFixed(2)}</strong> (₩{Math.round(avgPrice * fxRate).toLocaleString()}원)
                           </span>
                         ) : (
                           <span>
-                            수량: {qty.toLocaleString()} | 평단가: {avgPrice.toLocaleString()}원
+                            수량: {(qty ?? 0).toLocaleString()} | 평단가: {(avgPrice ?? 0).toLocaleString()}원
                           </span>
                         )}
                       </div>
@@ -1139,17 +1139,17 @@ export const HomeRealtimeProfitBoard: React.FC<HomeRealtimeProfitBoardProps> = (
                     {isUs ? (
                       <>
                         <div className="font-black text-slate-900 dark:text-white">
-                          ${evalUsd.toFixed(2)} <span className="text-[11px] font-normal text-slate-500">(₩{evalKrw.toLocaleString()}원)</span>
+                          ${evalUsd.toFixed(2)} <span className="text-[11px] font-normal text-slate-500">(₩{(evalKrw ?? 0).toLocaleString()}원)</span>
                         </div>
                         <div className={`text-[11px] font-bold ${pnlUsd >= 0 ? "text-rose-600" : "text-blue-600"}`}>
-                          {pnlUsd >= 0 ? "+" : ""}{(isNaN(pnlRate) ? 0 : pnlRate).toFixed(2)}% ({pnlUsd >= 0 ? "+$" : "-$"}{Math.abs(pnlUsd).toFixed(2)} / {pnlKrw >= 0 ? "+" : ""}{pnlKrw.toLocaleString()}원)
+                          {pnlUsd >= 0 ? "+" : ""}{(isNaN(pnlRate) ? 0 : pnlRate).toFixed(2)}% ({pnlUsd >= 0 ? "+$" : "-$"}{Math.abs(pnlUsd).toFixed(2)} / {pnlKrw >= 0 ? "+" : ""}{(pnlKrw ?? 0).toLocaleString()}원)
                         </div>
                       </>
                     ) : (
                       <>
-                        <div className="font-black text-slate-900 dark:text-white">{evalVal.toLocaleString()}원</div>
+                        <div className="font-black text-slate-900 dark:text-white">{(evalVal ?? 0).toLocaleString()}원</div>
                         <div className={`text-[11px] font-bold ${isPlus ? "text-rose-600" : "text-blue-600"}`}>
-                          {isPlus ? "+" : ""}{(isNaN(pnlRate) ? 0 : pnlRate).toFixed(2)}% ({isPlus ? "+" : ""}{pnl.toLocaleString()}원)
+                          {isPlus ? "+" : ""}{(isNaN(pnlRate) ? 0 : pnlRate).toFixed(2)}% ({isPlus ? "+" : ""}{(pnl ?? 0).toLocaleString()}원)
                         </div>
                       </>
                     )}

@@ -2551,7 +2551,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
         // 업비트(BTC 마켓) 실거래의 경우 최소 주문금액 및 최소 가용 잔고가 5,000원 이상이어야 함
         if (isRealForThisMarket && isCrypto && (effectiveLiveBalance < 5000 || totalCost < 5000)) {
-          const upbitFundMsg = `[업비트 원화 잔고 부족] 가용 원화 잔고(₩${displayBalance.toLocaleString()})가 업비트 최소 주문 금액(₩5,000) 미만입니다. 원화를 입금 후 다시 시도해 주세요.`;
+          const upbitFundMsg = `[업비트 원화 잔고 부족] 가용 원화 잔고(₩${(displayBalance ?? 0).toLocaleString()})가 업비트 최소 주문 금액(₩5,000) 미만입니다. 원화를 입금 후 다시 시도해 주세요.`;
           
           const rejectLog: AIDecisionLog = {
             id: generateUniqueId("dec_bal_reject"),
@@ -2560,7 +2560,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             name,
             market,
             action: "SAFETY_REJECT",
-            message: `🔍 [AI 업비트 관제] ${name} (${symbol}) 가용 원화(₩${displayBalance.toLocaleString()})가 최소 주문 금액(₩5,000) 미만으로 자동 매수 건너뜀 (스캐너 감시 모드 유지)`,
+            message: `🔍 [AI 업비트 관제] ${name} (${symbol}) 가용 원화(₩${(displayBalance ?? 0).toLocaleString()})가 최소 주문 금액(₩5,000) 미만으로 자동 매수 건너뜀 (스캐너 감시 모드 유지)`,
             confidence: 100,
             safetyStatus: {
               holdingsLimit: "FAIL",
@@ -2572,7 +2572,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           setDecisionLogs(prev => [rejectLog, ...prev.slice(0, 49)]);
 
           if (bypassGuard) {
-            console.log(`[Auto-Trading Scanner Active] Upbit KRW cash (₩${displayBalance.toLocaleString()}) < ₩5,000. Autonomous buy skipped, scanner active.`);
+            console.log(`[Auto-Trading Scanner Active] Upbit KRW cash (₩${(displayBalance ?? 0).toLocaleString()}) < ₩5,000. Autonomous buy skipped, scanner active.`);
             return { success: false, isInsufficientFunds: true, error: upbitFundMsg, isRealTrade: false, isSimulated: false };
           }
 
@@ -2592,7 +2592,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             name,
             market,
             action: "SAFETY_REJECT",
-            message: `🔍 [AI 마켓 스캐너] ${name} (${symbol}) ${qtyFormatted}${unitLabel} 매수 주문 건너뜀 (가용 예수금: ${unit}${displayBalance.toLocaleString()} / 필요 금액: ${unit}${displayCost.toLocaleString()} - 체결 없음, 스캐너 모드 유지)`,
+            message: `🔍 [AI 마켓 스캐너] ${name} (${symbol}) ${qtyFormatted}${unitLabel} 매수 주문 건너뜀 (가용 예수금: ${unit}${(displayBalance ?? 0).toLocaleString()} / 필요 금액: ${unit}${(displayCost ?? 0).toLocaleString()} - 체결 없음, 스캐너 모드 유지)`,
             confidence: 100,
             safetyStatus: {
               holdingsLimit: "FAIL",
@@ -2603,7 +2603,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           };
           setDecisionLogs(prev => [rejectLog, ...prev.slice(0, 49)]);
 
-          const errText = `[계좌 예수금 부족] [${name} (${symbol})] ${qtyFormatted}${unitLabel} 매수 주문 금액(${unit}${displayCost.toLocaleString()})이 ${isRealModeRequested ? brokerLabel : '모의투자'} 가용 예수금(${unit}${displayBalance.toLocaleString()})을 초과합니다. (주문 미체결)`;
+          const errText = `[계좌 예수금 부족] [${name} (${symbol})] ${qtyFormatted}${unitLabel} 매수 주문 금액(${unit}${(displayCost ?? 0).toLocaleString()})이 ${isRealModeRequested ? brokerLabel : '모의투자'} 가용 예수금(${unit}${(displayBalance ?? 0).toLocaleString()})을 초과합니다. (주문 미체결)`;
 
           if (bypassGuard) {
             console.log(`[Auto-Trading Scanner Active] ${name} (${symbol}) cost ${unit}${displayCost} exceeds balance ${unit}${displayBalance}. Trading skipped, scanner running.`);
@@ -3621,7 +3621,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         const isCrypto = market === 'BTC' || symbol.startsWith('KRW-');
         const unitLabel = isCrypto ? symbol.replace(/^KRW-/, '') : '주';
         const qtyFormatted = isCrypto ? Number(Number(targetQty || 0).toFixed(8)).toString() : String(Math.floor(Number(targetQty || 1)));
-        const errMsg = `[실계좌 예수금 부족] [${name} (${symbol})] ${qtyFormatted}${unitLabel} 매수 실패 (필요 주문 금액: ₩${displayCost.toLocaleString()}원 / ${brokerLabel} 가용 예수금: ₩${displayBalance.toLocaleString()}원). 연동 계좌에 현금을 충전하거나 수량을 낮춰주세요.`;
+        const errMsg = `[실계좌 예수금 부족] [${name} (${symbol})] ${qtyFormatted}${unitLabel} 매수 실패 (필요 주문 금액: ₩${(displayCost ?? 0).toLocaleString()}원 / ${brokerLabel} 가용 예수금: ₩${(displayBalance ?? 0).toLocaleString()}원). 연동 계좌에 현금을 충전하거나 수량을 낮춰주세요.`;
         
         addToast({
           type: 'ERROR',
@@ -4121,7 +4121,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       addToast({
         type: "SUCCESS",
         title: "💵 가상 예수금 충전 완료",
-        message: `+${amount.toLocaleString()}원이 충전되어 현재 가상 예수금은 ${nextBal.toLocaleString()}원입니다.`
+        message: `+${(amount ?? 0).toLocaleString()}원이 충전되어 현재 가상 예수금은 ${(nextBal ?? 0).toLocaleString()}원입니다.`
       });
     } catch (err: any) {
       console.error("Failed to recharge mock balance:", err);
@@ -4168,7 +4168,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       addToast({
         type: "SUCCESS",
         title: "🔄 모의투자 포트폴리오 초기화 완료",
-        message: `모의투자 원금이 ${initialCapital.toLocaleString()}원으로 재설정되었으며, 보유종목이 초기화되었습니다.`
+        message: `모의투자 원금이 ${(initialCapital ?? 0).toLocaleString()}원으로 재설정되었으며, 보유종목이 초기화되었습니다.`
       });
     } catch (err: any) {
       console.error("Failed to reset mock portfolio:", err);
@@ -4349,7 +4349,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             pos.quantity,
             pos.currentPrice,
             '기계적 -2.0% 손절 리스크 방어',
-            `AI 리스크 가드에 의해 -2.0% 손실 진입 시 계좌 보존을 위한 타이트한 자동 매도 체결 (진입가: ₩${pos.avgPrice.toLocaleString()}, 현재가: ₩${pos.currentPrice.toLocaleString()}).`,
+            `AI 리스크 가드에 의해 -2.0% 손실 진입 시 계좌 보존을 위한 타이트한 자동 매도 체결 (진입가: ₩${(pos.avgPrice ?? 0).toLocaleString()}, 현재가: ₩${(pos.currentPrice ?? 0).toLocaleString()}).`,
             true
           );
           delete partialProfitDoneRef.current[pos.symbol];
@@ -4949,7 +4949,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (isRealTradingActive && (!isBalanceSufficient || !hasKeys)) {
         const scanStatusMsg = !hasKeys
           ? `⚠️ [AI 실거래 스캐너] ${targetStockItem.name} (${targetStockItem.symbol}) 타점 감지 (증권사 API Key 등록 대기 중 - 실거래 주문 미체결, 스캐너 모드 유지)`
-          : `🔍 [AI 실거래 스캐너] ${targetStockItem.name} (${targetStockItem.symbol}) 호가 ${unit}${livePrice.toLocaleString()} 실시간 스캔 중 (실계좌 가용 예수금 부족: ${unit}${Math.round(curBalance).toLocaleString()} - 주문 체결 건너뜀)`;
+          : `🔍 [AI 실거래 스캐너] ${targetStockItem.name} (${targetStockItem.symbol}) 호가 ${unit}${(livePrice ?? 0).toLocaleString()} 실시간 스캔 중 (실계좌 가용 예수금 부족: ${unit}${Math.round(curBalance).toLocaleString()} - 주문 체결 건너뜀)`;
 
         const scanLog: AIDecisionLog = {
           id: generateUniqueId("dec_scan_only"),
@@ -5047,8 +5047,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               livePrice,
               isRealTradingActive ? `AI SMC+16대뇌엔진 실거래 (${pipelineResult.matchedStrategies[0] || 'SMC돌파'})` : `AI SMC+16대뇌엔진 모의투자 (${pipelineResult.matchedStrategies[0] || 'SMC돌파'})`,
               isRealTradingActive
-                ? `SMC 구조돌파 & 16대 뇌엔진 ${pipelineResult.approvedEnginesCount}개 만장일치 합의, 손익비 ${calculatedRR}:1 (목표가 ${unit}${targetPrice.toLocaleString()} +${targetGain}%, 손절가 ${unit}${stopLossPrice.toLocaleString()}).`
-                : `SMC 구조돌파 & 16대 뇌엔진 ${pipelineResult.approvedEnginesCount}개 만장일치 합의, 손익비 ${calculatedRR}:1 (목표가 ${unit}${targetPrice.toLocaleString()} +${targetGain}%, 손절가 ${unit}${stopLossPrice.toLocaleString()}).`,
+                ? `SMC 구조돌파 & 16대 뇌엔진 ${pipelineResult.approvedEnginesCount}개 만장일치 합의, 손익비 ${calculatedRR}:1 (목표가 ${unit}${(targetPrice ?? 0).toLocaleString()} +${targetGain}%, 손절가 ${unit}${(stopLossPrice ?? 0).toLocaleString()}).`
+                : `SMC 구조돌파 & 16대 뇌엔진 ${pipelineResult.approvedEnginesCount}개 만장일치 합의, 손익비 ${calculatedRR}:1 (목표가 ${unit}${(targetPrice ?? 0).toLocaleString()} +${targetGain}%, 손절가 ${unit}${(stopLossPrice ?? 0).toLocaleString()}).`,
               true
             );
 
@@ -5067,8 +5067,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               volumeRatio: volRatio,
               rsi: 58,
               message: isRealTradingActive
-                ? `🚀 [실거래 SMC 100% 승인 매수] ${targetStockItem.name} (${targetStockItem.symbol}) 호가 ${unit}${livePrice.toLocaleString()} 기준 ${formatStockQty(calculateQty, mappedMarket === 'BTC')} ${mappedMarket === 'BTC' ? (targetStockItem.symbol.replace('KRW-', '') || '코인') : '주'} 체결! (손익비 ${calculatedRR}:1, 16대 뇌엔진 ${pipelineResult.approvedEnginesCount}개 합의, 목표 +${targetGain}%)`
-                : `👑 [모의투자 SMC 100% 승인 매수] ${targetStockItem.name} (${targetStockItem.symbol}) 가상 호가 ${unit}${livePrice.toLocaleString()} 기준 ${formatStockQty(calculateQty, mappedMarket === 'BTC')} ${mappedMarket === 'BTC' ? (targetStockItem.symbol.replace('KRW-', '') || '코인') : '주'} 체결! (손익비 ${calculatedRR}:1, 16대 뇌엔진 ${pipelineResult.approvedEnginesCount}개 합의, 목표 +${targetGain}%)`,
+                ? `🚀 [실거래 SMC 100% 승인 매수] ${targetStockItem.name} (${targetStockItem.symbol}) 호가 ${unit}${(livePrice ?? 0).toLocaleString()} 기준 ${formatStockQty(calculateQty, mappedMarket === 'BTC')} ${mappedMarket === 'BTC' ? (targetStockItem.symbol.replace('KRW-', '') || '코인') : '주'} 체결! (손익비 ${calculatedRR}:1, 16대 뇌엔진 ${pipelineResult.approvedEnginesCount}개 합의, 목표 +${targetGain}%)`
+                : `👑 [모의투자 SMC 100% 승인 매수] ${targetStockItem.name} (${targetStockItem.symbol}) 가상 호가 ${unit}${(livePrice ?? 0).toLocaleString()} 기준 ${formatStockQty(calculateQty, mappedMarket === 'BTC')} ${mappedMarket === 'BTC' ? (targetStockItem.symbol.replace('KRW-', '') || '코인') : '주'} 체결! (손익비 ${calculatedRR}:1, 16대 뇌엔진 ${pipelineResult.approvedEnginesCount}개 합의, 목표 +${targetGain}%)`,
               confidence: calculatedAiScore,
               isRealTrade: isRealTradingActive,
               executionType: isRealTradingActive ? "REAL_BROKER" : "PAPER_SIMULATION",
@@ -5097,7 +5097,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         targetGainPct: targetGain,
         volumeRatio: volRatio,
         rsi: 52,
-        message: `🔍 [전종목 실시간 시세 관제] ${targetStockItem.name} (${targetStockItem.symbol}) 실시간 호가 ${unit}${livePrice.toLocaleString()} (${liveChangeRate > 0 ? '+' : ''}${liveChangeRate}%), AI 점수 ${calculatedAiScore}점 스캔 중. [테마: ${targetStockItem.theme}]`,
+        message: `🔍 [전종목 실시간 시세 관제] ${targetStockItem.name} (${targetStockItem.symbol}) 실시간 호가 ${unit}${(livePrice ?? 0).toLocaleString()} (${liveChangeRate > 0 ? '+' : ''}${liveChangeRate}%), AI 점수 ${calculatedAiScore}점 스캔 중. [테마: ${targetStockItem.theme}]`,
         confidence: calculatedAiScore,
         safetyStatus: { holdingsLimit: "PASS", dailyLossLimit: "PASS", marketRisk: "PASS", brokerAuth: "PASS" }
       };

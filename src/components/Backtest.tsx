@@ -251,7 +251,7 @@ export const Backtest: React.FC = () => {
                       tickFormatter={(v) => `${(v/10000).toFixed(0)}만`}
                     />
                     <Tooltip 
-                      formatter={(v: any) => [`${v.toLocaleString()}원`, "포트폴리오 평가액"]}
+                      formatter={(v: any) => [`${(v ?? 0).toLocaleString()}원`, "포트폴리오 평가액"]}
                       labelStyle={{ fontSize: "10px", fontFamily: "monospace" }}
                       contentStyle={{ fontSize: "11px" }}
                     />
@@ -293,12 +293,12 @@ export const Backtest: React.FC = () => {
                               {t.side}
                             </span>
                           </td>
-                          <td className="py-2 px-3 text-right text-zinc-800">{t.price.toLocaleString()}원</td>
+                          <td className="py-2 px-3 text-right text-zinc-800">{(t.price ?? 0).toLocaleString()}원</td>
                           <td className="py-2 px-3 text-right text-zinc-800">{t.qty}주</td>
                           <td className="py-2 px-3 text-right font-bold">
                             {t.profit !== undefined ? (
                               <span className={t.profit >= 0 ? "text-emerald-600" : "text-rose-600"}>
-                                {t.profit >= 0 ? "+" : ""}{t.profit.toLocaleString()}원
+                                {t.profit >= 0 ? "+" : ""}{(t.profit ?? 0).toLocaleString()}원
                               </span>
                             ) : (
                               <span className="text-zinc-400">-</span>

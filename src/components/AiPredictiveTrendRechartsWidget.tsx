@@ -725,7 +725,7 @@ export const AiPredictiveTrendRechartsWidget: React.FC<AiPredictiveTrendRecharts
           <div className="flex items-baseline gap-1.5 mt-0.5">
             <span className="font-black text-white text-base">{selectedStock.name}</span>
             <span className="font-mono text-cyan-400 text-sm font-bold">
-              {currencySymbol}{currentPrice.toLocaleString()}
+              {currencySymbol}{(currentPrice ?? 0).toLocaleString()}
             </span>
           </div>
         </div>
@@ -744,7 +744,7 @@ export const AiPredictiveTrendRechartsWidget: React.FC<AiPredictiveTrendRecharts
           <div className="flex items-center gap-1 mt-0.5">
             <TrendingUp className="w-4 h-4 text-emerald-400" />
             <span className="font-mono text-emerald-400 font-extrabold text-sm">
-              {currencySymbol}{projectedBull.toLocaleString()}
+              {currencySymbol}{(projectedBull ?? 0).toLocaleString()}
             </span>
             <span className="text-[10px] font-bold text-emerald-400">({bullReturnPct >= "0" ? "+" : ""}{bullReturnPct}%)</span>
           </div>
@@ -755,7 +755,7 @@ export const AiPredictiveTrendRechartsWidget: React.FC<AiPredictiveTrendRecharts
           <div className="flex items-center gap-1 mt-0.5">
             <TrendingDown className="w-4 h-4 text-rose-400" />
             <span className="font-mono text-rose-400 font-extrabold text-sm">
-              {currencySymbol}{projectedBear.toLocaleString()}
+              {currencySymbol}{(projectedBear ?? 0).toLocaleString()}
             </span>
             <span className="text-[10px] font-bold text-rose-400">({bearReturnPct}%)</span>
           </div>
@@ -929,7 +929,7 @@ export const AiPredictiveTrendRechartsWidget: React.FC<AiPredictiveTrendRecharts
                         <div className="flex items-center justify-between">
                           <span className="text-slate-400">실제 종가:</span>
                           <span className="font-mono font-bold text-white">
-                            {currencySymbol}{data.actualPrice.toLocaleString()}
+                            {currencySymbol}{(data.actualPrice ?? 0).toLocaleString()}
                           </span>
                         </div>
                       )}
@@ -938,7 +938,7 @@ export const AiPredictiveTrendRechartsWidget: React.FC<AiPredictiveTrendRecharts
                         <div className="flex items-center justify-between">
                           <span className="text-amber-400">패턴 벤치마크:</span>
                           <span className="font-mono font-bold text-amber-300">
-                            {currencySymbol}{data.patternMatchPrice.toLocaleString()}
+                            {currencySymbol}{(data.patternMatchPrice ?? 0).toLocaleString()}
                           </span>
                         </div>
                       )}
@@ -949,7 +949,7 @@ export const AiPredictiveTrendRechartsWidget: React.FC<AiPredictiveTrendRecharts
                             <div className="flex items-center justify-between text-emerald-400">
                               <span>강세 목표 (Bull):</span>
                               <span className="font-mono font-bold">
-                                {currencySymbol}{data.bullPrice.toLocaleString()}
+                                {currencySymbol}{(data.bullPrice ?? 0).toLocaleString()}
                               </span>
                             </div>
                           )}
@@ -958,7 +958,7 @@ export const AiPredictiveTrendRechartsWidget: React.FC<AiPredictiveTrendRecharts
                             <div className="flex items-center justify-between text-cyan-400">
                               <span>기본 시나리오 (Base):</span>
                               <span className="font-mono font-bold">
-                                {currencySymbol}{data.basePrice.toLocaleString()}
+                                {currencySymbol}{(data.basePrice ?? 0).toLocaleString()}
                               </span>
                             </div>
                           )}
@@ -967,7 +967,7 @@ export const AiPredictiveTrendRechartsWidget: React.FC<AiPredictiveTrendRecharts
                             <div className="flex items-center justify-between text-rose-400">
                               <span>약세 리스크 (Bear):</span>
                               <span className="font-mono font-bold">
-                                {currencySymbol}{data.bearPrice.toLocaleString()}
+                                {currencySymbol}{(data.bearPrice ?? 0).toLocaleString()}
                               </span>
                             </div>
                           )}
@@ -976,7 +976,7 @@ export const AiPredictiveTrendRechartsWidget: React.FC<AiPredictiveTrendRecharts
                             <div className="pt-1 border-t border-slate-800/80 text-[10px] text-slate-400 flex items-center justify-between">
                               <span>95% 신뢰범위:</span>
                               <span className="font-mono text-cyan-200">
-                                {currencySymbol}{data.lowerBand.toLocaleString()} ~ {currencySymbol}{data.upperBand.toLocaleString()}
+                                {currencySymbol}{(data.lowerBand ?? 0).toLocaleString()} ~ {currencySymbol}{(data.upperBand ?? 0).toLocaleString()}
                               </span>
                             </div>
                           )}
@@ -1118,7 +1118,7 @@ export const AiPredictiveTrendRechartsWidget: React.FC<AiPredictiveTrendRecharts
                 stroke="#10B981"
                 strokeDasharray="3 3"
                 label={{
-                  value: `🎯 AI 목표가 ${currencySymbol}${projectedBull.toLocaleString()}`,
+                  value: `🎯 AI 목표가 ${currencySymbol}${(projectedBull ?? 0).toLocaleString()}`,
                   fill: "#10B981",
                   fontSize: 10,
                   fontWeight: "bold",
@@ -1132,7 +1132,7 @@ export const AiPredictiveTrendRechartsWidget: React.FC<AiPredictiveTrendRecharts
                 stroke="#F43F5E"
                 strokeDasharray="3 3"
                 label={{
-                  value: `🛑 AI 손절가 ${currencySymbol}${projectedBear.toLocaleString()}`,
+                  value: `🛑 AI 손절가 ${currencySymbol}${(projectedBear ?? 0).toLocaleString()}`,
                   fill: "#F43F5E",
                   fontSize: 10,
                   fontWeight: "bold",
@@ -1197,7 +1197,7 @@ export const AiPredictiveTrendRechartsWidget: React.FC<AiPredictiveTrendRecharts
             현재 <strong>{selectedStock.name}</strong> 종목은 {horizonMode} 기준 상방 추세 전환 확률이{" "}
             <strong className="text-emerald-400">68%</strong>로 우세합니다. 손익비{" "}
             <strong className="text-amber-400">{riskRewardRatio} : 1</strong> 구간으로 1차 목표가{" "}
-            <strong className="text-cyan-300">{currencySymbol}{projectedBull.toLocaleString()}</strong> 진입 전략이 권장됩니다.
+            <strong className="text-cyan-300">{currencySymbol}{(projectedBull ?? 0).toLocaleString()}</strong> 진입 전략이 권장됩니다.
           </p>
 
           <div className="flex items-center gap-2 pt-1">
@@ -1333,11 +1333,11 @@ export const AiPredictiveTrendRechartsWidget: React.FC<AiPredictiveTrendRecharts
               <Target className="w-3.5 h-3.5 text-emerald-400" /> 1차/2차 목표가 라인
             </span>
             <div className="flex items-center justify-between font-mono text-xs font-bold">
-              <span className="text-emerald-400">1차 {currencySymbol}{projectedBull.toLocaleString()}</span>
+              <span className="text-emerald-400">1차 {currencySymbol}{(projectedBull ?? 0).toLocaleString()}</span>
               <span className="text-cyan-400">2차 {currencySymbol}{Math.round(projectedBull * 1.05).toLocaleString()}</span>
             </div>
             <span className="text-[10px] text-slate-400 block">
-              손절가: {currencySymbol}{projectedBear.toLocaleString()} (손익비 {riskRewardRatio}:1)
+              손절가: {currencySymbol}{(projectedBear ?? 0).toLocaleString()} (손익비 {riskRewardRatio}:1)
             </span>
           </div>
 

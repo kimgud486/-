@@ -407,19 +407,19 @@ export const RealtimeStockMarketScanner: React.FC = () => {
           addToast(
             "SUCCESS",
             `[${stockItem.name}] 실전 API 매수 주문 체결 성공`,
-            `체결단가: ${stockItem.market === "US" ? "$" + tradePrice.toFixed(2) : tradePrice.toLocaleString() + "원"} (${orderQty}주)`
+            `체결단가: ${stockItem.market === "US" ? "$" + tradePrice.toFixed(2) : (tradePrice ?? 0).toLocaleString() + "원"} (${orderQty}주)`
           );
         } else if (isFallbackSim) {
           addToast(
             "INFO",
             `[${stockItem.name}] 모의투자 전환 매수 체결`,
-            `체결단가: ${stockItem.market === "US" ? "$" + tradePrice.toFixed(2) : tradePrice.toLocaleString() + "원"} (${orderQty}주 - 증권사 거부로 모의체결)`
+            `체결단가: ${stockItem.market === "US" ? "$" + tradePrice.toFixed(2) : (tradePrice ?? 0).toLocaleString() + "원"} (${orderQty}주 - 증권사 거부로 모의체결)`
           );
         } else {
           addToast(
             "SUCCESS",
             `[${stockItem.name}] 모의 매수 주문 체결 성공`,
-            `체결단가: ${stockItem.market === "US" ? "$" + tradePrice.toFixed(2) : tradePrice.toLocaleString() + "원"} (${orderQty}주)`
+            `체결단가: ${stockItem.market === "US" ? "$" + tradePrice.toFixed(2) : (tradePrice ?? 0).toLocaleString() + "원"} (${orderQty}주)`
           );
         }
       }

@@ -102,7 +102,7 @@ export const AIDecisionLogsVisualizer: React.FC = () => {
       name: resolvedName,
       market: mkt,
       action: "BUY_SIGNAL",
-      message: `[AI 5대 퀀트 단일 뇌 분석 완료] ${resolvedName}(${sym}) 실시간 호가 ${isUSUnit(mkt)}${curPrice.toLocaleString()} 지지 확인. 1차 목표가 ${isUSUnit(mkt)}${targetP.toLocaleString()} (+${gainPct}%) 포착.`,
+      message: `[AI 5대 퀀트 단일 뇌 분석 완료] ${resolvedName}(${sym}) 실시간 호가 ${isUSUnit(mkt)}${(curPrice ?? 0).toLocaleString()} 지지 확인. 1차 목표가 ${isUSUnit(mkt)}${(targetP ?? 0).toLocaleString()} (+${gainPct}%) 포착.`,
       confidence: 96,
       currentPrice: curPrice,
       entryPrice: curPrice,
@@ -122,7 +122,7 @@ export const AIDecisionLogsVisualizer: React.FC = () => {
     addToast({
       type: "SUCCESS",
       title: `🎯 ${resolvedName} 목표가 & 시그널 산출 완료`,
-      message: `실시간 호가 ${isUSUnit(mkt)}${curPrice.toLocaleString()} 기준 1차 목표가 ${isUSUnit(mkt)}${targetP.toLocaleString()} (+${gainPct}%) 생성 완료.`
+      message: `실시간 호가 ${isUSUnit(mkt)}${(curPrice ?? 0).toLocaleString()} 기준 1차 목표가 ${isUSUnit(mkt)}${(targetP ?? 0).toLocaleString()} (+${gainPct}%) 생성 완료.`
     });
   };
 
@@ -157,12 +157,12 @@ export const AIDecisionLogsVisualizer: React.FC = () => {
         qty,
         curPrice,
         "AI 시그널 실시간 매수",
-        `[실시간 AI 시그널 즉시 매수] 실시간 호가: ${unit}${curPrice.toLocaleString()} / 목표가: ${unit}${(log.targetPrice || curPrice * 1.12).toLocaleString()} (+${log.targetGainPct || 12}%)`
+        `[실시간 AI 시그널 즉시 매수] 실시간 호가: ${unit}${(curPrice ?? 0).toLocaleString()} / 목표가: ${unit}${(log.targetPrice || curPrice * 1.12).toLocaleString()} (+${log.targetGainPct || 12}%)`
       );
       addToast({
         type: "SUCCESS",
         title: `🎯 ${log.name} 실시간 매수 연동 완료`,
-        message: `실시간 호가 ${unit}${curPrice.toLocaleString()} 및 AI 목표가 ${unit}${(log.targetPrice || curPrice * 1.12).toLocaleString()}로 주문이 체결되었습니다.`
+        message: `실시간 호가 ${unit}${(curPrice ?? 0).toLocaleString()} 및 AI 목표가 ${unit}${(log.targetPrice || curPrice * 1.12).toLocaleString()}로 주문이 체결되었습니다.`
       });
     } catch (err: any) {
       addToast({
@@ -515,7 +515,7 @@ export const AIDecisionLogsVisualizer: React.FC = () => {
                       <span>실시간 호가(진입가)</span>
                     </span>
                     <strong className="text-zinc-900 font-black text-xs sm:text-sm">
-                      {curPrice > 0 ? `${priceUnit}${curPrice.toLocaleString()}` : "실시간 수신 중"}
+                      {curPrice > 0 ? `${priceUnit}${(curPrice ?? 0).toLocaleString()}` : "실시간 수신 중"}
                     </strong>
                   </div>
 
@@ -527,7 +527,7 @@ export const AIDecisionLogsVisualizer: React.FC = () => {
                     </span>
                     <div className="flex items-center gap-1 flex-wrap">
                       <strong className="text-emerald-700 font-black text-xs sm:text-sm">
-                        {targetPrice > 0 ? `${priceUnit}${targetPrice.toLocaleString()}` : "연산 중"}
+                        {targetPrice > 0 ? `${priceUnit}${(targetPrice ?? 0).toLocaleString()}` : "연산 중"}
                       </strong>
                       <span className="text-[10px] font-black text-emerald-700 bg-emerald-100 px-1 py-0.2 rounded">
                         +{targetGain}%
@@ -542,7 +542,7 @@ export const AIDecisionLogsVisualizer: React.FC = () => {
                       <span>손절 기준선 (Stop)</span>
                     </span>
                     <strong className="text-rose-600 font-black text-xs sm:text-sm">
-                      {stopLossPrice > 0 ? `${priceUnit}${stopLossPrice.toLocaleString()}` : "계산 중"}
+                      {stopLossPrice > 0 ? `${priceUnit}${(stopLossPrice ?? 0).toLocaleString()}` : "계산 중"}
                     </strong>
                   </div>
 
@@ -632,7 +632,7 @@ export const AIDecisionLogsVisualizer: React.FC = () => {
                       <div className="space-y-1 bg-zinc-900/80 p-2 rounded border border-zinc-800">
                         <span className="text-zinc-400 block font-bold">1차 목표가 (Target 1)</span>
                         <strong className="text-emerald-400 text-sm font-black">
-                          {priceUnit}{targetPrice.toLocaleString()} (+{targetGain}%)
+                          {priceUnit}{(targetPrice ?? 0).toLocaleString()} (+{targetGain}%)
                         </strong>
                       </div>
 

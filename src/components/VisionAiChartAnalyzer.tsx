@@ -853,7 +853,7 @@ export const VisionAiChartAnalyzer: React.FC = () => {
       addToast({
         type: "INFO",
         title: "🔄 실시간 체결가 앵커 동기화 완료",
-        message: `실시간 시세 변동에 따라 AI 진입 앵커를 최신 실시간 체결가(${executionPrice.toLocaleString()})로 즉시 동기화하여 주문을 전송합니다.`
+        message: `실시간 시세 변동에 따라 AI 진입 앵커를 최신 실시간 체결가(${(executionPrice ?? 0).toLocaleString()})로 즉시 동기화하여 주문을 전송합니다.`
       });
     }
 
@@ -870,13 +870,13 @@ export const VisionAiChartAnalyzer: React.FC = () => {
         qty,
         executionPrice,
         "자비스 Vision AI 차트분석 자동체결",
-        `[자비스 Vision AI] ${selectedPreset.defaultDirection} (실시간 체결가: ${executionPrice.toLocaleString()} / 손절가: ${selectedPreset.stopLoss.toLocaleString()} / TP3: ${selectedPreset.tp3.toLocaleString()})`
+        `[자비스 Vision AI] ${selectedPreset.defaultDirection} (실시간 체결가: ${(executionPrice ?? 0).toLocaleString()} / 손절가: ${(selectedPreset.stopLoss ?? 0).toLocaleString()} / TP3: ${(selectedPreset.tp3 ?? 0).toLocaleString()})`
       );
 
       addToast({
         type: "SUCCESS",
         title: "⚡ 자비스 AI 실시간 체결 완료",
-        message: `${selectedPreset.name} ${selectedPreset.defaultDirection} 포지션이 실시간 체결가 ${executionPrice.toLocaleString()}에 성공적으로 집행되었습니다.`
+        message: `${selectedPreset.name} ${selectedPreset.defaultDirection} 포지션이 실시간 체결가 ${(executionPrice ?? 0).toLocaleString()}에 성공적으로 집행되었습니다.`
       });
     } catch (e: any) {
       addToast({
@@ -1037,7 +1037,7 @@ export const VisionAiChartAnalyzer: React.FC = () => {
                       </div>
 
                       <div className="text-right font-mono">
-                        <div className="text-xs font-bold text-white">${pair.price.toLocaleString()}</div>
+                        <div className="text-xs font-bold text-white">${(pair.price ?? 0).toLocaleString()}</div>
                         <div className="text-[10px] text-cyan-400 font-bold">{pair.timeframe} 타임프레임</div>
                       </div>
                     </button>
@@ -1081,7 +1081,7 @@ export const VisionAiChartAnalyzer: React.FC = () => {
 
               <div className="flex justify-between items-center bg-slate-950 p-2.5 rounded-lg border border-slate-800">
                 <span className="text-zinc-400">Current Market Price</span>
-                <span className="font-bold text-cyan-300">${selectedPreset.price.toLocaleString()}</span>
+                <span className="font-bold text-cyan-300">${(selectedPreset.price ?? 0).toLocaleString()}</span>
               </div>
 
               <div className="flex justify-between items-center bg-slate-950 p-2.5 rounded-lg border border-slate-800">
@@ -1096,7 +1096,7 @@ export const VisionAiChartAnalyzer: React.FC = () => {
 
               <div className="flex justify-between items-center bg-slate-950 p-2.5 rounded-lg border border-slate-800">
                 <span className="text-zinc-400">Invalidation Price</span>
-                <span className="font-bold text-rose-400">${selectedPreset.invalidationPrice.toLocaleString()}</span>
+                <span className="font-bold text-rose-400">${(selectedPreset.invalidationPrice ?? 0).toLocaleString()}</span>
               </div>
             </div>
 
@@ -1236,7 +1236,7 @@ export const VisionAiChartAnalyzer: React.FC = () => {
                   <h3 className="text-xl font-black text-white mt-1.5 flex items-center gap-2">
                     <span>{selectedPreset.symbol}</span>
                     <span className="text-xs font-mono text-cyan-300 bg-cyan-950 border border-cyan-500/40 px-2 py-0.5 rounded">
-                      Live ${livePrice.toLocaleString()}
+                      Live ${(livePrice ?? 0).toLocaleString()}
                     </span>
                   </h3>
                   <p className="text-xs text-zinc-400 font-sans">{selectedPreset.name}</p>
@@ -1247,27 +1247,27 @@ export const VisionAiChartAnalyzer: React.FC = () => {
               <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 font-mono text-xs border-t lg:border-t-0 lg:border-l border-slate-800 pt-4 lg:pt-0 lg:pl-5">
                 <div className="bg-slate-900 p-2.5 rounded-xl border border-rose-900/60 text-center">
                   <span className="text-[10px] text-rose-400 block font-sans font-bold">🔴 STOP</span>
-                  <span className="text-xs font-black text-rose-400">${selectedPreset.stopLoss.toLocaleString()}</span>
+                  <span className="text-xs font-black text-rose-400">${(selectedPreset.stopLoss ?? 0).toLocaleString()}</span>
                 </div>
 
                 <div className="bg-slate-900 p-2.5 rounded-xl border border-zinc-700 text-center">
                   <span className="text-[10px] text-zinc-300 block font-sans font-bold">⚪ ENTRY</span>
-                  <span className="text-xs font-black text-white">${selectedPreset.entryPrice.toLocaleString()}</span>
+                  <span className="text-xs font-black text-white">${(selectedPreset.entryPrice ?? 0).toLocaleString()}</span>
                 </div>
 
                 <div className="bg-slate-900 p-2.5 rounded-xl border border-emerald-900/40 text-center">
                   <span className="text-[10px] text-emerald-400 block font-sans font-bold">🟢 TP1</span>
-                  <span className="text-xs font-bold text-emerald-400">${selectedPreset.tp1.toLocaleString()}</span>
+                  <span className="text-xs font-bold text-emerald-400">${(selectedPreset.tp1 ?? 0).toLocaleString()}</span>
                 </div>
 
                 <div className="bg-slate-900 p-2.5 rounded-xl border border-emerald-900/60 text-center">
                   <span className="text-[10px] text-emerald-400 block font-sans font-bold">🟢 TP2</span>
-                  <span className="text-xs font-bold text-emerald-300">${selectedPreset.tp2.toLocaleString()}</span>
+                  <span className="text-xs font-bold text-emerald-300">${(selectedPreset.tp2 ?? 0).toLocaleString()}</span>
                 </div>
 
                 <div className="bg-slate-900 p-2.5 rounded-xl border border-emerald-500/80 text-center bg-emerald-950/20">
                   <span className="text-[10px] text-emerald-300 block font-sans font-bold">🟢 TP3</span>
-                  <span className="text-xs font-black text-emerald-200">${selectedPreset.tp3.toLocaleString()}</span>
+                  <span className="text-xs font-black text-emerald-200">${(selectedPreset.tp3 ?? 0).toLocaleString()}</span>
                 </div>
               </div>
 
@@ -1288,11 +1288,11 @@ export const VisionAiChartAnalyzer: React.FC = () => {
             <div className="mt-4 pt-3 border-t border-slate-800/80 grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2 text-[11px] font-mono">
               <div className="bg-slate-950 p-2 rounded-lg border border-slate-800">
                 <span className="text-zinc-400 block text-[9px]">VWAP</span>
-                <span className="text-white font-bold">${selectedPreset.indicators.vwap.toLocaleString()}</span>
+                <span className="text-white font-bold">${(selectedPreset.indicators.vwap ?? 0).toLocaleString()}</span>
               </div>
               <div className="bg-slate-950 p-2 rounded-lg border border-slate-800">
                 <span className="text-zinc-400 block text-[9px]">EMA 20</span>
-                <span className="text-white font-bold">${selectedPreset.indicators.ema20.toLocaleString()}</span>
+                <span className="text-white font-bold">${(selectedPreset.indicators.ema20 ?? 0).toLocaleString()}</span>
               </div>
               <div className="bg-slate-950 p-2 rounded-lg border border-slate-800">
                 <span className="text-zinc-400 block text-[9px]">ATR</span>
@@ -1652,12 +1652,12 @@ export const VisionAiChartAnalyzer: React.FC = () => {
               <div className="flex items-center space-x-2">
                 <span className="h-2.5 w-2.5 rounded-full bg-cyan-400 animate-ping"></span>
                 <span>
-                  Real-time Tick Evaluation: <strong className="text-white">${livePrice.toLocaleString()}</strong> | Signal Confidence: <strong className="text-cyan-300">{liveConfidence}%</strong>
+                  Real-time Tick Evaluation: <strong className="text-white">${(livePrice ?? 0).toLocaleString()}</strong> | Signal Confidence: <strong className="text-cyan-300">{liveConfidence}%</strong>
                 </span>
               </div>
 
               <div className="flex items-center space-x-4 text-[11px] text-zinc-400">
-                <span>Inval Price: <strong className="text-rose-400">${selectedPreset.invalidationPrice.toLocaleString()}</strong></span>
+                <span>Inval Price: <strong className="text-rose-400">${(selectedPreset.invalidationPrice ?? 0).toLocaleString()}</strong></span>
                 <span>R:R Ratio: <strong className="text-amber-400">{selectedPreset.riskReward}</strong></span>
               </div>
             </div>

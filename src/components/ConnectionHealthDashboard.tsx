@@ -339,7 +339,7 @@ export const ConnectionHealthDashboard: React.FC<ConnectionHealthDashboardProps>
                           </span>
                         </div>
                         <div className="text-[10px] text-slate-400 mt-1">
-                          패킷 수신: <strong className="text-slate-200">{feed.packetCount.toLocaleString()}</strong>건 (성공률 {feed.successRate}%)
+                          패킷 수신: <strong className="text-slate-200">{(feed.packetCount ?? 0).toLocaleString()}</strong>건 (성공률 {feed.successRate}%)
                         </div>
                       </div>
                     </div>

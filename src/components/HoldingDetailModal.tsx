@@ -66,7 +66,7 @@ export const HoldingDetailModal: React.FC<HoldingDetailModalProps> = ({
   // Format helper
   const fmtVal = (val?: number | null) => {
     if (val == null || isNaN(val)) return isUs ? "$0.00" : "₩0원";
-    if (isUs) return `$${val.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    if (isUs) return `$${(val ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
     return `₩${Math.round(val).toLocaleString()}원`;
   };
 
@@ -229,7 +229,7 @@ export const HoldingDetailModal: React.FC<HoldingDetailModalProps> = ({
             <div className="p-3.5 bg-slate-900/90 border border-slate-800 rounded-xl space-y-1">
               <span className="text-[11px] font-mono text-zinc-400 block font-sans">내 보유 잔고 현황</span>
               <div className="text-xs font-mono text-zinc-200 mt-1 space-y-0.5">
-                <div>보유 수량: <strong className="text-white">{position.quantity.toLocaleString()} {isUs ? "주" : position.market === "BTC" ? "BTC" : "주"}</strong></div>
+                <div>보유 수량: <strong className="text-white">{(position.quantity ?? 0).toLocaleString()} {isUs ? "주" : position.market === "BTC" ? "BTC" : "주"}</strong></div>
                 <div>매수 평단: <strong className="text-zinc-300">{fmtVal(position.avgPrice)}</strong></div>
                 <div>총 평가액: <strong className="text-amber-300">{fmtVal(evalAmt)}</strong></div>
               </div>

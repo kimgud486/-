@@ -265,7 +265,7 @@ export const UploadedStrategyFileReaderModal: React.FC<UploadedStrategyFileReade
                         <td className="p-1.5 text-emerald-400">{formatPrice(c.high)}</td>
                         <td className="p-1.5 text-rose-400">{formatPrice(c.low)}</td>
                         <td className="p-1.5 font-bold text-cyan-300">{formatPrice(c.close)}</td>
-                        <td className="p-1.5 text-zinc-400">{c.volume.toLocaleString()}</td>
+                        <td className="p-1.5 text-zinc-400">{(c.volume ?? 0).toLocaleString()}</td>
                       </tr>
                     ))}
                   </tbody>

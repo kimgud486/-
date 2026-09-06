@@ -48,7 +48,7 @@ export const TradeVerificationModal: React.FC<TradeVerificationModalProps> = ({
 - 시장: ${trade.market}
 - 구분: ${trade.side === "BUY" ? "매수 (BUY)" : "매도 (SELL)"}
 - 체결일시: ${new Date(trade.timestamp).toLocaleString("ko-KR")}
-- 체결단가: ${trade.market === "US" ? `$${trade.price}` : `${trade.price.toLocaleString()}원`}
+- 체결단가: ${trade.market === "US" ? `$${trade.price}` : `${(trade.price ?? 0).toLocaleString()}원`}
 - 체결수량: ${trade.quantity}
 - 총 체결금액: ${trade.market === "US" ? `$${totalAmount.toFixed(2)}` : `${Math.round(totalAmount).toLocaleString()}원`}
 - 거래 형태: 실전 증권사/거래소 실체결
@@ -162,19 +162,19 @@ export const TradeVerificationModal: React.FC<TradeVerificationModalProps> = ({
               <div className="bg-white p-2.5 rounded-lg border border-zinc-150">
                 <span className="text-[10px] text-zinc-400 font-bold block">체결 단가</span>
                 <span className="font-mono font-black text-zinc-900 text-sm">
-                  {trade.market === "US" ? `$${trade.price.toLocaleString(undefined, { minimumFractionDigits: 2 })}` : `${trade.price.toLocaleString()}원`}
+                  {trade.market === "US" ? `$${(trade.price ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}` : `${(trade.price ?? 0).toLocaleString()}원`}
                 </span>
               </div>
               <div className="bg-white p-2.5 rounded-lg border border-zinc-150">
                 <span className="text-[10px] text-zinc-400 font-bold block">체결 수량</span>
                 <span className="font-mono font-black text-zinc-900 text-sm">
-                  {trade.quantity.toLocaleString(undefined, { maximumFractionDigits: 6 })}
+                  {(trade.quantity ?? 0).toLocaleString(undefined, { maximumFractionDigits: 6 })}
                 </span>
               </div>
               <div className="bg-white p-2.5 rounded-lg border border-zinc-150 col-span-2 sm:col-span-1">
                 <span className="text-[10px] text-zinc-400 font-bold block">총 체결 금액</span>
                 <span className="font-mono font-black text-emerald-700 text-sm">
-                  {trade.market === "US" ? `$${totalAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}` : `${Math.round(totalAmount).toLocaleString()}원`}
+                  {trade.market === "US" ? `$${(totalAmount ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}` : `${Math.round(totalAmount).toLocaleString()}원`}
                 </span>
               </div>
             </div>

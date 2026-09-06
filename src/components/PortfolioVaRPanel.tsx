@@ -271,7 +271,7 @@ export const PortfolioVaRPanel: React.FC = () => {
             -{varCalculationResult.activeVarPct}%
           </div>
           <p className="text-[11px] text-rose-200 font-mono font-bold">
-            -{varCalculationResult.activeVarAmountKrw.toLocaleString()}원
+            -{(varCalculationResult.activeVarAmountKrw ?? 0).toLocaleString()}원
           </p>
           <span className="text-[9px] text-slate-400 block">
             {timeHorizonDays}일간 통상적으로 발생 가능한 최대 손실 한계
@@ -288,7 +288,7 @@ export const PortfolioVaRPanel: React.FC = () => {
             -{varCalculationResult.cvar99Pct}%
           </div>
           <p className="text-[11px] text-amber-200 font-mono font-bold">
-            -{varCalculationResult.cvarAmountKrw.toLocaleString()}원
+            -{(varCalculationResult.cvarAmountKrw ?? 0).toLocaleString()}원
           </p>
           <span className="text-[9px] text-slate-400 block">
             극단적 꼬리 위험 발생 시 평균 기대 손실액
@@ -458,7 +458,7 @@ export const PortfolioVaRPanel: React.FC = () => {
                       {st.historicalLossPct}%
                     </td>
                     <td className="py-3 px-2 text-right font-black text-amber-300">
-                      {estimatedImpactKrw.toLocaleString()}원
+                      {(estimatedImpactKrw ?? 0).toLocaleString()}원
                     </td>
                     <td className="py-3 px-2 text-center text-slate-300 font-bold">
                       약 {st.recoveryDays}일

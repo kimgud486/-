@@ -159,7 +159,7 @@ export const MockPortfolioDetailModal: React.FC<MockPortfolioDetailModalProps> =
         addToast({
           type: 'ERROR',
           title: `[가상 예수금 부족] ${position.name} (${position.symbol})`,
-          message: `${position.name} (${position.symbol}) 매수 주문 금액(₩${Math.round(orderAmountKrw).toLocaleString()}원)이 현재 가상 예수금(₩${mockCash.toLocaleString()}원)을 초과합니다.`
+          message: `${position.name} (${position.symbol}) 매수 주문 금액(₩${Math.round(orderAmountKrw).toLocaleString()}원)이 현재 가상 예수금(₩${(mockCash ?? 0).toLocaleString()}원)을 초과합니다.`
         });
         return;
       }
@@ -307,14 +307,14 @@ export const MockPortfolioDetailModal: React.FC<MockPortfolioDetailModalProps> =
               <PieChart className="w-3.5 h-3.5 text-blue-500" />
             </div>
             <div className="text-lg sm:text-xl font-black font-mono text-slate-900 dark:text-white tracking-tight">
-              {totalAssets.toLocaleString()}<span className="text-xs font-sans text-slate-500 ml-1">원</span>
+              {(totalAssets ?? 0).toLocaleString()}<span className="text-xs font-sans text-slate-500 ml-1">원</span>
             </div>
             <div className="flex items-center gap-1 mt-1 text-xs font-bold">
               <span className={totalPortfolioPnl >= 0 ? "text-rose-500" : "text-sky-500"}>
                 {totalPortfolioPnl >= 0 ? "+" : ""}{totalPortfolioRoi.toFixed(2)}%
               </span>
               <span className="text-[11px] text-slate-400">
-                ({totalPortfolioPnl >= 0 ? "+" : ""}{totalPortfolioPnl.toLocaleString()}원)
+                ({totalPortfolioPnl >= 0 ? "+" : ""}{(totalPortfolioPnl ?? 0).toLocaleString()}원)
               </span>
             </div>
           </div>
@@ -326,7 +326,7 @@ export const MockPortfolioDetailModal: React.FC<MockPortfolioDetailModalProps> =
               <Wallet className="w-3.5 h-3.5 text-emerald-500" />
             </div>
             <div className="text-lg sm:text-xl font-black font-mono text-slate-900 dark:text-white tracking-tight">
-              {mockCash.toLocaleString()}<span className="text-xs font-sans text-slate-500 ml-1">원</span>
+              {(mockCash ?? 0).toLocaleString()}<span className="text-xs font-sans text-slate-500 ml-1">원</span>
             </div>
             <div className="flex items-center justify-between mt-1">
               <span className="text-[11px] text-slate-500">
@@ -348,7 +348,7 @@ export const MockPortfolioDetailModal: React.FC<MockPortfolioDetailModalProps> =
               <BarChart2 className="w-3.5 h-3.5 text-indigo-500" />
             </div>
             <div className="text-lg sm:text-xl font-black font-mono text-slate-900 dark:text-white tracking-tight">
-              {totalEval.toLocaleString()}<span className="text-xs font-sans text-slate-500 ml-1">원</span>
+              {(totalEval ?? 0).toLocaleString()}<span className="text-xs font-sans text-slate-500 ml-1">원</span>
             </div>
             <div className="flex items-center gap-1 mt-1 text-xs font-bold">
               <span className={totalUnrealizedPnl >= 0 ? "text-rose-500" : "text-sky-500"}>
@@ -370,7 +370,7 @@ export const MockPortfolioDetailModal: React.FC<MockPortfolioDetailModalProps> =
               {trades.length}<span className="text-xs font-sans text-slate-500 ml-1">건</span>
             </div>
             <div className="text-[11px] text-slate-400 mt-1">
-              시작 원금: {initialCapital.toLocaleString()}원
+              시작 원금: {(initialCapital ?? 0).toLocaleString()}원
             </div>
           </div>
         </div>
@@ -582,7 +582,7 @@ export const MockPortfolioDetailModal: React.FC<MockPortfolioDetailModalProps> =
                               </div>
                             </td>
                             <td className="px-3.5 py-3 text-right font-bold text-slate-800 dark:text-slate-200">
-                              {pos.quantity.toLocaleString()}주
+                              {(pos.quantity ?? 0).toLocaleString()}주
                             </td>
                             <td className="px-3.5 py-3 text-right text-slate-600 dark:text-slate-400">
                               {isUs ? (
@@ -843,7 +843,7 @@ export const MockPortfolioDetailModal: React.FC<MockPortfolioDetailModalProps> =
                             {Math.round(t.price).toLocaleString()}원
                           </td>
                           <td className="px-3.5 py-2.5 text-right text-slate-700 dark:text-slate-300">
-                            {t.quantity.toLocaleString()}주
+                            {(t.quantity ?? 0).toLocaleString()}주
                           </td>
                           <td className="px-3.5 py-2.5 text-right font-bold text-slate-900 dark:text-white">
                             {Math.round(t.price * t.quantity).toLocaleString()}원

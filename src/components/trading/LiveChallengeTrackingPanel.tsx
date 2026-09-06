@@ -618,7 +618,7 @@ export const LiveChallengeTrackingPanel: React.FC<LiveChallengeTrackingPanelProp
                   <div>
                     <div className="text-[10px] text-slate-400">현재가</div>
                     <div className="font-bold text-slate-100 flex items-baseline gap-1">
-                      <span>{asset.unit === "원" ? `₩${asset.currentPrice.toLocaleString()}` : `$${asset.currentPrice.toLocaleString()}`}</span>
+                      <span>{asset.unit === "원" ? `₩${(asset.currentPrice ?? 0).toLocaleString()}` : `$${(asset.currentPrice ?? 0).toLocaleString()}`}</span>
                       <span className={`text-[10px] font-bold ${asset.changePercent >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
                         {asset.changePercent >= 0 ? "+" : ""}{asset.changePercent}%
                       </span>

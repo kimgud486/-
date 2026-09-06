@@ -364,26 +364,26 @@ export const NeuralBotClusterVisualizer: React.FC<NeuralBotClusterVisualizerProp
               <div className="grid grid-cols-3 gap-1.5 text-center font-mono">
                 <div className="p-1.5 rounded-lg bg-emerald-950/40 border border-emerald-500/40">
                   <div className="text-[9px] text-emerald-300 font-bold">1차 (40% 매도)</div>
-                  <div className="text-[11px] font-black text-white">₩{unifiedDecision.targetPrice1.toLocaleString()}</div>
+                  <div className="text-[11px] font-black text-white">₩{(unifiedDecision.targetPrice1 ?? 0).toLocaleString()}</div>
                   <div className="text-[9px] text-emerald-400">+3.5% (본절스탑)</div>
                 </div>
 
                 <div className="p-1.5 rounded-lg bg-sky-950/40 border border-sky-500/40">
                   <div className="text-[9px] text-sky-300 font-bold">2차 (30% 매도)</div>
-                  <div className="text-[11px] font-black text-white">₩{unifiedDecision.targetPrice2.toLocaleString()}</div>
+                  <div className="text-[11px] font-black text-white">₩{(unifiedDecision.targetPrice2 ?? 0).toLocaleString()}</div>
                   <div className="text-[9px] text-sky-400">+7.0% (트레일링)</div>
                 </div>
 
                 <div className="p-1.5 rounded-lg bg-purple-950/40 border border-purple-500/40">
                   <div className="text-[9px] text-purple-300 font-bold">3차 (30% 런너)</div>
-                  <div className="text-[11px] font-black text-white">₩{unifiedDecision.targetPrice3.toLocaleString()}</div>
+                  <div className="text-[11px] font-black text-white">₩{(unifiedDecision.targetPrice3 ?? 0).toLocaleString()}</div>
                   <div className="text-[9px] text-purple-400">+12.0% (문샷)</div>
                 </div>
               </div>
 
               <div className="flex items-center justify-between text-[10px] font-mono text-slate-400 pt-1 border-t border-slate-800">
-                <span>엄격 손절가: <strong className="text-rose-400">₩{unifiedDecision.stopLossPrice.toLocaleString()} (-2.5%)</strong></span>
-                <span>진입가: ₩{unifiedDecision.entryPrice.toLocaleString()}</span>
+                <span>엄격 손절가: <strong className="text-rose-400">₩{(unifiedDecision.stopLossPrice ?? 0).toLocaleString()} (-2.5%)</strong></span>
+                <span>진입가: ₩{(unifiedDecision.entryPrice ?? 0).toLocaleString()}</span>
               </div>
             </div>
 

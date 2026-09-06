@@ -380,14 +380,14 @@ export const MarketTickerWidget: React.FC = () => {
   const formatPrice = (t: TickerItem) => {
     if (t.unit === "KRW") {
       if (t.price >= 10000) {
-        return `₩${t.price.toLocaleString()}원`;
+        return `₩${(t.price ?? 0).toLocaleString()}원`;
       }
-      return `₩${t.price.toLocaleString("ko-KR", { minimumFractionDigits: 1 })}원`;
+      return `₩${(t.price ?? 0).toLocaleString("ko-KR", { minimumFractionDigits: 1 })}원`;
     }
     if (t.unit === "USD") {
-      return `$${t.price.toLocaleString("en-US", { minimumFractionDigits: 2 })}`;
+      return `$${(t.price ?? 0).toLocaleString("en-US", { minimumFractionDigits: 2 })}`;
     }
-    return t.price.toLocaleString("en-US", { minimumFractionDigits: 2 });
+    return (t.price ?? 0).toLocaleString("en-US", { minimumFractionDigits: 2 });
   };
 
   // Select searched asset handler

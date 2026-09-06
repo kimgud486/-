@@ -158,7 +158,7 @@ export const TrendSpiderVisualAnalyzer: React.FC = () => {
     const targetMarket = market || selectedStock.market;
     if (targetMarket === "US") {
       const isWhole = val % 1 === 0;
-      return `$${val.toLocaleString(undefined, { minimumFractionDigits: isWhole ? 0 : 2, maximumFractionDigits: 2 })}`;
+      return `$${(val ?? 0).toLocaleString(undefined, { minimumFractionDigits: isWhole ? 0 : 2, maximumFractionDigits: 2 })}`;
     }
     return `₩${Math.round(val).toLocaleString()}원`;
   };
@@ -945,7 +945,7 @@ export const TrendSpiderVisualAnalyzer: React.FC = () => {
             <h3 className="text-2xl font-black text-zinc-900 flex items-center space-x-3">
               <span>{selectedStock.name}</span>
               <span className="text-xl font-mono">
-                {selectedStock.market === "US" ? `$${selectedStock.price.toLocaleString()}` : `₩${selectedStock.price.toLocaleString()}원`}
+                {selectedStock.market === "US" ? `$${(selectedStock.price ?? 0).toLocaleString()}` : `₩${(selectedStock.price ?? 0).toLocaleString()}원`}
               </span>
               <span className={`text-xs font-bold font-mono px-2 py-1 rounded ${isUp ? "bg-emerald-100 text-emerald-800" : "bg-rose-100 text-rose-800"}`}>
                 {isUp ? `▲ +${selectedStock.changePct}%` : `▼ ${selectedStock.changePct}%`}
@@ -1401,7 +1401,7 @@ export const TrendSpiderVisualAnalyzer: React.FC = () => {
                     stroke="#a1a1aa" 
                     fontSize={11} 
                     domain={['auto', 'auto']} 
-                    tickFormatter={(v) => v >= 10000 ? `${(v/10000).toFixed(1)}만` : v.toLocaleString()} 
+                    tickFormatter={(v) => v >= 10000 ? `${(v/10000).toFixed(1)}만` : (v ?? 0).toLocaleString()} 
                   />
                   <Tooltip 
                     contentStyle={{ backgroundColor: "#09090b", borderColor: "#3f3f46", color: "#fff", fontSize: "13px", borderRadius: "12px", padding: "10px 14px" }}
@@ -1847,16 +1847,16 @@ export const TrendSpiderVisualAnalyzer: React.FC = () => {
               <div className="space-y-1.5 text-slate-300 leading-relaxed text-[11.5px]">
                 <div className="grid grid-cols-2 gap-2 font-mono text-[11px] bg-slate-900 p-2 rounded-lg border border-slate-800">
                   <div className="text-emerald-400">
-                    매수가: {selectedStock.market === "US" ? `$${targetBuyPrice.toLocaleString()}` : `₩${targetBuyPrice.toLocaleString()}원`} 이하
+                    매수가: {selectedStock.market === "US" ? `$${(targetBuyPrice ?? 0).toLocaleString()}` : `₩${(targetBuyPrice ?? 0).toLocaleString()}원`} 이하
                   </div>
                   <div className="text-indigo-400">
-                    1차익절: {selectedStock.market === "US" ? `$${takeProfit1.toLocaleString()}` : `₩${takeProfit1.toLocaleString()}원`} (+8.0%)
+                    1차익절: {selectedStock.market === "US" ? `$${(takeProfit1 ?? 0).toLocaleString()}` : `₩${(takeProfit1 ?? 0).toLocaleString()}원`} (+8.0%)
                   </div>
                   <div className="text-purple-400">
-                    2차익절: {selectedStock.market === "US" ? `$${takeProfit2.toLocaleString()}` : `₩${takeProfit2.toLocaleString()}원`} (+15.0%)
+                    2차익절: {selectedStock.market === "US" ? `$${(takeProfit2 ?? 0).toLocaleString()}` : `₩${(takeProfit2 ?? 0).toLocaleString()}원`} (+15.0%)
                   </div>
                   <div className="text-rose-400">
-                    손절가: {selectedStock.market === "US" ? `$${stopLossPrice.toLocaleString()}` : `₩${stopLossPrice.toLocaleString()}원`} (-5.0%)
+                    손절가: {selectedStock.market === "US" ? `$${(stopLossPrice ?? 0).toLocaleString()}` : `₩${(stopLossPrice ?? 0).toLocaleString()}원`} (-5.0%)
                   </div>
                 </div>
                 <p>

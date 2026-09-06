@@ -37,7 +37,7 @@ export const BotConfigModal: React.FC<BotConfigModalProps> = ({
       setRiskLevel(threshold.riskLevel);
       setTargetProfit(`${threshold.targetProfitPercent}%`);
       setStopLoss(`${threshold.stopLossPercent}%`);
-      setMaxAllocation(`${threshold.maxAllocationKRW.toLocaleString()}원`);
+      setMaxAllocation(`${(threshold.maxAllocationKRW ?? 0).toLocaleString()}원`);
       setMinConfidence(threshold.minConfidence);
       setAutoAiAdaptation(threshold.autoAiAdaptation);
       setAiNotice(threshold.lastAiAdaptationNotice || "AI 적응형 임계값 파이프라인 연동 중");

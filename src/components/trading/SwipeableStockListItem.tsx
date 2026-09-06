@@ -136,7 +136,7 @@ export const SwipeableStockListItem: React.FC<SwipeableStockListItemProps> = ({
 
         <div className="text-right font-mono">
           <div className="font-black text-slate-900 dark:text-white">
-            {isUS ? `$${stock.price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : `${stock.price.toLocaleString()}원`}
+            {isUS ? `$${(stock.price ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : `${(stock.price ?? 0).toLocaleString()}원`}
           </div>
           <div className={`text-[10px] font-bold ${
             stock.changeRate >= 0 ? "text-rose-600 dark:text-rose-400" : "text-blue-600 dark:text-blue-400"

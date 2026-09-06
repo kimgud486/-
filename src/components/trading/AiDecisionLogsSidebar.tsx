@@ -90,7 +90,7 @@ export const AiDecisionLogsSidebar: React.FC = () => {
       addToast({
         type: "SUCCESS",
         title: `🎯 ${log.name} 체결 완료`,
-        message: `${unit}${curPrice.toLocaleString()} 및 AI 목표가 ${(log.targetPrice || curPrice * 1.12).toLocaleString()}${unit} 체결 완료.`
+        message: `${unit}${(curPrice ?? 0).toLocaleString()} 및 AI 목표가 ${(log.targetPrice || curPrice * 1.12).toLocaleString()}${unit} 체결 완료.`
       });
     } catch (err: any) {
       addToast({
@@ -341,11 +341,11 @@ export const AiDecisionLogsSidebar: React.FC = () => {
                       <div className="grid grid-cols-3 gap-1.5 bg-zinc-950 p-2 rounded-xl text-[10px] font-mono border border-zinc-800">
                         <div>
                           <span className="text-zinc-500 block">진입가/호가</span>
-                          <strong className="text-white">{priceUnit}{curPrice.toLocaleString()}</strong>
+                          <strong className="text-white">{priceUnit}{(curPrice ?? 0).toLocaleString()}</strong>
                         </div>
                         <div>
                           <span className="text-emerald-400 block">AI 목표가</span>
-                          <strong className="text-emerald-400">+{targetGain}% ({priceUnit}{targetPrice.toLocaleString()})</strong>
+                          <strong className="text-emerald-400">+{targetGain}% ({priceUnit}{(targetPrice ?? 0).toLocaleString()})</strong>
                         </div>
                         <div>
                           <span className="text-rose-400 block">손절 설정가</span>

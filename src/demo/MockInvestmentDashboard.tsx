@@ -115,7 +115,7 @@ export const MockInvestmentDashboard: React.FC<{
       addToast({
         type: "SUCCESS",
         title: "💵 가상 자산 +100만원 충전 완료",
-        message: `모의투자 가상 잔고가 ${newBal.toLocaleString()}원으로 충전되었습니다.`
+        message: `모의투자 가상 잔고가 ${(newBal ?? 0).toLocaleString()}원으로 충전되었습니다.`
       });
     } catch (e: any) {
       addToast({
@@ -230,7 +230,7 @@ export const MockInvestmentDashboard: React.FC<{
             +{totalReturnPct > 0 ? totalReturnPct : 15.6}%
           </div>
           <div className="text-[11px] text-slate-500 dark:text-zinc-400 font-mono">
-            가상 잔고: {currentPaperBalance.toLocaleString()}원
+            가상 잔고: {(currentPaperBalance ?? 0).toLocaleString()}원
           </div>
         </div>
 
@@ -427,13 +427,13 @@ export const MockInvestmentDashboard: React.FC<{
                         <strong className="text-slate-900 dark:text-white font-bold group-hover:text-indigo-600 transition">{pos.name} ({pos.symbol})</strong>
                         <Sparkles className="w-3 h-3 text-indigo-500 opacity-80" />
                       </div>
-                      <span className="text-slate-500 text-[11px] font-mono">평단가 {pos.avgPrice.toLocaleString()}원 | {pos.quantity}주 (클릭 분석)</span>
+                      <span className="text-slate-500 text-[11px] font-mono">평단가 {(pos.avgPrice ?? 0).toLocaleString()}원 | {pos.quantity}주 (클릭 분석)</span>
                     </div>
                     <div className="text-right font-mono font-bold">
                       <span className={pnl >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}>
                         {pnl >= 0 ? "+" : ""}{pnl.toFixed(2)}%
                       </span>
-                      <span className="text-[10px] text-slate-400 block">{curP.toLocaleString()}원</span>
+                      <span className="text-[10px] text-slate-400 block">{(curP ?? 0).toLocaleString()}원</span>
                     </div>
                   </div>
                 );
@@ -491,7 +491,7 @@ export const MockInvestmentDashboard: React.FC<{
                     <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${
                       log.side === "BUY" ? "bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300" : "bg-rose-100 dark:bg-rose-950 text-rose-800 dark:text-rose-300"
                     }`}>
-                      {log.side} {log.price.toLocaleString()}원
+                      {log.side} {(log.price ?? 0).toLocaleString()}원
                     </span>
                   </div>
                 </div>

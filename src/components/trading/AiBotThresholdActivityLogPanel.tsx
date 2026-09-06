@@ -326,7 +326,7 @@ export const AiBotThresholdActivityLogPanel: React.FC = () => {
                   </div>
 
                   <div className="text-xs font-mono font-bold text-slate-900 dark:text-slate-100 shrink-0">
-                    {log.stockName} ({log.symbol}) • {log.price.toLocaleString()}원
+                    {log.stockName} ({log.symbol}) • {(log.price ?? 0).toLocaleString()}원
                   </div>
                 </div>
 

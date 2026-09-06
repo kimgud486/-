@@ -221,7 +221,7 @@ export class AutonomousExecutionEngineV11 {
       this.addLog(
         "BUY_EXEC",
         `🚀 [${isLive ? "LIVE 실거래" : "PAPER 모의"}] BUY 주문 제출`,
-        `종목: ${candidate.name} (${candidate.symbol}) | 수량: ${qty}주 | 가격: ${candidate.price.toLocaleString()}원`
+        `종목: ${candidate.name} (${candidate.symbol}) | 수량: ${qty}주 | 가격: ${(candidate.price ?? 0).toLocaleString()}원`
       );
 
       const orderResult: KISOrderResult = await this.kisAdapter.placeOrder({
@@ -351,8 +351,8 @@ export class AutonomousExecutionEngineV11 {
 
         this.addLog(
           "SELL_EXEC",
-          `🟢 SELL 체결 완료 (${pnlKRW >= 0 ? "+" : ""}${pnlKRW.toLocaleString()}원)`,
-          `종목: ${position.name} | 매도가: ${position.currentPrice.toLocaleString()}원 | 사유: ${reason}`
+          `🟢 SELL 체결 완료 (${pnlKRW >= 0 ? "+" : ""}${(pnlKRW ?? 0).toLocaleString()}원)`,
+          `종목: ${position.name} | 매도가: ${(position.currentPrice ?? 0).toLocaleString()}원 | 사유: ${reason}`
         );
       } else {
         this.stateMachine.rejectSellPending(orderResult.message);

@@ -260,8 +260,8 @@ export const RealBrokerDetailedBalanceAndHoldings: React.FC<RealBrokerDetailedBa
   // Helper formatting for quantity
   const formatQty = (qty: number | undefined | null, market?: string) => {
     const safeVal = typeof qty === 'number' && !isNaN(qty) ? qty : (Number(qty) || 0);
-    if (market === "BTC") return safeVal.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 6 });
-    return safeVal.toLocaleString();
+    if (market === "BTC") return (safeVal ?? 0).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 6 });
+    return (safeVal ?? 0).toLocaleString();
   };
 
   // Helper formatting for price (Dual KRW & USD support)
@@ -272,7 +272,7 @@ export const RealBrokerDetailedBalanceAndHoldings: React.FC<RealBrokerDetailedBa
       const krwEquivalent = Math.round(safeVal * exchangeRateKRW).toLocaleString();
       return (
         <span className="inline-flex flex-col items-end">
-          <span className="text-emerald-300 font-black">${safeVal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+          <span className="text-emerald-300 font-black">${(safeVal ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
           <span className="text-[10px] text-slate-400 font-sans">(≈ ₩{krwEquivalent}원)</span>
         </span>
       );
@@ -285,7 +285,7 @@ export const RealBrokerDetailedBalanceAndHoldings: React.FC<RealBrokerDetailedBa
       const usdVal = (rawPrice && qty) ? rawPrice * qty : val / exchangeRateKRW;
       return (
         <div className="inline-flex flex-col items-end">
-          <span className="text-emerald-300 font-black">${usdVal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+          <span className="text-emerald-300 font-black">${(usdVal ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
           <span className="text-[10px] text-slate-400 font-sans font-normal">≈ ₩{Math.round(val).toLocaleString()}원</span>
         </div>
       );
@@ -370,10 +370,10 @@ export const RealBrokerDetailedBalanceAndHoldings: React.FC<RealBrokerDetailedBa
           <div className="p-3 bg-slate-900/90 border border-slate-800 rounded-xl">
             <span className="text-[11px] font-bold text-slate-400 block mb-0.5">통합 총 순자산</span>
             <div className="text-base sm:text-lg font-black text-white font-mono">
-              ₩{grandTotalAssets.toLocaleString()}원
+              ₩{(grandTotalAssets ?? 0).toLocaleString()}원
             </div>
             <span className="text-[10px] text-slate-400 font-mono">
-              약 ${grandTotalAssetsUSD.toLocaleString()}
+              약 ${(grandTotalAssetsUSD ?? 0).toLocaleString()}
             </span>
           </div>
 
@@ -382,7 +382,7 @@ export const RealBrokerDetailedBalanceAndHoldings: React.FC<RealBrokerDetailedBa
               총 가용 예수금 ({cashWeightPct}%)
             </span>
             <div className="text-base sm:text-lg font-black text-emerald-400 font-mono">
-              ₩{totalCashKRW.toLocaleString()}원
+              ₩{(totalCashKRW ?? 0).toLocaleString()}원
             </div>
             <span className="text-[10px] text-slate-400 font-mono">
               주문 즉시 가용 현금 버퍼
@@ -394,7 +394,7 @@ export const RealBrokerDetailedBalanceAndHoldings: React.FC<RealBrokerDetailedBa
               보유종목 평가액 ({investedWeightPct}%)
             </span>
             <div className="text-base sm:text-lg font-black text-cyan-300 font-mono">
-              ₩{holdingsStats.totalValuationKRW.toLocaleString()}원
+              ₩{(holdingsStats.totalValuationKRW ?? 0).toLocaleString()}원
             </div>
             <span className="text-[10px] text-slate-400 font-mono">
               총 {positions.length}개 종목 보유 중
@@ -404,7 +404,7 @@ export const RealBrokerDetailedBalanceAndHoldings: React.FC<RealBrokerDetailedBa
           <div className="p-3 bg-slate-900/90 border border-slate-800 rounded-xl">
             <span className="text-[11px] font-bold text-slate-400 block mb-0.5">총 평가손익</span>
             <div className={`text-base sm:text-lg font-black font-mono ${holdingsStats.totalPnlKRW >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
-              {holdingsStats.totalPnlKRW >= 0 ? "+" : ""}₩{holdingsStats.totalPnlKRW.toLocaleString()}원
+              {holdingsStats.totalPnlKRW >= 0 ? "+" : ""}₩{(holdingsStats.totalPnlKRW ?? 0).toLocaleString()}원
             </div>
             <span className={`text-[10px] font-bold font-mono ${holdingsStats.totalPnlRate >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
               {holdingsStats.totalPnlRate >= 0 ? "+" : ""}{holdingsStats.totalPnlRate}%
@@ -420,7 +420,7 @@ export const RealBrokerDetailedBalanceAndHoldings: React.FC<RealBrokerDetailedBa
               🇺🇸 외국 주식 실시간 달러($) 환율 고시:
             </span>
             <span className="font-mono font-black text-emerald-400 bg-emerald-950/80 px-2 py-0.5 rounded border border-emerald-500/40">
-              1 USD = ₩{exchangeRateKRW.toLocaleString()}원
+              1 USD = ₩{(exchangeRateKRW ?? 0).toLocaleString()}원
             </span>
             <span className="text-slate-400 text-[11px]">
               (외국 주식은 단가 및 평가액이 달러($)로 표기되며 원화 환산액이 동시 병기됩니다)
@@ -541,7 +541,7 @@ export const RealBrokerDetailedBalanceAndHoldings: React.FC<RealBrokerDetailedBa
                   <div className="flex items-center justify-between p-2 rounded-lg bg-slate-950 border border-slate-800">
                     <span className="text-slate-400 font-sans">국내/해외 주식 평가액:</span>
                     <span className="font-bold text-cyan-300">
-                      ₩{holdingsStats.koreaValuation.toLocaleString()}원
+                      ₩{(holdingsStats.koreaValuation ?? 0).toLocaleString()}원
                     </span>
                   </div>
 
@@ -961,7 +961,7 @@ export const RealBrokerDetailedBalanceAndHoldings: React.FC<RealBrokerDetailedBa
                       {/* PnL Badges */}
                       <div className={`text-right font-mono ${isProfit ? "text-emerald-400" : "text-rose-400"}`}>
                         <div className="text-xs font-black">
-                          {isProfit ? "+" : ""}₩{pnlKRW.toLocaleString()}원
+                          {isProfit ? "+" : ""}₩{(pnlKRW ?? 0).toLocaleString()}원
                         </div>
                         <div className="text-[10px] font-bold">
                           {isProfit ? "+" : ""}{pnlRate.toFixed(2)}%
@@ -1142,7 +1142,7 @@ export const RealBrokerDetailedBalanceAndHoldings: React.FC<RealBrokerDetailedBa
                           {formatValuation(totalValuation, pos.market, pos.currentPrice, pos.quantity)}
                         </td>
                         <td className={`p-3 text-right font-bold ${isProfit ? "text-emerald-400" : "text-rose-400"}`}>
-                          <div>{isProfit ? "+" : ""}₩{pnlKRW.toLocaleString()}원</div>
+                          <div>{isProfit ? "+" : ""}₩{(pnlKRW ?? 0).toLocaleString()}원</div>
                           <div className="text-[10px]">{isProfit ? "+" : ""}{pnlRate.toFixed(2)}%</div>
                         </td>
                         <td className="p-3 text-center">

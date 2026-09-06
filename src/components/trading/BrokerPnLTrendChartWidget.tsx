@@ -141,7 +141,7 @@ export const BrokerPnLTrendChartWidget: React.FC<BrokerPnLTrendChartWidgetProps>
         <div className="p-3 bg-slate-950 rounded-xl border border-slate-800 space-y-1">
           <span className="text-[11px] text-slate-400 font-bold block">기간 누적 실현수익</span>
           <div className="text-base font-mono font-black text-emerald-400">
-            +{totalProfit.toLocaleString()}원
+            +{(totalProfit ?? 0).toLocaleString()}원
           </div>
         </div>
 

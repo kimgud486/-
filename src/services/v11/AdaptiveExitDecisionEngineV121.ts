@@ -77,7 +77,7 @@ export class AdaptiveExitDecisionEngineV121 {
       breakdown.push({
         factor: "ATR_TRAILING_STOP_BROKEN",
         points: 30,
-        description: `ATR Trailing Stop (${dynamicATRTrailingStop.toLocaleString()}원) 이탈`
+        description: `ATR Trailing Stop (${(dynamicATRTrailingStop ?? 0).toLocaleString()}원) 이탈`
       });
       totalSellScore += 30;
     }
@@ -87,7 +87,7 @@ export class AdaptiveExitDecisionEngineV121 {
       breakdown.push({
         factor: "STRUCTURE_BREAK",
         points: 22,
-        description: `최고가(${position.highPriceSinceBuy.toLocaleString()}원) 대비 -1.5% 하락하여 HH-HL 상승파동 구조 붕괴`
+        description: `최고가(${(position.highPriceSinceBuy ?? 0).toLocaleString()}원) 대비 -1.5% 하락하여 HH-HL 상승파동 구조 붕괴`
       });
       totalSellScore += 22;
     }
@@ -99,7 +99,7 @@ export class AdaptiveExitDecisionEngineV121 {
         breakdown.push({
           factor: "VWAP_LOST",
           points: 18,
-          description: `VWAP 지지선(${ind.vwap.toLocaleString()}원) 대비 ${vwapDiff}% 이탈`
+          description: `VWAP 지지선(${(ind.vwap ?? 0).toLocaleString()}원) 대비 ${vwapDiff}% 이탈`
         });
         totalSellScore += 18;
       }
@@ -181,7 +181,7 @@ export class AdaptiveExitDecisionEngineV121 {
       primaryReason = `매도 시그널 경고 (매도 스코어: ${totalSellScore}점) - Trailing Stop 추적`;
     } else if (currentPnlPct > 2.0) {
       exitType = "PROFIT_HOLD";
-      primaryReason = `수익 보유 중 (+${currentPnlPct}%) - ATR Trailing(${dynamicATRTrailingStop.toLocaleString()}원) 상향 추적`;
+      primaryReason = `수익 보유 중 (+${currentPnlPct}%) - ATR Trailing(${(dynamicATRTrailingStop ?? 0).toLocaleString()}원) 상향 추적`;
     }
 
     return {

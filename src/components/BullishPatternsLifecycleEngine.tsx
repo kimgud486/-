@@ -1152,15 +1152,15 @@ export const BullishPatternsLifecycleEngine: React.FC = () => {
                           </td>
 
                           <td className="py-3 px-4 text-right font-mono font-bold">
-                            {st.currentPrice.toLocaleString()}원
+                            {(st.currentPrice ?? 0).toLocaleString()}원
                           </td>
 
                           <td className="py-3 px-4 text-right font-mono font-bold text-amber-600 dark:text-amber-400">
-                            {st.breakoutPrice.toLocaleString()}원
+                            {(st.breakoutPrice ?? 0).toLocaleString()}원
                           </td>
 
                           <td className="py-3 px-4 text-right font-mono font-bold text-emerald-600 dark:text-emerald-400">
-                            <div>{st.targetPrice.toLocaleString()}원</div>
+                            <div>{(st.targetPrice ?? 0).toLocaleString()}원</div>
                             <div className="text-[10px] text-emerald-500 font-normal">+{returnPct}% 예상</div>
                           </td>
 
@@ -1262,12 +1262,12 @@ export const BullishPatternsLifecycleEngine: React.FC = () => {
               <div>
                 <span className="text-[10px] text-zinc-400 font-bold block">산출된 1차 상승 목표가</span>
                 <span className="text-lg font-black text-emerald-400 font-mono">
-                  {calcRes.targetPrice.toLocaleString()}원 (+{calcRes.returnPct}%)
+                  {(calcRes.targetPrice ?? 0).toLocaleString()}원 (+{calcRes.returnPct}%)
                 </span>
               </div>
               <div className="text-[11px] text-zinc-300 font-mono flex items-center justify-between border-t border-zinc-800 pt-1 mt-1">
                 <span className="text-zinc-500">권장 손절가(SL)</span>
-                <span className="text-rose-400 font-bold">{calcRes.recommendedSL.toLocaleString()}원</span>
+                <span className="text-rose-400 font-bold">{(calcRes.recommendedSL ?? 0).toLocaleString()}원</span>
               </div>
             </div>
           </div>

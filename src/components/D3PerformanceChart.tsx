@@ -62,7 +62,7 @@ export const D3PerformanceChart: React.FC = () => {
       const timeStr = timeRange === "1D" 
         ? `${d.getHours()}:00` 
         : `${d.getMonth() + 1}/${d.getDate()}`;
-      const fullTimeStr = d.toLocaleString();
+      const fullTimeStr = (d ?? 0).toLocaleString();
 
       if (i === 0) {
         // Last point is strictly anchored to live calculated numbers
@@ -255,7 +255,7 @@ export const D3PerformanceChart: React.FC = () => {
           .attr("stroke-width", 1.5)
           .style("cursor", "pointer")
           .append("title")
-          .text(`${d.tradeEvent.type === "BUY" ? "매수" : "매도"}: ${d.tradeEvent.name}(${d.tradeEvent.symbol}) @ ${d.tradeEvent.price.toLocaleString()}`);
+          .text(`${d.tradeEvent.type === "BUY" ? "매수" : "매도"}: ${d.tradeEvent.name}(${d.tradeEvent.symbol}) @ ${(d.tradeEvent.price ?? 0).toLocaleString()}`);
       }
     });
 
@@ -454,7 +454,7 @@ export const D3PerformanceChart: React.FC = () => {
               <strong className={hoverData.yieldPct >= 0 ? "text-emerald-400" : "text-rose-400"}>
                 수익률: {hoverData.yieldPct >= 0 ? "+" : ""}{hoverData.yieldPct}%
               </strong>
-              <span className="text-zinc-300">평가금액: ₩{hoverData.portfolioValue.toLocaleString()}</span>
+              <span className="text-zinc-300">평가금액: ₩{(hoverData.portfolioValue ?? 0).toLocaleString()}</span>
             </div>
           )}
         </div>

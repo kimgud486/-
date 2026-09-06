@@ -609,7 +609,7 @@ export const MicroCapitalAutoTradingConsole: React.FC = () => {
       setIsAutoRunning(false);
       setCircuitBreakerTriggered(true);
       addToast(
-        `🚨 [소액 실거래 서킷브레이커 발동] 당일 실현 손실이 설정 한도(${dailyMaxLossPct}%, ${capitalLossLimit.toLocaleString()}원)에 도달하여 모든 자동 매수가 안전하게 긴급 중단되었습니다.`,
+        `🚨 [소액 실거래 서킷브레이커 발동] 당일 실현 손실이 설정 한도(${dailyMaxLossPct}%, ${(capitalLossLimit ?? 0).toLocaleString()}원)에 도달하여 모든 자동 매수가 안전하게 긴급 중단되었습니다.`,
         "error"
       );
     }
@@ -718,7 +718,7 @@ export const MicroCapitalAutoTradingConsole: React.FC = () => {
     const totalCost = isCryptoTarget ? tradeAllocCash : buyPrice * qty;
 
     if (totalCost > availableCash || availableCash <= 0 || (isCryptoTarget && totalCost < 5000)) {
-      console.log(`[MicroCapital Auto-Trade] Insufficient cash (₩${availableCash.toLocaleString()} < ₩${totalCost.toLocaleString()}). Scanner mode active.`);
+      console.log(`[MicroCapital Auto-Trade] Insufficient cash (₩${(availableCash ?? 0).toLocaleString()} < ₩${(totalCost ?? 0).toLocaleString()}). Scanner mode active.`);
       return;
     }
 
@@ -735,7 +735,7 @@ export const MicroCapitalAutoTradingConsole: React.FC = () => {
             qty,
             buyPrice,
             `소액 ${selectedStrategy}`,
-            `[AI 뇌엔진 자율매매 ${topTarget.quantScore}점] ${topTarget.name} (${topTarget.capType === "SMALL" ? "소형주" : "중형주"}) 현재가 ${buyPrice.toLocaleString()}원 ${qty}주 자율 체결`
+            `[AI 뇌엔진 자율매매 ${topTarget.quantScore}점] ${topTarget.name} (${topTarget.capType === "SMALL" ? "소형주" : "중형주"}) 현재가 ${(buyPrice ?? 0).toLocaleString()}원 ${qty}주 자율 체결`
           );
         } catch (brokerErr: any) {
           console.warn("[Broker Buy Warning]", brokerErr);
@@ -847,10 +847,10 @@ export const MicroCapitalAutoTradingConsole: React.FC = () => {
 
           addToast(`🤖 [AI 실잔고 동기화 완료] 실계좌 가용 잔고(₩${Math.round(realCashToUse).toLocaleString()}원)를 포착하였습니다! AI가 실시간 수급·변동성 필터로 단기/중기 타점과 포지션을 자율 조절합니다.`, "success");
         } else {
-          addToast(`🚀 소형주·중형주 실거래 자율매매 엔진이 가동되었습니다. (시드: ₩${customCapital.toLocaleString()}원 | AI 자율 동적 필터 적용)`, "success");
+          addToast(`🚀 소형주·중형주 실거래 자율매매 엔진이 가동되었습니다. (시드: ₩${(customCapital ?? 0).toLocaleString()}원 | AI 자율 동적 필터 적용)`, "success");
         }
       } catch (err) {
-        addToast(`🚀 소형주·중형주 실거래 자율매매 엔진이 가동되었습니다. (설정 시드: ₩${customCapital.toLocaleString()}원 | AI 자율 동적 필터 적용)`, "success");
+        addToast(`🚀 소형주·중형주 실거래 자율매매 엔진이 가동되었습니다. (설정 시드: ₩${(customCapital ?? 0).toLocaleString()}원 | AI 자율 동적 필터 적용)`, "success");
       }
     } else {
       setIsAutoRunning(false);
@@ -1333,7 +1333,7 @@ export const MicroCapitalAutoTradingConsole: React.FC = () => {
               <div className="flex items-center justify-between pt-1 border-t border-zinc-800">
                 <span className="text-zinc-400">미투자 가용 현금:</span>
                 <span className="text-emerald-400 font-bold">
-                  {availableCash.toLocaleString()}원
+                  {(availableCash ?? 0).toLocaleString()}원
                 </span>
               </div>
             </div>
@@ -1402,7 +1402,7 @@ export const MicroCapitalAutoTradingConsole: React.FC = () => {
           <div className="bg-zinc-950 p-3 rounded-xl border border-zinc-800/80 space-y-1">
             <span className="text-zinc-500 text-[10px] block">국내 증권사(KIS) 원화 예수금</span>
             <div className="text-base font-black text-white">
-              {cashBreakdown?.koreaCash ? cashBreakdown.koreaCash.toLocaleString() : availableCash.toLocaleString()}원
+              {cashBreakdown?.koreaCash ? (cashBreakdown.koreaCash ?? 0).toLocaleString() : (availableCash ?? 0).toLocaleString()}원
             </div>
             <div className="flex items-center gap-1 text-[10px] text-emerald-400">
               <span className={`w-1.5 h-1.5 rounded-full ${brokerApiStatus.korea === "CONNECTED" ? "bg-emerald-400" : "bg-amber-400"}`}></span>
@@ -1414,7 +1414,7 @@ export const MicroCapitalAutoTradingConsole: React.FC = () => {
           <div className="bg-zinc-950 p-3 rounded-xl border border-zinc-800/80 space-y-1">
             <span className="text-zinc-500 text-[10px] block">해외/미국 외화 예수금 (USD)</span>
             <div className="text-base font-black text-cyan-300">
-              ${cashBreakdown?.usd ? cashBreakdown.usd.toLocaleString() : "0.00"}
+              ${cashBreakdown?.usd ? (cashBreakdown.usd ?? 0).toLocaleString() : "0.00"}
             </div>
             <div className="text-[10px] text-zinc-500">
               미국 소형/중형주 주문 가용
@@ -1425,7 +1425,7 @@ export const MicroCapitalAutoTradingConsole: React.FC = () => {
           <div className="bg-zinc-950 p-3 rounded-xl border border-zinc-800/80 space-y-1">
             <span className="text-zinc-500 text-[10px] block">업비트(Upbit) 원화 잔고</span>
             <div className="text-base font-black text-amber-300">
-              {cashBreakdown?.upbitKrw ? cashBreakdown.upbitKrw.toLocaleString() : "1,500,000"}원
+              {cashBreakdown?.upbitKrw ? (cashBreakdown.upbitKrw ?? 0).toLocaleString() : "1,500,000"}원
             </div>
             <div className="text-[10px] text-emerald-400">
               24시간 가상자산 주문 가능
@@ -1436,7 +1436,7 @@ export const MicroCapitalAutoTradingConsole: React.FC = () => {
           <div className="bg-zinc-950 p-3 rounded-xl border border-zinc-800/80 space-y-1">
             <span className="text-zinc-500 text-[10px] block">총 통합 평가 자산 (Net Asset)</span>
             <div className="text-base font-black text-emerald-400">
-              {cashBreakdown?.totalAsset ? cashBreakdown.totalAsset.toLocaleString() : (availableCash + totalInvestedAmount).toLocaleString()}원
+              {cashBreakdown?.totalAsset ? (cashBreakdown.totalAsset ?? 0).toLocaleString() : (availableCash + totalInvestedAmount).toLocaleString()}원
             </div>
             <div className="text-[10px] text-zinc-400">
               실시간 포지션 평가액 합산
@@ -1549,7 +1549,7 @@ export const MicroCapitalAutoTradingConsole: React.FC = () => {
 
                   <div className="text-right font-mono">
                     <div className="text-xs font-bold text-white">
-                      {item.market === "US" ? `$${item.price.toLocaleString()}` : `${item.price.toLocaleString()}원`}
+                      {item.market === "US" ? `$${(item.price ?? 0).toLocaleString()}` : `${(item.price ?? 0).toLocaleString()}원`}
                     </div>
                     <div className={`text-[10px] font-bold ${item.changePct >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
                       {item.changePct >= 0 ? `+${item.changePct}%` : `${item.changePct}%`}
@@ -1680,13 +1680,13 @@ export const MicroCapitalAutoTradingConsole: React.FC = () => {
         <div className="bg-zinc-900/90 border border-zinc-800 p-4 rounded-2xl space-y-1">
           <span className="text-[11px] font-bold text-zinc-400 font-mono block">총 설정 운용 자금</span>
           <div className="text-2xl font-black font-mono text-white flex items-baseline gap-1">
-            <span>{customCapital.toLocaleString()}</span>
+            <span>{(customCapital ?? 0).toLocaleString()}</span>
             <span className="text-xs text-zinc-400 font-normal">원</span>
           </div>
           <div className="flex justify-between text-[10px] font-mono text-zinc-400 pt-1 border-t border-zinc-800">
             <span>진입 자금 / 가용 잔고:</span>
             <span className="text-emerald-400 font-bold">
-              {totalInvestedAmount.toLocaleString()}원 / {availableCash.toLocaleString()}원
+              {(totalInvestedAmount ?? 0).toLocaleString()}원 / {(availableCash ?? 0).toLocaleString()}원
             </span>
           </div>
         </div>
@@ -1697,13 +1697,13 @@ export const MicroCapitalAutoTradingConsole: React.FC = () => {
           <div className={`text-2xl font-black font-mono flex items-baseline gap-1 ${
             todayRealizedPnL >= 0 ? "text-emerald-400" : "text-rose-400"
           }`}>
-            <span>{todayRealizedPnL >= 0 ? `+${todayRealizedPnL.toLocaleString()}` : todayRealizedPnL.toLocaleString()}</span>
+            <span>{todayRealizedPnL >= 0 ? `+${(todayRealizedPnL ?? 0).toLocaleString()}` : (todayRealizedPnL ?? 0).toLocaleString()}</span>
             <span className="text-xs font-normal">원 ({returnOnCapital}%)</span>
           </div>
           <div className="flex justify-between text-[10px] font-mono text-zinc-400 pt-1 border-t border-zinc-800">
             <span>보유중 평가손익:</span>
             <span className={`font-bold ${totalUnrealizedPnL >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
-              {totalUnrealizedPnL >= 0 ? `+${totalUnrealizedPnL.toLocaleString()}원` : `${totalUnrealizedPnL.toLocaleString()}원`}
+              {totalUnrealizedPnL >= 0 ? `+${(totalUnrealizedPnL ?? 0).toLocaleString()}원` : `${(totalUnrealizedPnL ?? 0).toLocaleString()}원`}
             </span>
           </div>
         </div>
@@ -1770,11 +1770,11 @@ export const MicroCapitalAutoTradingConsole: React.FC = () => {
                 <div className="grid grid-cols-2 gap-2 text-xs font-mono">
                   <div>
                     <span className="text-zinc-500 text-[10px] block">진입가 / 주수</span>
-                    <span className="text-zinc-200 font-bold">{pos.buyPrice.toLocaleString()}원 × {pos.qty}주</span>
+                    <span className="text-zinc-200 font-bold">{(pos.buyPrice ?? 0).toLocaleString()}원 × {pos.qty}주</span>
                   </div>
                   <div>
                     <span className="text-zinc-500 text-[10px] block">현재가 (실시세)</span>
-                    <span className="text-white font-bold">{pos.currentPrice.toLocaleString()}원</span>
+                    <span className="text-white font-bold">{(pos.currentPrice ?? 0).toLocaleString()}원</span>
                   </div>
                 </div>
 
@@ -1782,7 +1782,7 @@ export const MicroCapitalAutoTradingConsole: React.FC = () => {
                   <div className="font-mono">
                     <span className="text-[10px] text-zinc-500 block">평가손익 / 수익률</span>
                     <span className={`font-bold text-sm ${pos.returnPct >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
-                      {pos.returnPct >= 0 ? `+${pos.returnPct}%` : `${pos.returnPct}%`} ({pos.unrealizedPnL >= 0 ? `+${pos.unrealizedPnL.toLocaleString()}원` : `${pos.unrealizedPnL.toLocaleString()}원`})
+                      {pos.returnPct >= 0 ? `+${pos.returnPct}%` : `${pos.returnPct}%`} ({pos.unrealizedPnL >= 0 ? `+${(pos.unrealizedPnL ?? 0).toLocaleString()}원` : `${(pos.unrealizedPnL ?? 0).toLocaleString()}원`})
                     </span>
                   </div>
 
@@ -1852,7 +1852,7 @@ export const MicroCapitalAutoTradingConsole: React.FC = () => {
               </div>
 
               <div className="text-sm font-black font-mono text-white">
-                {stk.price.toLocaleString()}원
+                {(stk.price ?? 0).toLocaleString()}원
               </div>
 
               <div className={`text-[10px] font-mono font-bold flex items-center justify-between ${
@@ -1928,9 +1928,9 @@ export const MicroCapitalAutoTradingConsole: React.FC = () => {
                           {log.side === "BUY" ? "매수" : "매도"}
                         </span>
                       </td>
-                      <td className="p-3 font-bold text-white">{log.price.toLocaleString()}원</td>
+                      <td className="p-3 font-bold text-white">{(log.price ?? 0).toLocaleString()}원</td>
                       <td className="p-3 text-zinc-300">
-                        {log.totalAmount.toLocaleString()}원 <span className="text-[10px] text-zinc-500">({log.qty}주)</span>
+                        {(log.totalAmount ?? 0).toLocaleString()}원 <span className="text-[10px] text-zinc-500">({log.qty}주)</span>
                       </td>
                       <td className="p-3">
                         {log.returnPct !== undefined && log.side === "SELL" ? (
@@ -1940,7 +1940,7 @@ export const MicroCapitalAutoTradingConsole: React.FC = () => {
                             {log.returnPct >= 0 ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
                             {log.returnPct >= 0 ? `+${log.returnPct}%` : `${log.returnPct}%`}
                             <span className="text-[10px] text-zinc-400 font-normal">
-                              ({log.pnl && log.pnl >= 0 ? `+${log.pnl.toLocaleString()}원` : `${log.pnl?.toLocaleString()}원`})
+                              ({log.pnl && log.pnl >= 0 ? `+${(log.pnl ?? 0).toLocaleString()}원` : `${log.pnl?.toLocaleString()}원`})
                             </span>
                           </span>
                         ) : (
@@ -2108,7 +2108,7 @@ export const MicroCapitalAutoTradingConsole: React.FC = () => {
               <div>
                 <label className="text-xs text-zinc-400 font-bold block mb-1">초기 시드머니 (원)</label>
                 <div className="text-lg font-black text-emerald-400 font-mono">
-                  {customCapital.toLocaleString()} 원
+                  {(customCapital ?? 0).toLocaleString()} 원
                 </div>
               </div>
 
@@ -2155,11 +2155,11 @@ export const MicroCapitalAutoTradingConsole: React.FC = () => {
                 <div className="bg-gradient-to-br from-cyan-950/40 via-zinc-900 to-emerald-950/40 border border-cyan-500/40 p-5 rounded-2xl space-y-3">
                   <div className="flex items-center justify-between">
                     <span className="text-xs text-zinc-300 font-bold">🎯 {targetDays}거래일 후 예상 최종 자산</span>
-                    <span className="text-2xl font-black text-cyan-300 font-mono">{finalVal.toLocaleString()} 원</span>
+                    <span className="text-2xl font-black text-cyan-300 font-mono">{(finalVal ?? 0).toLocaleString()} 원</span>
                   </div>
                   <div className="flex items-center justify-between text-xs pt-2 border-t border-zinc-800">
                     <span className="text-zinc-400">순수익금 (복리 누적)</span>
-                    <span className="font-bold text-emerald-400 font-mono">+{totalGain.toLocaleString()} 원 (+{totalYieldPct}%)</span>
+                    <span className="font-bold text-emerald-400 font-mono">+{(totalGain ?? 0).toLocaleString()} 원 (+{totalYieldPct}%)</span>
                   </div>
                   <p className="text-[11px] text-zinc-400 pt-1 leading-relaxed">
                     💡 <strong>소액 자율매매 TIP:</strong> 일일 +{targetDailyPct}% 목표는 하루 단 1~2회의 +2.5% 소형주 익절로도 손쉽게 달성 가능합니다. 욕심을 낮추고 일관성을 지키면 {targetDays}일 만에 원금 대비 +{totalYieldPct}% 성장이 가능합니다.

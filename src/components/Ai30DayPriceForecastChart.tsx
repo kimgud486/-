@@ -181,7 +181,7 @@ export const Ai30DayPriceForecastChart: React.FC<Ai30DayPriceForecastChartProps>
       if (d === 5) eventNote = "1차 단기 저항대 테스트";
       else if (d === 12) eventNote = "중기 수급 변곡점 (기관 VWAP)";
       else if (d === 20) eventNote = "Bullish 추세 가속 구간";
-      else if (d === totalDays) eventNote = `30일차 AI 목표가 (${unit}${target.toLocaleString()})`;
+      else if (d === totalDays) eventNote = `30일차 AI 목표가 (${unit}${(target ?? 0).toLocaleString()})`;
 
       const pct = Number((((basePriceVal - baseCurrent) / baseCurrent) * 100).toFixed(2));
       const conf = Math.max(65, Math.round(confidenceScore - (d * 0.6)));
@@ -414,7 +414,7 @@ export const Ai30DayPriceForecastChart: React.FC<Ai30DayPriceForecastChartProps>
         <div className="p-3 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800">
           <span className="text-[10px] text-slate-500 dark:text-slate-400 font-sans block">30일 AI 기준 목표가</span>
           <div className="text-base sm:text-lg font-black text-cyan-600 dark:text-cyan-400 mt-0.5 flex items-center gap-1">
-            <span>{unit}{latestBase.toLocaleString()}</span>
+            <span>{unit}{(latestBase ?? 0).toLocaleString()}</span>
             <span className="text-xs font-bold text-emerald-500 font-sans">
               (+{expectedReturnPct}%)
             </span>
@@ -424,7 +424,7 @@ export const Ai30DayPriceForecastChart: React.FC<Ai30DayPriceForecastChartProps>
         <div className="p-3 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800">
           <span className="text-[10px] text-slate-500 dark:text-slate-400 font-sans block">낙관 시나리오 (돌파)</span>
           <div className="text-base sm:text-lg font-black text-emerald-600 dark:text-emerald-400 mt-0.5 flex items-center gap-1">
-            <span>{unit}{latestBull.toLocaleString()}</span>
+            <span>{unit}{(latestBull ?? 0).toLocaleString()}</span>
             <span className="text-xs font-bold font-sans">
               (+{maxBullReturnPct}%)
             </span>
@@ -434,7 +434,7 @@ export const Ai30DayPriceForecastChart: React.FC<Ai30DayPriceForecastChartProps>
         <div className="p-3 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800">
           <span className="text-[10px] text-slate-500 dark:text-slate-400 font-sans block">방어 시나리오 (손절 지지)</span>
           <div className="text-base sm:text-lg font-black text-rose-600 dark:text-rose-400 mt-0.5 flex items-center gap-1">
-            <span>{unit}{latestBear.toLocaleString()}</span>
+            <span>{unit}{(latestBear ?? 0).toLocaleString()}</span>
             <span className="text-xs font-bold font-sans">
               ({maxBearRiskPct}%)
             </span>
@@ -482,7 +482,7 @@ export const Ai30DayPriceForecastChart: React.FC<Ai30DayPriceForecastChartProps>
               domain={["dataMin - 100", "dataMax + 100"]}
               stroke={isDark ? "#64748b" : "#94a3b8"}
               tick={{ fill: isDark ? "#94a3b8" : "#64748b", fontSize: 11 }}
-              tickFormatter={(val) => `${val >= 1000000 ? `${(val / 10000).toLocaleString()}만` : val.toLocaleString()}`}
+              tickFormatter={(val) => `${val >= 1000000 ? `${(val / 10000).toLocaleString()}만` : (val ?? 0).toLocaleString()}`}
               tickLine={{ stroke: isDark ? "#475569" : "#cbd5e1" }}
             />
 

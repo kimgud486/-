@@ -214,7 +214,7 @@ export const MarketCloseAIPredictionPanel: React.FC<MarketCloseAIPredictionPanel
           <div className="bg-zinc-900/80 border border-zinc-800 p-2.5 rounded-2xl">
             <span className="text-[10px] text-zinc-500 font-mono block">확정 종가 (15:30)</span>
             <span className="text-sm font-mono font-black text-white">
-              {prediction.closePrice.toLocaleString()}원
+              {(prediction.closePrice ?? 0).toLocaleString()}원
             </span>
             <span className={`text-[10px] font-mono font-bold block ${isUp ? "text-rose-400" : "text-blue-400"}`}>
               {isUp ? "▲ +" : "▼ "}{prediction.changePct}%
@@ -227,14 +227,14 @@ export const MarketCloseAIPredictionPanel: React.FC<MarketCloseAIPredictionPanel
               {prediction.gapPrediction.gapUpProbability}% 상승 우세
             </span>
             <span className="text-[10px] font-mono text-zinc-400 block">
-              예상 시초: {prediction.gapPrediction.expectedOpenPrice.toLocaleString()}원
+              예상 시초: {(prediction.gapPrediction.expectedOpenPrice ?? 0).toLocaleString()}원
             </span>
           </div>
 
           <div className="bg-zinc-900/80 border border-zinc-800 p-2.5 rounded-2xl">
             <span className="text-[10px] text-zinc-500 font-mono block">SMC 스마트머니 지지선</span>
             <span className="text-sm font-mono font-black text-emerald-400">
-              {prediction.indicators.smcSupport.toLocaleString()}원
+              {(prediction.indicators.smcSupport ?? 0).toLocaleString()}원
             </span>
             <span className="text-[10px] font-mono text-zinc-400 block">
               오더블록 수급 지지대
@@ -244,7 +244,7 @@ export const MarketCloseAIPredictionPanel: React.FC<MarketCloseAIPredictionPanel
           <div className="bg-zinc-900/80 border border-zinc-800 p-2.5 rounded-2xl">
             <span className="text-[10px] text-zinc-500 font-mono block">SMC 1차 목표 저항대</span>
             <span className="text-sm font-mono font-black text-amber-400">
-              {prediction.indicators.smcResistance.toLocaleString()}원
+              {(prediction.indicators.smcResistance ?? 0).toLocaleString()}원
             </span>
             <span className="text-[10px] font-mono text-zinc-400 block">
               유동성 풀(Liquidity)
@@ -387,7 +387,7 @@ export const MarketCloseAIPredictionPanel: React.FC<MarketCloseAIPredictionPanel
                 />
                 <ReferenceLine
                   y={prediction.closePrice}
-                  label={{ value: `장마감: ${prediction.closePrice.toLocaleString()}원`, fill: "#a1a1aa", fontSize: 10, position: "insideTopLeft" }}
+                  label={{ value: `장마감: ${(prediction.closePrice ?? 0).toLocaleString()}원`, fill: "#a1a1aa", fontSize: 10, position: "insideTopLeft" }}
                   stroke="#71717a"
                   strokeDasharray="4 4"
                 />
@@ -435,7 +435,7 @@ export const MarketCloseAIPredictionPanel: React.FC<MarketCloseAIPredictionPanel
             <div className="space-y-1">
               <span className="font-bold text-zinc-200 block">AI 야간 시계열 학습 요약</span>
               <p className="leading-relaxed">
-                현재 <strong>{prediction.name}</strong>은 20일선({prediction.indicators.ema20.toLocaleString()}원) 상단에서 지지력을 형성하고 있으며, 
+                현재 <strong>{prediction.name}</strong>은 20일선({(prediction.indicators.ema20 ?? 0).toLocaleString()}원) 상단에서 지지력을 형성하고 있으며, 
                 야간 CME 선물 및 글로벌 기술주 심리 반영 시 익일 시초가는 <strong>+{prediction.gapPrediction.expectedGapPct}%</strong> 내외의 갭상승 확률(<strong>{prediction.gapPrediction.gapUpProbability}%</strong>)이 우세합니다.
                 익일 정규장 개장(09:00) 시 실시간 틱 데이터가 유입되면 시초가 호가에 따라 실시간 궤적이 자동으로 재보정됩니다.
               </p>

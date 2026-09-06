@@ -537,7 +537,7 @@ export const InteractivePredictionCanvasChart: React.FC<InteractivePredictionCan
     addNotification({
       type: "BUY",
       title: `🟢 [대형 매수 실행] ${name}(${symbol})`,
-      message: `AI 매수 타이밍 신호에 따라 ${currencySymbol}${currentPrice.toLocaleString()}원에 매수 주문이 체결되었습니다.`
+      message: `AI 매수 타이밍 신호에 따라 ${currencySymbol}${(currentPrice ?? 0).toLocaleString()}원에 매수 주문이 체결되었습니다.`
     });
   };
 
@@ -555,7 +555,7 @@ export const InteractivePredictionCanvasChart: React.FC<InteractivePredictionCan
     addNotification({
       type: "SELL",
       title: `🔴 [대형 매도 실행] ${name}(${symbol})`,
-      message: `AI 매도/익절 타이밍 신호에 따라 ${currencySymbol}${currentPrice.toLocaleString()}원에 익절 매도가 실행되었습니다.`
+      message: `AI 매도/익절 타이밍 신호에 따라 ${currencySymbol}${(currentPrice ?? 0).toLocaleString()}원에 익절 매도가 실행되었습니다.`
     });
   };
 
@@ -677,7 +677,7 @@ export const InteractivePredictionCanvasChart: React.FC<InteractivePredictionCan
             <span className="text-[10px] text-zinc-400 block font-bold">1. 일일 최대 손실 한도</span>
             <span className="text-sm font-black text-rose-400 block mt-0.5">-{dailyLossLimit}%</span>
             <span className="text-[9.5px] text-zinc-400 block mt-0.5">
-              손절 방어선: <b className="text-rose-300">{currencySymbol}{riskGateStopPrice.toLocaleString()}</b>
+              손절 방어선: <b className="text-rose-300">{currencySymbol}{(riskGateStopPrice ?? 0).toLocaleString()}</b>
             </span>
           </div>
 
@@ -695,7 +695,7 @@ export const InteractivePredictionCanvasChart: React.FC<InteractivePredictionCan
             <span className="text-[10px] text-zinc-400 block font-bold">3. 트레일링 스탑 발동선</span>
             <span className="text-sm font-black text-purple-300 block mt-0.5">+{trailingStopTriggerPct}%</span>
             <span className="text-[9.5px] text-zinc-400 block mt-0.5">
-              목표가: <b className="text-purple-300">{currencySymbol}{trailingStopPrice.toLocaleString()}</b>
+              목표가: <b className="text-purple-300">{currencySymbol}{(trailingStopPrice ?? 0).toLocaleString()}</b>
             </span>
           </div>
 
@@ -703,7 +703,7 @@ export const InteractivePredictionCanvasChart: React.FC<InteractivePredictionCan
             <span className="text-[10px] text-zinc-400 block font-bold">4. 1종목 최대 비중 한도</span>
             <span className="text-sm font-black text-cyan-300 block mt-0.5">{maxPositionWeight}% 이내</span>
             <span className="text-[9.5px] text-zinc-400 block mt-0.5">
-              최대 주문: <b className="text-cyan-300">{currencySymbol}{maxSingleOrderAmount.toLocaleString()}</b>
+              최대 주문: <b className="text-cyan-300">{currencySymbol}{(maxSingleOrderAmount ?? 0).toLocaleString()}</b>
             </span>
           </div>
         </div>
@@ -880,7 +880,7 @@ export const InteractivePredictionCanvasChart: React.FC<InteractivePredictionCan
                 <h4 className="text-lg sm:text-2xl font-black text-white flex items-center gap-2">
                   <span>권장 매수가:</span>
                   <span className="font-mono text-emerald-300 text-xl sm:text-3xl drop-shadow-md">
-                    {currencySymbol}{entryP.toLocaleString()}
+                    {currencySymbol}{(entryP ?? 0).toLocaleString()}
                   </span>
                 </h4>
               </div>
@@ -890,19 +890,19 @@ export const InteractivePredictionCanvasChart: React.FC<InteractivePredictionCan
             <div className="grid grid-cols-3 gap-2 pt-2 border-t border-emerald-500/30 text-xs font-mono">
               <div className="bg-zinc-950/80 p-2.5 rounded-xl border border-emerald-800/60">
                 <span className="text-[10px] text-zinc-400 block font-bold">1차 목표가 (TP1)</span>
-                <span className="text-sm font-black text-rose-400">{currencySymbol}{tp1P.toLocaleString()}</span>
+                <span className="text-sm font-black text-rose-400">{currencySymbol}{(tp1P ?? 0).toLocaleString()}</span>
                 <span className="text-[10px] text-rose-400 font-bold block">+{gainPct1}%</span>
               </div>
 
               <div className="bg-zinc-950/80 p-2.5 rounded-xl border border-emerald-800/60">
                 <span className="text-[10px] text-zinc-400 block font-bold">2차 목표가 (TP2)</span>
-                <span className="text-sm font-black text-amber-400">{currencySymbol}{tp2P.toLocaleString()}</span>
+                <span className="text-sm font-black text-amber-400">{currencySymbol}{(tp2P ?? 0).toLocaleString()}</span>
                 <span className="text-[10px] text-amber-400 font-bold block">+{gainPct2}%</span>
               </div>
 
               <div className="bg-zinc-950/80 p-2.5 rounded-xl border border-emerald-800/60">
                 <span className="text-[10px] text-zinc-400 block font-bold">손절 방어선 (SL)</span>
-                <span className="text-sm font-black text-blue-400">{currencySymbol}{stopLossP.toLocaleString()}</span>
+                <span className="text-sm font-black text-blue-400">{currencySymbol}{(stopLossP ?? 0).toLocaleString()}</span>
                 <span className="text-[10px] text-blue-400 font-bold block">{lossPct}%</span>
               </div>
             </div>
@@ -913,7 +913,7 @@ export const InteractivePredictionCanvasChart: React.FC<InteractivePredictionCan
               className="w-full py-3 bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-500 hover:from-emerald-500 hover:to-teal-400 text-white font-black text-sm sm:text-base rounded-2xl flex items-center justify-center gap-2 transition cursor-pointer shadow-xl ring-2 ring-emerald-400/50 hover:scale-[1.01] active:scale-95"
             >
               <Zap className="w-5 h-5 text-amber-300" />
-              <span>🚀 [대형 매수 주문 실행] {currencySymbol}{entryP.toLocaleString()}원 매수</span>
+              <span>🚀 [대형 매수 주문 실행] {currencySymbol}{(entryP ?? 0).toLocaleString()}원 매수</span>
             </button>
           </div>
         </div>
@@ -937,7 +937,7 @@ export const InteractivePredictionCanvasChart: React.FC<InteractivePredictionCan
                 <h4 className="text-lg sm:text-2xl font-black text-white flex items-center gap-2">
                   <span>익절 목표가:</span>
                   <span className="font-mono text-rose-300 text-xl sm:text-3xl drop-shadow-md">
-                    {currencySymbol}{tp1P.toLocaleString()}
+                    {currencySymbol}{(tp1P ?? 0).toLocaleString()}
                   </span>
                 </h4>
               </div>
@@ -970,7 +970,7 @@ export const InteractivePredictionCanvasChart: React.FC<InteractivePredictionCan
               className="w-full py-3 bg-gradient-to-r from-rose-600 via-pink-600 to-rose-500 hover:from-rose-500 hover:to-pink-400 text-white font-black text-sm sm:text-base rounded-2xl flex items-center justify-center gap-2 transition cursor-pointer shadow-xl ring-2 ring-rose-400/50 hover:scale-[1.01] active:scale-95"
             >
               <Flame className="w-5 h-5 text-amber-300" />
-              <span>💥 [대형 익절/매도 실행] {currencySymbol}{tp1P.toLocaleString()}원 매도</span>
+              <span>💥 [대형 익절/매도 실행] {currencySymbol}{(tp1P ?? 0).toLocaleString()}원 매도</span>
             </button>
           </div>
         </div>
@@ -991,7 +991,7 @@ export const InteractivePredictionCanvasChart: React.FC<InteractivePredictionCan
                 </h4>
               </div>
               <span className="text-[10px] font-mono text-amber-300 bg-amber-950/80 px-2 py-0.5 rounded border border-amber-800 font-bold">
-                T-0 체결: {currencySymbol}{currentPrice.toLocaleString()}
+                T-0 체결: {currencySymbol}{(currentPrice ?? 0).toLocaleString()}
               </span>
             </div>
 
@@ -1003,7 +1003,7 @@ export const InteractivePredictionCanvasChart: React.FC<InteractivePredictionCan
                   <YAxis 
                     domain={['auto', 'auto']} 
                     stroke="#a1a1aa" 
-                    tickFormatter={(val) => `${currencySymbol}${val.toLocaleString()}`}
+                    tickFormatter={(val) => `${currencySymbol}${(val ?? 0).toLocaleString()}`}
                     tick={{ fontSize: 10 }}
                   />
                   <Tooltip 
@@ -1105,7 +1105,7 @@ export const InteractivePredictionCanvasChart: React.FC<InteractivePredictionCan
                     y={entryP} 
                     stroke="#10b981" 
                     strokeWidth={2} 
-                    label={{ value: `🟢 매수 최적가 ${currencySymbol}${entryP.toLocaleString()}`, fill: "#10b981", fontSize: 11, fontWeight: "bold" }} 
+                    label={{ value: `🟢 매수 최적가 ${currencySymbol}${(entryP ?? 0).toLocaleString()}`, fill: "#10b981", fontSize: 11, fontWeight: "bold" }} 
                   />
 
                   <ReferenceLine 
@@ -1113,7 +1113,7 @@ export const InteractivePredictionCanvasChart: React.FC<InteractivePredictionCan
                     stroke="#f43f5e" 
                     strokeWidth={2} 
                     strokeDasharray="3 3"
-                    label={{ value: `🔴 1차 익절가 ${currencySymbol}${tp1P.toLocaleString()}`, fill: "#f43f5e", fontSize: 11, fontWeight: "bold" }} 
+                    label={{ value: `🔴 1차 익절가 ${currencySymbol}${(tp1P ?? 0).toLocaleString()}`, fill: "#f43f5e", fontSize: 11, fontWeight: "bold" }} 
                   />
                 </ComposedChart>
               </ResponsiveContainer>
@@ -1155,7 +1155,7 @@ export const InteractivePredictionCanvasChart: React.FC<InteractivePredictionCan
                   <YAxis 
                     domain={['auto', 'auto']} 
                     stroke="#a1a1aa" 
-                    tickFormatter={(val) => `${currencySymbol}${val.toLocaleString()}`}
+                    tickFormatter={(val) => `${currencySymbol}${(val ?? 0).toLocaleString()}`}
                     tick={{ fontSize: 10 }}
                   />
                   <Tooltip 
@@ -1179,7 +1179,7 @@ export const InteractivePredictionCanvasChart: React.FC<InteractivePredictionCan
                             <div className="space-y-1 text-[11px]">
                               <div className="flex justify-between items-center text-cyan-300 font-bold bg-cyan-950/40 p-1.5 rounded-lg border border-cyan-500/30">
                                 <span>🎯 Base 예측 목표가:</span>
-                                <span>{currencySymbol}{data.basePrice.toLocaleString()} ({isUp ? "+" : ""}{pnlFromEntry}%)</span>
+                                <span>{currencySymbol}{(data.basePrice ?? 0).toLocaleString()} ({isUp ? "+" : ""}{pnlFromEntry}%)</span>
                               </div>
                               {activeScenarios.bull && (
                                 <div className="flex justify-between text-emerald-400">
@@ -1300,21 +1300,21 @@ export const InteractivePredictionCanvasChart: React.FC<InteractivePredictionCan
                         y={tp1P} 
                         stroke="#f43f5e" 
                         strokeWidth={2} 
-                        label={{ value: `🔴 AI 예측 최고점 익절 ${currencySymbol}${tp1P.toLocaleString()}`, fill: "#f43f5e", fontSize: 11, fontWeight: "bold" }} 
+                        label={{ value: `🔴 AI 예측 최고점 익절 ${currencySymbol}${(tp1P ?? 0).toLocaleString()}`, fill: "#f43f5e", fontSize: 11, fontWeight: "bold" }} 
                       />
                       <ReferenceLine 
                         y={stopLossP} 
                         stroke="#3b82f6" 
                         strokeWidth={2} 
                         strokeDasharray="3 3"
-                        label={{ value: `🛡️ 전략 손절선 ${currencySymbol}${stopLossP.toLocaleString()}`, fill: "#3b82f6", fontSize: 11, fontWeight: "bold" }} 
+                        label={{ value: `🛡️ 전략 손절선 ${currencySymbol}${(stopLossP ?? 0).toLocaleString()}`, fill: "#3b82f6", fontSize: 11, fontWeight: "bold" }} 
                       />
                       <ReferenceLine 
                         y={riskGateStopPrice} 
                         stroke="#ef4444" 
                         strokeWidth={2} 
                         strokeDasharray="4 4"
-                        label={{ value: `🛡️ Risk Gate 한계선 ${currencySymbol}${riskGateStopPrice.toLocaleString()}`, fill: "#ef4444", fontSize: 10, fontWeight: "bold" }} 
+                        label={{ value: `🛡️ Risk Gate 한계선 ${currencySymbol}${(riskGateStopPrice ?? 0).toLocaleString()}`, fill: "#ef4444", fontSize: 10, fontWeight: "bold" }} 
                       />
                     </>
                   )}
@@ -1358,7 +1358,7 @@ export const InteractivePredictionCanvasChart: React.FC<InteractivePredictionCan
                 yAxisId="price"
                 domain={['auto', 'auto']} 
                 stroke="#a1a1aa" 
-                tickFormatter={(val) => `${currencySymbol}${val.toLocaleString()}`}
+                tickFormatter={(val) => `${currencySymbol}${(val ?? 0).toLocaleString()}`}
                 tick={{ fontSize: 11 }}
               />
               <Tooltip 
@@ -1381,7 +1381,7 @@ export const InteractivePredictionCanvasChart: React.FC<InteractivePredictionCan
                         {data.actualPrice != null && (
                           <div className="flex justify-between items-center text-amber-300 font-bold bg-amber-950/40 p-1.5 rounded-lg border border-amber-500/30">
                             <span>실시간 체결가격:</span>
-                            <span>{currencySymbol}{data.actualPrice.toLocaleString()}</span>
+                            <span>{currencySymbol}{(data.actualPrice ?? 0).toLocaleString()}</span>
                           </div>
                         )}
 
@@ -1496,7 +1496,7 @@ export const InteractivePredictionCanvasChart: React.FC<InteractivePredictionCan
                     y={entryP}
                     stroke="#10b981"
                     strokeWidth={2}
-                    label={{ value: `🟢 매수체결가 ${currencySymbol}${entryP.toLocaleString()}`, fill: "#10b981", fontSize: 11, fontWeight: "bold" }}
+                    label={{ value: `🟢 매수체결가 ${currencySymbol}${(entryP ?? 0).toLocaleString()}`, fill: "#10b981", fontSize: 11, fontWeight: "bold" }}
                   />
                   <ReferenceLine
                     yAxisId="price"
@@ -1504,7 +1504,7 @@ export const InteractivePredictionCanvasChart: React.FC<InteractivePredictionCan
                     stroke="#06b6d4"
                     strokeWidth={2}
                     strokeDasharray="3 3"
-                    label={{ value: `🔴 1차목표 ${currencySymbol}${tp1P.toLocaleString()}`, fill: "#06b6d4", fontSize: 11, fontWeight: "bold" }}
+                    label={{ value: `🔴 1차목표 ${currencySymbol}${(tp1P ?? 0).toLocaleString()}`, fill: "#06b6d4", fontSize: 11, fontWeight: "bold" }}
                   />
                   <ReferenceLine
                     yAxisId="price"
@@ -1512,7 +1512,7 @@ export const InteractivePredictionCanvasChart: React.FC<InteractivePredictionCan
                     stroke="#f43f5e"
                     strokeWidth={2}
                     strokeDasharray="3 3"
-                    label={{ value: `🛡️ 손절선 ${currencySymbol}${stopLossP.toLocaleString()}`, fill: "#f43f5e", fontSize: 11, fontWeight: "bold" }}
+                    label={{ value: `🛡️ 손절선 ${currencySymbol}${(stopLossP ?? 0).toLocaleString()}`, fill: "#f43f5e", fontSize: 11, fontWeight: "bold" }}
                   />
                 </>
               )}

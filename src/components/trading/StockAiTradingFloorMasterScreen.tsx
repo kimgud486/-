@@ -190,7 +190,7 @@ export const StockAiTradingFloorMasterScreen: React.FC = () => {
       addToast({
         type: "SUCCESS",
         title: `⚡ ${selectedStock.name} ${side === "BUY" ? "매수" : "매도"} 주문 전송 완료`,
-        message: `가격: ₩${selectedStock.currentPrice.toLocaleString()} | AI 승인율: ${selectedStock.consensusScore}%`
+        message: `가격: ₩${(selectedStock.currentPrice ?? 0).toLocaleString()} | AI 승인율: ${selectedStock.consensusScore}%`
       });
     } catch (err: any) {
       addToast({
@@ -451,7 +451,7 @@ export const StockAiTradingFloorMasterScreen: React.FC = () => {
 
                       <div className="text-right shrink-0">
                         <div className="text-base font-black text-slate-900 dark:text-white">
-                          ₩{stock.currentPrice.toLocaleString()}
+                          ₩{(stock.currentPrice ?? 0).toLocaleString()}
                         </div>
                         <div className={`text-xs font-extrabold flex items-center justify-end gap-0.5 ${
                           isPlus ? "text-rose-600 dark:text-rose-400" : "text-blue-600 dark:text-blue-400"
@@ -479,11 +479,11 @@ export const StockAiTradingFloorMasterScreen: React.FC = () => {
                       </div>
                       <div>
                         <div className="text-slate-400">적정 매수가</div>
-                        <div className="font-bold text-slate-800 dark:text-slate-200">₩{stock.idealEntryRange[0].toLocaleString()}</div>
+                        <div className="font-bold text-slate-800 dark:text-slate-200">₩{(stock.idealEntryRange[0] ?? 0).toLocaleString()}</div>
                       </div>
                       <div>
                         <div className="text-slate-400">손절 기준가</div>
-                        <div className="font-bold text-rose-600 dark:text-rose-400">₩{stock.stopLossPrice.toLocaleString()}</div>
+                        <div className="font-bold text-rose-600 dark:text-rose-400">₩{(stock.stopLossPrice ?? 0).toLocaleString()}</div>
                       </div>
                     </div>
                   </div>
@@ -525,7 +525,7 @@ export const StockAiTradingFloorMasterScreen: React.FC = () => {
               {/* 실시간 시세 */}
               <div className="text-right">
                 <div className="text-2xl font-black text-slate-900 dark:text-white">
-                  ₩{selectedStock.currentPrice.toLocaleString()}
+                  ₩{(selectedStock.currentPrice ?? 0).toLocaleString()}
                 </div>
                 <div className="text-sm font-extrabold text-rose-600 dark:text-rose-400">
                   +{selectedStock.changePct}% (거래량 강도 {selectedStock.rvol}배)
@@ -604,7 +604,7 @@ export const StockAiTradingFloorMasterScreen: React.FC = () => {
                       <span className="text-[10px] text-cyan-300 font-mono font-bold">종목: {selectedStock.name}</span>
                     </div>
                     <div className="text-white font-extrabold text-sm font-mono">
-                      {currSign}{selectedStock.idealEntryRange[0].toLocaleString()} ~ {currSign}{selectedStock.idealEntryRange[1].toLocaleString()}
+                      {currSign}{(selectedStock.idealEntryRange[0] ?? 0).toLocaleString()} ~ {currSign}{(selectedStock.idealEntryRange[1] ?? 0).toLocaleString()}
                     </div>
                     <p className="text-[11px] text-slate-400">
                       30인 AI 수급/돌파 시그널 합의 시 매수 타점에서 KIS API 자동 발주
@@ -616,10 +616,10 @@ export const StockAiTradingFloorMasterScreen: React.FC = () => {
                       <span>2. 어디서 팔고 (AI 자율 매도)</span>
                     </div>
                     <div className="text-white font-extrabold text-sm font-mono">
-                      1차 {currSign}{selectedStock.targetPrice1.toLocaleString()} / 2차 {currSign}{selectedStock.targetPrice2.toLocaleString()}
+                      1차 {currSign}{(selectedStock.targetPrice1 ?? 0).toLocaleString()} / 2차 {currSign}{(selectedStock.targetPrice2 ?? 0).toLocaleString()}
                     </div>
                     <p className="text-[11px] text-slate-400">
-                      목표 도달 시 1/2차 익절 분할 매도 및 칼손절선({currSign}{selectedStock.stopLossPrice.toLocaleString()}) 자동 청산
+                      목표 도달 시 1/2차 익절 분할 매도 및 칼손절선({currSign}{(selectedStock.stopLossPrice ?? 0).toLocaleString()}) 자동 청산
                     </p>
                   </div>
 
@@ -629,7 +629,7 @@ export const StockAiTradingFloorMasterScreen: React.FC = () => {
                     </div>
                     <div className="text-amber-300 font-extrabold text-sm font-mono">
                       {isUsd 
-                        ? `+${tp1Pct}% ~ +${tp2Pct}% (+$${profit1.toLocaleString()} ~ +$${profit2.toLocaleString()} / $5천불 기준)`
+                        ? `+${tp1Pct}% ~ +${tp2Pct}% (+$${(profit1 ?? 0).toLocaleString()} ~ +$${(profit2 ?? 0).toLocaleString()} / $5천불 기준)`
                         : `+${tp1Pct}% ~ +${tp2Pct}% (+${Math.round(profit1/10000)}만 ~ +${Math.round(profit2/10000)}만원 / 500만 투자 시)`
                       }
                     </div>
@@ -677,15 +677,15 @@ export const StockAiTradingFloorMasterScreen: React.FC = () => {
               <div className="bg-black/25 backdrop-blur-sm p-3 rounded-xl border border-white/10">
                 <div className="text-xs text-blue-200 font-medium">추천 분할 매수가</div>
                 <div className="text-lg font-black text-white mt-0.5">
-                  ₩{selectedStock.idealEntryRange[0].toLocaleString()}
+                  ₩{(selectedStock.idealEntryRange[0] ?? 0).toLocaleString()}
                 </div>
-                <div className="text-[11px] text-blue-200 mt-0.5">~ ₩{selectedStock.idealEntryRange[1].toLocaleString()}</div>
+                <div className="text-[11px] text-blue-200 mt-0.5">~ ₩{(selectedStock.idealEntryRange[1] ?? 0).toLocaleString()}</div>
               </div>
 
               <div className="bg-black/25 backdrop-blur-sm p-3 rounded-xl border border-white/10">
                 <div className="text-xs text-blue-200 font-medium">1차 목표가 (익절)</div>
                 <div className="text-lg font-black text-amber-300 mt-0.5">
-                  ₩{selectedStock.targetPrice1.toLocaleString()}
+                  ₩{(selectedStock.targetPrice1 ?? 0).toLocaleString()}
                 </div>
                 <div className="text-[11px] text-amber-200 mt-0.5">예상 수익률 +2.56%</div>
               </div>
@@ -693,7 +693,7 @@ export const StockAiTradingFloorMasterScreen: React.FC = () => {
               <div className="bg-black/25 backdrop-blur-sm p-3 rounded-xl border border-white/10">
                 <div className="text-xs text-blue-200 font-medium">칼손절 기준선</div>
                 <div className="text-lg font-black text-rose-300 mt-0.5">
-                  ₩{selectedStock.stopLossPrice.toLocaleString()}
+                  ₩{(selectedStock.stopLossPrice ?? 0).toLocaleString()}
                 </div>
                 <div className="text-[11px] text-rose-200 mt-0.5">최대 손실 -1.28%</div>
               </div>
@@ -706,7 +706,7 @@ export const StockAiTradingFloorMasterScreen: React.FC = () => {
                 className="flex-1 py-3.5 px-4 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-base transition shadow-lg flex items-center justify-center gap-2 cursor-pointer"
               >
                 <Zap className="w-5 h-5 fill-slate-950" />
-                <span>AI 권장가 즉시 매수 집행 (₩{selectedStock.currentPrice.toLocaleString()})</span>
+                <span>AI 권장가 즉시 매수 집행 (₩{(selectedStock.currentPrice ?? 0).toLocaleString()})</span>
               </button>
 
               <button
@@ -747,7 +747,7 @@ export const StockAiTradingFloorMasterScreen: React.FC = () => {
               </div>
               <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800">
                 <div className="text-slate-500 dark:text-slate-400">트레일링 스탑 가격</div>
-                <div className="font-bold text-slate-900 dark:text-white mt-1">₩{positionGuardian.trailingStopPrice.toLocaleString()}</div>
+                <div className="font-bold text-slate-900 dark:text-white mt-1">₩{(positionGuardian.trailingStopPrice ?? 0).toLocaleString()}</div>
               </div>
             </div>
           </div>

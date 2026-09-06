@@ -425,7 +425,7 @@ export const AiRiskGateControlCenter: React.FC = () => {
                 1회 최대 주문 금액 (원/$)
               </label>
               <span className="text-xs font-black font-mono text-emerald-400">
-                {maxSingleOrderAmount.toLocaleString()}원
+                {(maxSingleOrderAmount ?? 0).toLocaleString()}원
               </span>
             </div>
             <input 

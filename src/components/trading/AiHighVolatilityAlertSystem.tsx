@@ -195,7 +195,7 @@ export const AiHighVolatilityAlertSystem: React.FC<AiHighVolatilityAlertSystemPr
                   </div>
                   <div className="flex items-center gap-2 mt-1">
                     <span className="text-sm font-mono font-black text-slate-900 dark:text-slate-100">
-                      {item.price.toLocaleString()}원
+                      {(item.price ?? 0).toLocaleString()}원
                     </span>
                     <span className={`text-xs font-mono font-black flex items-center ${
                       isUp ? "text-rose-600 dark:text-rose-400" : "text-blue-600 dark:text-blue-400"

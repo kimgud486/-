@@ -664,7 +664,7 @@ export const MasterAiAutoTradingDashboard: React.FC<{
   const formatPrice = (p: number) => {
     const sym = typeof currentStock?.symbol === "string" ? currentStock.symbol : String(currentStock?.symbol || "");
     if (currentStock.market === "US" || (sym.length <= 5 && !/^\d+$/.test(sym) && !sym.startsWith("KRW-"))) {
-      return `$${p.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+      return `$${(p ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
     }
     if (p >= 1000000) {
       return `₩${Math.round(p).toLocaleString()}`;
@@ -688,7 +688,7 @@ export const MasterAiAutoTradingDashboard: React.FC<{
     addToast?.({
       type: "info",
       title: `[주문 요청] AI 자율 ${type === "BUY" ? "매수" : "매도"} 전송`,
-      message: `${stockName} ${isUs ? `$${price}` : price.toLocaleString() + '원'} 주문 요청 중...`
+      message: `${stockName} ${isUs ? `$${price}` : (price ?? 0).toLocaleString() + '원'} 주문 요청 중...`
     });
 
     if (executeTrade) {
@@ -1122,7 +1122,7 @@ export const MasterAiAutoTradingDashboard: React.FC<{
                   </div>
 
                   <div className={`font-mono text-xs font-semibold ${isWhiteTheme ? "text-slate-900" : "text-slate-100"} text-right w-20`}>
-                    {item.value.toLocaleString()}
+                    {(item.value ?? 0).toLocaleString()}
                   </div>
 
                   {/* Sparkline Canvas */}
@@ -1252,7 +1252,7 @@ export const MasterAiAutoTradingDashboard: React.FC<{
                       </div>
                       <div className="text-right shrink-0">
                         <div className={`font-mono ${isWhiteTheme ? "text-slate-900" : "text-slate-200"}`}>
-                          {item.market === "US" ? `$${item.price}` : `₩${item.price.toLocaleString()}`}
+                          {item.market === "US" ? `$${item.price}` : `₩${(item.price ?? 0).toLocaleString()}`}
                         </div>
                         <div className={`text-[10px] font-mono font-semibold ${
                           (item.changePct || 0) >= 0 ? (isWhiteTheme ? "text-emerald-600" : "text-emerald-400") : (isWhiteTheme ? "text-rose-600" : "text-rose-400")
@@ -1315,7 +1315,7 @@ export const MasterAiAutoTradingDashboard: React.FC<{
                           </div>
 
                           <div className={`col-span-3 font-mono text-right text-xs ${isWhiteTheme ? "text-slate-900" : "text-slate-200"} font-semibold`}>
-                            {stk.market === "US" ? `$${stk.price}` : `₩${stk.price.toLocaleString()}`}
+                            {stk.market === "US" ? `$${stk.price}` : `₩${(stk.price ?? 0).toLocaleString()}`}
                           </div>
 
                           <div className={`col-span-2 font-mono text-right text-[11px] font-bold ${
@@ -1354,7 +1354,7 @@ export const MasterAiAutoTradingDashboard: React.FC<{
               <div>
                 <div className={`text-[10px] font-mono ${isWhiteTheme ? "text-slate-500" : "text-slate-400"}`}>Total P/L</div>
                 <div className={`text-2xl font-black ${totalTradingPnl >= 0 ? (isWhiteTheme ? "text-emerald-600" : "text-emerald-400") : "text-rose-500"} font-mono tracking-tight`}>
-                  {totalTradingPnl >= 0 ? `+${totalTradingPnl.toLocaleString()}원` : `${totalTradingPnl.toLocaleString()}원`}
+                  {totalTradingPnl >= 0 ? `+${(totalTradingPnl ?? 0).toLocaleString()}원` : `${(totalTradingPnl ?? 0).toLocaleString()}원`}
                 </div>
                 <div className={`text-[11px] ${totalTradingPnl >= 0 ? (isWhiteTheme ? "text-emerald-700" : "text-emerald-300/80") : "text-rose-400"} font-mono`}>
                   Realized PnL
@@ -3126,7 +3126,7 @@ export const MasterAiAutoTradingDashboard: React.FC<{
                       </span>
                     </span>
                     <span className={`col-span-2 text-right text-[11px] ${isWhiteTheme ? "text-slate-700" : "text-slate-300"}`}>
-                      {log.price.toLocaleString()}
+                      {(log.price ?? 0).toLocaleString()}
                     </span>
                     <span className={`col-span-2 text-right text-[11px] font-bold ${
                       isWin ? (isWhiteTheme ? "text-emerald-700" : "text-emerald-400") : (isWhiteTheme ? "text-rose-700" : "text-rose-400")

@@ -1047,7 +1047,7 @@ export const StrategySandbox: React.FC = () => {
                 {results.totalReturnPct >= 0 ? "+" : ""}{results.totalReturnPct}%
               </div>
               <div className="text-[10px] text-zinc-500 font-mono">
-                {results.profitAmount >= 0 ? "+" : ""}{results.profitAmount.toLocaleString()} 원
+                {results.profitAmount >= 0 ? "+" : ""}{(results.profitAmount ?? 0).toLocaleString()} 원
               </div>
             </div>
 
@@ -1111,7 +1111,7 @@ export const StrategySandbox: React.FC = () => {
                 <span>백테스트 잔고 성장 곡선 (Equity Curve)</span>
               </h3>
               <span className="text-xs font-mono text-zinc-400">
-                최초 {config.initialCapital.toLocaleString()}원 ➔ 최종 {results.finalCapital.toLocaleString()}원
+                최초 {(config.initialCapital ?? 0).toLocaleString()}원 ➔ 최종 {(results.finalCapital ?? 0).toLocaleString()}원
               </span>
             </div>
 
@@ -1177,13 +1177,13 @@ export const StrategySandbox: React.FC = () => {
                       <tr key={tr.id} className="hover:bg-zinc-800/40 transition">
                         <td className="py-2.5 text-zinc-300">{tr.entryDate}</td>
                         <td className="py-2.5 text-zinc-300">{tr.exitDate}</td>
-                        <td className="py-2.5 text-zinc-300">{tr.entryPrice.toLocaleString()}</td>
-                        <td className="py-2.5 text-zinc-300">{tr.exitPrice.toLocaleString()}</td>
+                        <td className="py-2.5 text-zinc-300">{(tr.entryPrice ?? 0).toLocaleString()}</td>
+                        <td className="py-2.5 text-zinc-300">{(tr.exitPrice ?? 0).toLocaleString()}</td>
                         <td className={`py-2.5 font-bold ${tr.pnlPct >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
                           {tr.pnlPct >= 0 ? "+" : ""}{tr.pnlPct}%
                         </td>
                         <td className={`py-2.5 font-bold ${tr.pnlAmount >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
-                          {tr.pnlAmount >= 0 ? "+" : ""}{tr.pnlAmount.toLocaleString()}원
+                          {tr.pnlAmount >= 0 ? "+" : ""}{(tr.pnlAmount ?? 0).toLocaleString()}원
                         </td>
                         <td className="py-2.5 text-zinc-400">{tr.holdingDays}일</td>
                         <td className="py-2.5 text-zinc-300 font-sans">{tr.exitReason}</td>

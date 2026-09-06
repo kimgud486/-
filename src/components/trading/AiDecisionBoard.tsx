@@ -256,7 +256,7 @@ export const AiDecisionBoard: React.FC<{
               <div className="grid grid-cols-3 gap-1 py-1.5 bg-white rounded-lg border border-slate-100 font-mono text-center mb-2">
                 <div>
                   <div className="text-[9px] text-slate-400 font-sans">진입가</div>
-                  <div className="text-xs font-black text-slate-900">{item.entryPrice.toLocaleString()}</div>
+                  <div className="text-xs font-black text-slate-900">{(item.entryPrice ?? 0).toLocaleString()}</div>
                 </div>
                 <div>
                   <div className="text-[9px] text-slate-400 font-sans">목표가 (TP)</div>
@@ -264,7 +264,7 @@ export const AiDecisionBoard: React.FC<{
                 </div>
                 <div>
                   <div className="text-[9px] text-slate-400 font-sans">손절가 (SL)</div>
-                  <div className="text-xs font-bold text-slate-500">{item.stopLoss.toLocaleString()}</div>
+                  <div className="text-xs font-bold text-slate-500">{(item.stopLoss ?? 0).toLocaleString()}</div>
                 </div>
               </div>
 

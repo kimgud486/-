@@ -166,7 +166,7 @@ export class BrokerFeeAndNetProfitGuard {
         grossProfitPct,
         bepPrice,
         recommendedPrice: targetBepPrice,
-        rationale: `🛡️ [수수료 녹음 차단] 단순 등락 +${grossProfitPct}% 이나 증권사 거래세/수수료 차감 시 실제 순익은 ${netProfitPct}%로 손실/본전 헛매매입니다. 손익분기 목표가(${targetBepPrice.toLocaleString()}원) 도달 전 매도를 차단합니다.`
+        rationale: `🛡️ [수수료 녹음 차단] 단순 등락 +${grossProfitPct}% 이나 증권사 거래세/수수료 차감 시 실제 순익은 ${netProfitPct}%로 손실/본전 헛매매입니다. 손익분기 목표가(${(targetBepPrice ?? 0).toLocaleString()}원) 도달 전 매도를 차단합니다.`
       };
     }
 
@@ -179,7 +179,7 @@ export class BrokerFeeAndNetProfitGuard {
         grossProfitPct,
         bepPrice,
         recommendedPrice: targetBepPrice,
-        rationale: `⏳ [잔파동 노이즈 홀딩 중] 현재 수익률 ${grossProfitPct}%. 손절선(-${Math.abs(stopLossPct)}%) 미도달 및 손익분기점(${bepPrice.toLocaleString()}원) 미달로 노이즈에 털리지 않고 퀀트 목표가를 향해 홀딩을 유지합니다.`
+        rationale: `⏳ [잔파동 노이즈 홀딩 중] 현재 수익률 ${grossProfitPct}%. 손절선(-${Math.abs(stopLossPct)}%) 미도달 및 손익분기점(${(bepPrice ?? 0).toLocaleString()}원) 미달로 노이즈에 털리지 않고 퀀트 목표가를 향해 홀딩을 유지합니다.`
       };
     }
 

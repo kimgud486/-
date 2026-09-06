@@ -354,7 +354,7 @@ export const GithubQuantPatternEngineHub: React.FC = () => {
       smcInfo: {
         structure: realScan.analysis.structure.trend === "UP" ? "Bullish BOS" : realScan.analysis.structure.choch ? "CHoCH" : "Ranging",
         orderBlock: realScan.brainResult?.keyLevels.nearestBullishOB
-          ? `Bullish OB (₩${realScan.brainResult.keyLevels.nearestBullishOB.priceTop.toLocaleString()})`
+          ? `Bullish OB (₩${(realScan.brainResult.keyLevels.nearestBullishOB.priceTop ?? 0).toLocaleString()})`
           : "NONE",
         obVolume: (s.volume || 0) > 1000000 ? "HIGH" : "MEDIUM",
         isMitigated: realScan.brainResult?.keyLevels.nearestBullishOB?.isMitigated ?? false,
@@ -364,7 +364,7 @@ export const GithubQuantPatternEngineHub: React.FC = () => {
         deltaStatus: flow.status === "LIVE" && flow.cumulativeDelta !== null ? `${flow.cumulativeDelta > 0 ? "+" : ""}${flow.cumulativeDelta} Delta` : "UNAVAILABLE",
         cumulativeDelta: flow.status === "LIVE" ? flow.cumulativeDelta : null,
         imbalanceType: flow.status === "LIVE" ? (flow.askImbalance ? `Ask Imbalance ${flow.askImbalance}` : flow.bidImbalance ? `Bid Imbalance ${flow.bidImbalance}` : "Balanced") : "UNAVAILABLE",
-        pocStatus: flow.status === "LIVE" && flow.poc ? `POC ₩${flow.poc.toLocaleString()}` : "UNAVAILABLE"
+        pocStatus: flow.status === "LIVE" && flow.poc ? `POC ₩${(flow.poc ?? 0).toLocaleString()}` : "UNAVAILABLE"
       },
       timeframeConcordance: {
         m1: realScan.mtfResult.m1?.isBullish ?? false,
@@ -674,7 +674,7 @@ export const GithubQuantPatternEngineHub: React.FC = () => {
 
                   <div className="text-right">
                     <div className="font-mono font-black text-sm text-slate-900 dark:text-white">
-                      ₩{item.price.toLocaleString()}
+                      ₩{(item.price ?? 0).toLocaleString()}
                     </div>
                     <div
                       className={`text-xs font-bold font-mono ${
@@ -776,7 +776,7 @@ export const GithubQuantPatternEngineHub: React.FC = () => {
                 >
                   {stocks.map((s) => (
                     <option key={s.symbol} value={s.symbol}>
-                      {s.name} ({s.symbol}) - ₩{s.price.toLocaleString()}
+                      {s.name} ({s.symbol}) - ₩{(s.price ?? 0).toLocaleString()}
                     </option>
                   ))}
                 </select>
@@ -899,7 +899,7 @@ export const GithubQuantPatternEngineHub: React.FC = () => {
                         >
                           {sw.type === "SWING_HIGH" ? "SWING HIGH ▲" : "SWING LOW ▼"}
                         </span>
-                        <span className="text-slate-200 font-bold">₩{sw.price.toLocaleString()}</span>
+                        <span className="text-slate-200 font-bold">₩{(sw.price ?? 0).toLocaleString()}</span>
                       </div>
                       <div className="text-[10px] text-slate-400">
                         {sw.isBroken ? (
@@ -950,8 +950,8 @@ export const GithubQuantPatternEngineHub: React.FC = () => {
                       </span>
                     </div>
                     <div className="text-[11px] text-slate-300 flex justify-between">
-                      <span>범위: ₩{ob.priceBottom.toLocaleString()} ~ ₩{ob.priceTop.toLocaleString()}</span>
-                      <span className="text-slate-400">거래량: {ob.volume.toLocaleString()}</span>
+                      <span>범위: ₩{(ob.priceBottom ?? 0).toLocaleString()} ~ ₩{(ob.priceTop ?? 0).toLocaleString()}</span>
+                      <span className="text-slate-400">거래량: {(ob.volume ?? 0).toLocaleString()}</span>
                     </div>
                   </div>
                 ))}
@@ -991,8 +991,8 @@ export const GithubQuantPatternEngineHub: React.FC = () => {
                       </span>
                     </div>
                     <div className="text-[11px] text-slate-300 flex justify-between">
-                      <span>갭 범위: ₩{fvg.bottom.toLocaleString()} ~ ₩{fvg.top.toLocaleString()}</span>
-                      <span className="text-slate-400">크기: ₩{fvg.gapSize.toLocaleString()}</span>
+                      <span>갭 범위: ₩{(fvg.bottom ?? 0).toLocaleString()} ~ ₩{(fvg.top ?? 0).toLocaleString()}</span>
+                      <span className="text-slate-400">크기: ₩{(fvg.gapSize ?? 0).toLocaleString()}</span>
                     </div>
                   </div>
                 ))}
@@ -1027,10 +1027,10 @@ export const GithubQuantPatternEngineHub: React.FC = () => {
                       >
                         {sweep.type === "SSL_SWEEP" ? "SSL SWEEP (매수 유입)" : "BSL SWEEP (트랩)"}
                       </span>
-                      <span className="text-[10px] text-slate-400">Wick: ₩{sweep.wickPrice.toLocaleString()}</span>
+                      <span className="text-[10px] text-slate-400">Wick: ₩{(sweep.wickPrice ?? 0).toLocaleString()}</span>
                     </div>
                     <div className="text-[11px] text-slate-300">
-                      스위프 레벨: ₩{sweep.sweptLevel.toLocaleString()} → 복귀 종가 ₩{sweep.reclaimedClose.toLocaleString()}
+                      스위프 레벨: ₩{(sweep.sweptLevel ?? 0).toLocaleString()} → 복귀 종가 ₩{(sweep.reclaimedClose ?? 0).toLocaleString()}
                     </div>
                   </div>
                 ))}
@@ -1085,10 +1085,10 @@ export const GithubQuantPatternEngineHub: React.FC = () => {
                 <div className="p-4 bg-slate-950 rounded-xl border border-slate-800 space-y-2">
                   <span className="text-slate-400 font-bold block">Volume Profile (POC &amp; VAH)</span>
                   <div className="text-lg font-black text-cyan-300">
-                    {currentFlow.poc ? `POC ₩${currentFlow.poc.toLocaleString()}` : "UNAVAILABLE"}
+                    {currentFlow.poc ? `POC ₩${(currentFlow.poc ?? 0).toLocaleString()}` : "UNAVAILABLE"}
                   </div>
                   <p className="text-[11px] text-slate-400">
-                    {currentFlow.vah ? `VAH ₩${currentFlow.vah.toLocaleString()}` : "Value Area Inside"}
+                    {currentFlow.vah ? `VAH ₩${(currentFlow.vah ?? 0).toLocaleString()}` : "Value Area Inside"}
                   </p>
                 </div>
                 <div className="p-4 bg-slate-950 rounded-xl border border-slate-800 space-y-2">

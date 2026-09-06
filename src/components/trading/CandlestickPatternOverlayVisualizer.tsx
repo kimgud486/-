@@ -249,7 +249,7 @@ export const CandlestickPatternOverlayVisualizer: React.FC<CandlestickPatternOve
 
               {/* Price & Annotation */}
               <div className="mt-2 pt-2 border-t border-slate-800/60 flex items-center justify-between text-[11px] font-mono">
-                <span className="text-slate-300 font-bold">{ptn.candlePrice.toLocaleString()}원</span>
+                <span className="text-slate-300 font-bold">{(ptn.candlePrice ?? 0).toLocaleString()}원</span>
                 <span className="text-emerald-400 font-bold">+{ptn.volumeDeltaRatio}% CVD</span>
               </div>
 
@@ -278,12 +278,12 @@ export const CandlestickPatternOverlayVisualizer: React.FC<CandlestickPatternOve
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs font-mono">
           <div className="p-2.5 bg-slate-900/80 rounded-lg border border-slate-800">
             <span className="text-slate-400 text-[10px] block">평단가 (Buy Price)</span>
-            <span className="text-slate-100 font-bold text-sm">{buyPrice.toLocaleString()}원</span>
+            <span className="text-slate-100 font-bold text-sm">{(buyPrice ?? 0).toLocaleString()}원</span>
           </div>
 
           <div className="p-2.5 bg-slate-900/80 rounded-lg border border-amber-900/40">
             <span className="text-amber-400 text-[10px] block">손익분기점 (BEP Price)</span>
-            <span className="text-amber-300 font-bold text-sm">{feeAnalysis.bepPrice.toLocaleString()}원</span>
+            <span className="text-amber-300 font-bold text-sm">{(feeAnalysis.bepPrice ?? 0).toLocaleString()}원</span>
             <span className="text-[9px] text-amber-500 block">수수료 0.25% 보정가</span>
           </div>
 

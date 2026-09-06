@@ -225,7 +225,7 @@ export const AiHotListWidget: React.FC<AiHotListWidgetProps> = ({
           <div className="text-right hidden sm:block">
             <div className="text-[10px] font-mono text-emerald-400 flex items-center justify-end gap-1">
               <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-ping" />
-              <span>실시간 스캔 완료 ({scannedTotal.toLocaleString()}개 종목 감시)</span>
+              <span>실시간 스캔 완료 ({(scannedTotal ?? 0).toLocaleString()}개 종목 감시)</span>
             </div>
             <p className="text-[10px] text-zinc-500 font-mono">
               마지막 스캔: {lastScanTime || "방금 전"}
@@ -358,7 +358,7 @@ export const AiHotListWidget: React.FC<AiHotListWidgetProps> = ({
             const isKorea = item.market === "KOREA";
             const priceSymbol = isKorea ? "₩" : isCrypto ? "₩" : "$";
             const formattedPrice = isKorea || isCrypto
-              ? item.currentPrice.toLocaleString()
+              ? (item.currentPrice ?? 0).toLocaleString()
               : item.currentPrice.toFixed(2);
 
             const isPositive = item.priceChange24hPct >= 0;
@@ -441,11 +441,11 @@ export const AiHotListWidget: React.FC<AiHotListWidgetProps> = ({
                     <div className="grid grid-cols-3 gap-1 text-[10px] font-mono text-zinc-300 pt-1 border-t border-zinc-800/60">
                       <div>
                         <span className="text-zinc-500 block">목표가</span>
-                        <strong className="text-emerald-300">{priceSymbol}{item.targetPrice.toLocaleString()}</strong>
+                        <strong className="text-emerald-300">{priceSymbol}{(item.targetPrice ?? 0).toLocaleString()}</strong>
                       </div>
                       <div>
                         <span className="text-zinc-500 block">손절가</span>
-                        <strong className="text-rose-400">{priceSymbol}{item.stopLoss.toLocaleString()}</strong>
+                        <strong className="text-rose-400">{priceSymbol}{(item.stopLoss ?? 0).toLocaleString()}</strong>
                       </div>
                       <div>
                         <span className="text-zinc-500 block">손익비</span>

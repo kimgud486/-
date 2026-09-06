@@ -439,10 +439,10 @@ export const AiBotStrategyImprovementModal: React.FC<AiBotStrategyImprovementMod
               {currentStockInfo ? (
                 <div className="flex items-center gap-3 text-xs font-mono">
                   <span className="text-slate-500 dark:text-zinc-400">
-                    평단가: <strong className="text-white">{currentStockInfo.avgPrice.toLocaleString()}원</strong>
+                    평단가: <strong className="text-white">{(currentStockInfo.avgPrice ?? 0).toLocaleString()}원</strong>
                   </span>
                   <span className="text-slate-500 dark:text-zinc-400">
-                    현재가: <strong className="text-white">{currentStockInfo.currentPrice.toLocaleString()}원</strong>
+                    현재가: <strong className="text-white">{(currentStockInfo.currentPrice ?? 0).toLocaleString()}원</strong>
                   </span>
                   <span className={`font-bold px-2 py-0.5 rounded border ${
                     currentStockInfo.returnRate < 0 ? "bg-rose-950 text-rose-400 border-rose-800" : "bg-emerald-950 text-emerald-400 border-emerald-800"

@@ -242,8 +242,8 @@ export const LiveInteractivePnLWidget: React.FC<LiveInteractivePnLWidgetProps> =
           </div>
           <div className="text-sm font-black text-slate-900">
             {isRealTradingMode 
-              ? `${realBalance.toLocaleString()}원`
-              : `${current.evaluatedAmount.toLocaleString()}원`
+              ? `${(realBalance ?? 0).toLocaleString()}원`
+              : `${(current.evaluatedAmount ?? 0).toLocaleString()}원`
             }
           </div>
         </div>
@@ -258,7 +258,7 @@ export const LiveInteractivePnLWidget: React.FC<LiveInteractivePnLWidgetProps> =
             {isPlus ? <TrendingUp className="w-3.5 h-3.5" /> : <TrendingDown className="w-3.5 h-3.5" />}
             <span>{isPlus ? "+" : ""}{current.pnlRate}%</span>
             <span className="text-[11px] font-bold text-slate-500 font-sans">
-              ({isPlus ? "+" : ""}{current.pnlAmount.toLocaleString()}원)
+              ({isPlus ? "+" : ""}{(current.pnlAmount ?? 0).toLocaleString()}원)
             </span>
           </div>
         </div>

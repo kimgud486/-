@@ -300,7 +300,7 @@ export const HoldingExecutionRationaleModal: React.FC<HoldingExecutionRationaleM
       repo: "huggingface/transformers",
       signal: "TEMPORAL ATTENTION 🟢",
       score: 95,
-      rationale: "패치 시계열 어텐션 맵: 고점 돌파 타겟 지점(₩" + targetPrice.toLocaleString() + ") 유력"
+      rationale: "패치 시계열 어텐션 맵: 고점 돌파 타겟 지점(₩" + (targetPrice ?? 0).toLocaleString() + ") 유력"
     },
     {
       id: "pyfolio_risk",
@@ -327,7 +327,7 @@ export const HoldingExecutionRationaleModal: React.FC<HoldingExecutionRationaleM
         sellQty,
         currentPrice,
         "AI 50% 분할 익절 주문 (수익 보존)",
-        `현재가 ₩${currentPrice.toLocaleString()}에서 50% 수량 분할 매도 실행.`,
+        `현재가 ₩${(currentPrice ?? 0).toLocaleString()}에서 50% 수량 분할 매도 실행.`,
         true
       );
       addToast({
@@ -354,7 +354,7 @@ export const HoldingExecutionRationaleModal: React.FC<HoldingExecutionRationaleM
         holding.qty,
         currentPrice,
         "AI 포지션 전량 청산 주문",
-        `현재가 ₩${currentPrice.toLocaleString()}에서 전량(${holding.qty}) 청산 완료.`,
+        `현재가 ₩${(currentPrice ?? 0).toLocaleString()}에서 전량(${holding.qty}) 청산 완료.`,
         true
       );
       addToast({
@@ -383,7 +383,7 @@ export const HoldingExecutionRationaleModal: React.FC<HoldingExecutionRationaleM
         addQty,
         currentPrice,
         "AI 불타기/추가 매수 주문",
-        `현재가 ₩${currentPrice.toLocaleString()}에서 16대 뇌엔진 시그널에 따라 추가 매수(${addQty}주) 실행.`,
+        `현재가 ₩${(currentPrice ?? 0).toLocaleString()}에서 16대 뇌엔진 시그널에 따라 추가 매수(${addQty}주) 실행.`,
         true
       );
       addToast({
@@ -436,9 +436,9 @@ export const HoldingExecutionRationaleModal: React.FC<HoldingExecutionRationaleM
               <p className="text-xs text-slate-400 mt-1 flex items-center gap-2 flex-wrap font-mono">
                 <span>운용 봇: <strong className="text-indigo-300">{holding.botManagedBy || "SMC 구조 돌파 & 16대 뇌엔진 봇"}</strong></span>
                 <span>•</span>
-                <span>보유 수량: <strong className="text-white">{holding.qty.toLocaleString()}</strong></span>
+                <span>보유 수량: <strong className="text-white">{(holding.qty ?? 0).toLocaleString()}</strong></span>
                 <span>•</span>
-                <span>평균 매수가: <strong className="text-white">₩{avgBuyPrice.toLocaleString()}</strong></span>
+                <span>평균 매수가: <strong className="text-white">₩{(avgBuyPrice ?? 0).toLocaleString()}</strong></span>
               </p>
             </div>
           </div>
@@ -447,7 +447,7 @@ export const HoldingExecutionRationaleModal: React.FC<HoldingExecutionRationaleM
           <div className="flex items-center justify-between sm:justify-end gap-4 shrink-0 font-mono">
             <div className="text-right">
               <div className="text-lg sm:text-xl font-black text-white">
-                ₩{currentPrice.toLocaleString()}
+                ₩{(currentPrice ?? 0).toLocaleString()}
               </div>
               <div
                 className={`text-xs font-black flex items-center justify-end gap-1 ${
@@ -620,19 +620,19 @@ export const HoldingExecutionRationaleModal: React.FC<HoldingExecutionRationaleM
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 font-mono">
                 <div className="p-3.5 bg-slate-950 rounded-xl border border-slate-800 space-y-1">
                   <span className="text-[11px] text-slate-400 font-bold block">진입 매수가 (Entry)</span>
-                  <span className="text-base font-black text-white">₩{avgBuyPrice.toLocaleString()}</span>
+                  <span className="text-base font-black text-white">₩{(avgBuyPrice ?? 0).toLocaleString()}</span>
                   <span className="text-[10px] text-indigo-400 block font-sans">체결 시점 기준가</span>
                 </div>
 
                 <div className="p-3.5 bg-emerald-950/40 rounded-xl border border-emerald-800/60 space-y-1">
                   <span className="text-[11px] text-emerald-300 font-bold block">1차 목표가 (TP 1)</span>
-                  <span className="text-base font-black text-emerald-400">₩{targetPrice.toLocaleString()}</span>
+                  <span className="text-base font-black text-emerald-400">₩{(targetPrice ?? 0).toLocaleString()}</span>
                   <span className="text-[10px] text-emerald-300 block font-sans">+15.0% 익절 구간</span>
                 </div>
 
                 <div className="p-3.5 bg-rose-950/40 rounded-xl border border-rose-800/60 space-y-1">
                   <span className="text-[11px] text-rose-300 font-bold block">손절 기준가 (SL)</span>
-                  <span className="text-base font-black text-rose-400">₩{stopLossPrice.toLocaleString()}</span>
+                  <span className="text-base font-black text-rose-400">₩{(stopLossPrice ?? 0).toLocaleString()}</span>
                   <span className="text-[10px] text-rose-300 block font-sans">-5.0% Trailing Stop</span>
                 </div>
 
@@ -726,7 +726,7 @@ export const HoldingExecutionRationaleModal: React.FC<HoldingExecutionRationaleM
                         domain={["auto", "auto"]}
                         stroke="#94a3b8"
                         tick={{ fontSize: 11 }}
-                        tickFormatter={(v) => `₩${v.toLocaleString()}`}
+                        tickFormatter={(v) => `₩${(v ?? 0).toLocaleString()}`}
                       />
                       <Tooltip
                         contentStyle={{
@@ -745,13 +745,13 @@ export const HoldingExecutionRationaleModal: React.FC<HoldingExecutionRationaleM
                         y={avgBuyPrice}
                         stroke="#f59e0b"
                         strokeDasharray="4 4"
-                        label={{ value: `매수가 ₩${avgBuyPrice.toLocaleString()}`, fill: "#f59e0b", fontSize: 10 }}
+                        label={{ value: `매수가 ₩${(avgBuyPrice ?? 0).toLocaleString()}`, fill: "#f59e0b", fontSize: 10 }}
                       />
                       <ReferenceLine
                         y={targetPrice}
                         stroke="#10b981"
                         strokeDasharray="3 3"
-                        label={{ value: `목표가 ₩${targetPrice.toLocaleString()}`, fill: "#10b981", fontSize: 10 }}
+                        label={{ value: `목표가 ₩${(targetPrice ?? 0).toLocaleString()}`, fill: "#10b981", fontSize: 10 }}
                       />
 
                       {/* Area for Confidence Interval */}
@@ -799,7 +799,7 @@ export const HoldingExecutionRationaleModal: React.FC<HoldingExecutionRationaleM
                       <span>확률 68.5%</span>
                     </div>
                     <div className="text-lg font-black text-emerald-400 font-mono">
-                      ₩{predictiveForecastData[predictiveForecastData.length - 1]?.bullPrice.toLocaleString()}
+                      ₩{(predictiveForecastData[predictiveForecastData.length - 1]?.bullPrice ?? 0).toLocaleString()}
                     </div>
                     <p className="text-[11px] text-slate-300">
                       수급 유입 지속 및 1차/2차 목표가 연쇄 돌파 시나리오
@@ -812,7 +812,7 @@ export const HoldingExecutionRationaleModal: React.FC<HoldingExecutionRationaleM
                       <span>확률 24.0%</span>
                     </div>
                     <div className="text-lg font-black text-blue-400 font-mono">
-                      ₩{predictiveForecastData[predictiveForecastData.length - 1]?.basePrice.toLocaleString()}
+                      ₩{(predictiveForecastData[predictiveForecastData.length - 1]?.basePrice ?? 0).toLocaleString()}
                     </div>
                     <p className="text-[11px] text-slate-300">
                       완만한 우상향 및 매물대 소화 후 점진적 수익 실현
@@ -825,10 +825,10 @@ export const HoldingExecutionRationaleModal: React.FC<HoldingExecutionRationaleM
                       <span>확률 7.5%</span>
                     </div>
                     <div className="text-lg font-black text-rose-400 font-mono">
-                      ₩{predictiveForecastData[predictiveForecastData.length - 1]?.bearPrice.toLocaleString()}
+                      ₩{(predictiveForecastData[predictiveForecastData.length - 1]?.bearPrice ?? 0).toLocaleString()}
                     </div>
                     <p className="text-[11px] text-slate-300">
-                      Trailing Stop 손절선(₩{stopLossPrice.toLocaleString()})에 의한 자동 손실 차단
+                      Trailing Stop 손절선(₩{(stopLossPrice ?? 0).toLocaleString()})에 의한 자동 손실 차단
                     </p>
                   </div>
                 </div>
@@ -874,7 +874,7 @@ export const HoldingExecutionRationaleModal: React.FC<HoldingExecutionRationaleM
                         domain={["auto", "auto"]}
                         stroke="#94a3b8"
                         tick={{ fontSize: 11 }}
-                        tickFormatter={(v) => `₩${v.toLocaleString()}`}
+                        tickFormatter={(v) => `₩${(v ?? 0).toLocaleString()}`}
                       />
                       <Tooltip
                         contentStyle={{

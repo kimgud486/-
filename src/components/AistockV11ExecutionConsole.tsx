@@ -357,7 +357,7 @@ export const AistockV11ExecutionConsole: React.FC = () => {
               <div className="flex items-center gap-2">
                 <span className="text-xs text-zinc-400 font-bold">손익:</span>
                 <span className={`text-sm font-black font-mono ${activePosition.unrealizedPnLAmt >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
-                  {activePosition.unrealizedPnLAmt >= 0 ? "+" : ""}{activePosition.unrealizedPnLAmt.toLocaleString()}원 ({activePosition.unrealizedPnLPct >= 0 ? "+" : ""}{activePosition.unrealizedPnLPct}%)
+                  {activePosition.unrealizedPnLAmt >= 0 ? "+" : ""}{(activePosition.unrealizedPnLAmt ?? 0).toLocaleString()}원 ({activePosition.unrealizedPnLPct >= 0 ? "+" : ""}{activePosition.unrealizedPnLPct}%)
                 </span>
               </div>
             </div>
@@ -365,11 +365,11 @@ export const AistockV11ExecutionConsole: React.FC = () => {
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs font-mono">
               <div>
                 <span className="text-zinc-500 block">매수가</span>
-                <span className="text-zinc-200 font-bold">{activePosition.buyPrice.toLocaleString()}원</span>
+                <span className="text-zinc-200 font-bold">{(activePosition.buyPrice ?? 0).toLocaleString()}원</span>
               </div>
               <div>
                 <span className="text-zinc-500 block">현재가</span>
-                <span className="text-cyan-300 font-bold">{activePosition.currentPrice.toLocaleString()}원</span>
+                <span className="text-cyan-300 font-bold">{(activePosition.currentPrice ?? 0).toLocaleString()}원</span>
               </div>
               <div>
                 <span className="text-zinc-500 block">보유 수량</span>
@@ -377,7 +377,7 @@ export const AistockV11ExecutionConsole: React.FC = () => {
               </div>
               <div>
                 <span className="text-zinc-500 block">Trailing Exit 라인</span>
-                <span className="text-amber-400 font-bold">{activePosition.trailingExitPrice.toLocaleString()}원</span>
+                <span className="text-amber-400 font-bold">{(activePosition.trailingExitPrice ?? 0).toLocaleString()}원</span>
               </div>
             </div>
 
@@ -427,7 +427,7 @@ export const AistockV11ExecutionConsole: React.FC = () => {
             <div className="flex items-center justify-between">
               <span className="text-zinc-600">오늘 실현 손익:</span>
               <span className={`font-black ${riskMetrics.dailyRealizedPnLKRW >= 0 ? "text-emerald-600" : "text-rose-600"}`}>
-                {riskMetrics.dailyRealizedPnLKRW >= 0 ? "+" : ""}{riskMetrics.dailyRealizedPnLKRW.toLocaleString()}원
+                {riskMetrics.dailyRealizedPnLKRW >= 0 ? "+" : ""}{(riskMetrics.dailyRealizedPnLKRW ?? 0).toLocaleString()}원
               </span>
             </div>
             <div className="flex items-center justify-between">

@@ -131,7 +131,7 @@ export const MultiModelSecuritiesConsensusModal: React.FC<MultiModelSecuritiesCo
   const formatPrice = (val: number | undefined | null) => {
     if (val === undefined || val === null || isNaN(val)) return isUS ? "$0.00" : "0원";
     if (isUS) {
-      return `$${val.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+      return `$${(val ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
     }
     return `${Math.round(val).toLocaleString()}원`;
   };
@@ -141,8 +141,8 @@ export const MultiModelSecuritiesConsensusModal: React.FC<MultiModelSecuritiesCo
     if (isUS) {
       const krw = Math.round(val * currentFx);
       return {
-        primary: `$${val.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
-        sub: `(≈ ₩${krw.toLocaleString()})`
+        primary: `$${(val ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+        sub: `(≈ ₩${(krw ?? 0).toLocaleString()})`
       };
     }
     return {
@@ -760,7 +760,7 @@ export const MultiModelSecuritiesConsensusModal: React.FC<MultiModelSecuritiesCo
                   {searchResults.map((item) => {
                     const itemIsUs = isUsMarketStock(item.market, item.symbol);
                     const formattedItemPrice = item.price > 0 
-                      ? (itemIsUs ? `$${item.price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : `${item.price.toLocaleString()}원`)
+                      ? (itemIsUs ? `$${(item.price ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : `${(item.price ?? 0).toLocaleString()}원`)
                       : "시세 조회중...";
                     return (
                       <button
@@ -1564,7 +1564,7 @@ export const MultiModelSecuritiesConsensusModal: React.FC<MultiModelSecuritiesCo
                       orientation="right"
                       stroke="#71717a"
                       tick={{ fontSize: 10, fill: "#a1a1aa" }}
-                      tickFormatter={(v) => isUS ? `$${v}` : v.toLocaleString()}
+                      tickFormatter={(v) => isUS ? `$${v}` : (v ?? 0).toLocaleString()}
                     />
                     <Tooltip
                       contentStyle={{ backgroundColor: "#09090b", borderColor: "#3f3f46", borderRadius: "12px", fontSize: "11px", color: "#f4f4f5" }}

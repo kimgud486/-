@@ -475,15 +475,15 @@ export const PortfolioHealthReport: React.FC<PortfolioHealthReportProps> = ({
               <div className="p-4 bg-zinc-900/50 border border-zinc-800/70 rounded-2xl flex flex-wrap items-center justify-between gap-4 text-xs">
                 <div className="flex items-center gap-3">
                   <span className="text-zinc-400">총 운용 자산:</span>
-                  <span className="text-sm font-bold text-white">{totalAssets.toLocaleString()}원</span>
+                  <span className="text-sm font-bold text-white">{(totalAssets ?? 0).toLocaleString()}원</span>
                 </div>
                 <div className="flex items-center gap-3">
                   <span className="text-zinc-400">주식 평가액:</span>
-                  <span className="text-sm font-semibold text-emerald-400">{totalHoldingValue.toLocaleString()}원</span>
+                  <span className="text-sm font-semibold text-emerald-400">{(totalHoldingValue ?? 0).toLocaleString()}원</span>
                 </div>
                 <div className="flex items-center gap-3">
                   <span className="text-zinc-400">가용 현금:</span>
-                  <span className="text-sm font-semibold text-indigo-300">{cashBalance.toLocaleString()}원</span>
+                  <span className="text-sm font-semibold text-indigo-300">{(cashBalance ?? 0).toLocaleString()}원</span>
                 </div>
                 <div className="flex items-center gap-2 text-zinc-500 text-[11px]">
                   <Clock className="w-3.5 h-3.5" />
@@ -724,11 +724,11 @@ export const PortfolioHealthReport: React.FC<PortfolioHealthReportProps> = ({
                         </div>
                         <div>
                           <span className="text-zinc-500 block">1차 목표가</span>
-                          <span className="font-semibold text-zinc-200">{item.targetPrice.toLocaleString()}원</span>
+                          <span className="font-semibold text-zinc-200">{(item.targetPrice ?? 0).toLocaleString()}원</span>
                         </div>
                         <div>
                           <span className="text-zinc-500 block">손절 기준가</span>
-                          <span className="font-semibold text-rose-400">{item.stopLoss.toLocaleString()}원</span>
+                          <span className="font-semibold text-rose-400">{(item.stopLoss ?? 0).toLocaleString()}원</span>
                         </div>
                       </div>
 

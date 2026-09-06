@@ -472,7 +472,7 @@ export const TradingStatus: React.FC = () => {
                           {ord.side === 'BUY' ? "매수" : "매도"}
                         </span>
                       </td>
-                      <td className="p-2.5 text-right font-mono font-bold text-zinc-800">{ord.quantity.toLocaleString()}주</td>
+                      <td className="p-2.5 text-right font-mono font-bold text-zinc-800">{(ord.quantity ?? 0).toLocaleString()}주</td>
                       <td className="p-2.5 text-right font-mono font-bold text-zinc-900">
                         {ord.market === "US" ? `$${ord.price.toFixed(2)}` : `${Math.round(ord.price).toLocaleString()}원`}
                       </td>

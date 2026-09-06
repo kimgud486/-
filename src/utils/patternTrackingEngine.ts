@@ -83,7 +83,7 @@ export function evaluatePatternLifecycle(
       return {
         state: "TARGET_REACHED",
         stateLabel: "✅ TARGET REACHED (목표달성)",
-        stateDescription: `현재가(${currPrice.toLocaleString()})가 패턴 목표가(${targetPrice.toLocaleString()})에 이미 도달/초과하여 완료됨 (신규 진입 제외)`,
+        stateDescription: `현재가(${(currPrice ?? 0).toLocaleString()})가 패턴 목표가(${(targetPrice ?? 0).toLocaleString()})에 이미 도달/초과하여 완료됨 (신규 진입 제외)`,
         isValidForSignal: false,
         adjustedTargetPrice: targetPrice,
       };
@@ -94,7 +94,7 @@ export function evaluatePatternLifecycle(
       return {
         state: "INVALIDATED",
         stateLabel: "❌ INVALIDATED (손절 무효화)",
-        stateDescription: `현재가가 손절 지지선(${stopLossPrice.toLocaleString()}) 아래로 이탈하여 패턴 무효화됨`,
+        stateDescription: `현재가가 손절 지지선(${(stopLossPrice ?? 0).toLocaleString()}) 아래로 이탈하여 패턴 무효화됨`,
         isValidForSignal: false,
         adjustedTargetPrice: targetPrice,
       };
@@ -105,7 +105,7 @@ export function evaluatePatternLifecycle(
       return {
         state: "ACTIVE",
         stateLabel: "🟢 ACTIVE (목표 추적 중)",
-        stateDescription: `넥라인(${necklinePrice.toLocaleString()}) 돌파 후 목표가(${targetPrice.toLocaleString()}) 향해 상승 추세 진행 중`,
+        stateDescription: `넥라인(${(necklinePrice ?? 0).toLocaleString()}) 돌파 후 목표가(${(targetPrice ?? 0).toLocaleString()}) 향해 상승 추세 진행 중`,
         isValidForSignal: true,
         adjustedTargetPrice: targetPrice,
       };
@@ -116,7 +116,7 @@ export function evaluatePatternLifecycle(
       return {
         state: "FORMING",
         stateLabel: "🟡 FORMING (수렴 형성 중)",
-        stateDescription: `넥라인(${necklinePrice.toLocaleString()}) 돌파를 시도하며 저점 수렴 중`,
+        stateDescription: `넥라인(${(necklinePrice ?? 0).toLocaleString()}) 돌파를 시도하며 저점 수렴 중`,
         isValidForSignal: true,
         adjustedTargetPrice: targetPrice,
       };
@@ -125,7 +125,7 @@ export function evaluatePatternLifecycle(
     return {
       state: "ACTIVE",
       stateLabel: "🟢 ACTIVE (상승 추적)",
-      stateDescription: `상승 패턴 유효 (목표가: ${targetPrice.toLocaleString()})`,
+      stateDescription: `상승 패턴 유효 (목표가: ${(targetPrice ?? 0).toLocaleString()})`,
       isValidForSignal: true,
       adjustedTargetPrice: targetPrice,
     };
@@ -136,7 +136,7 @@ export function evaluatePatternLifecycle(
       return {
         state: "INVALIDATED",
         stateLabel: "❌ INVALIDATED (상방 돌파 무효화)",
-        stateDescription: `현재가가 고점 저항선(${stopLossPrice.toLocaleString()})을 넘어서 하락 패턴 무효화됨`,
+        stateDescription: `현재가가 고점 저항선(${(stopLossPrice ?? 0).toLocaleString()})을 넘어서 하락 패턴 무효화됨`,
         isValidForSignal: false,
         adjustedTargetPrice: targetPrice,
       };
@@ -147,7 +147,7 @@ export function evaluatePatternLifecycle(
       return {
         state: "TARGET_REACHED",
         stateLabel: "✅ TARGET REACHED (하락목표 완료)",
-        stateDescription: `현재가가 하락 목표가(${targetPrice.toLocaleString()})까지 도달하여 조정 완료됨`,
+        stateDescription: `현재가가 하락 목표가(${(targetPrice ?? 0).toLocaleString()})까지 도달하여 조정 완료됨`,
         isValidForSignal: false,
         adjustedTargetPrice: targetPrice,
       };
@@ -158,7 +158,7 @@ export function evaluatePatternLifecycle(
       return {
         state: "ACTIVE",
         stateLabel: "🔴 ACTIVE (하락 진행)",
-        stateDescription: `넥라인(${necklinePrice.toLocaleString()}) 하향 이탈 후 하락 목표가(${targetPrice.toLocaleString()}) 추적 중`,
+        stateDescription: `넥라인(${(necklinePrice ?? 0).toLocaleString()}) 하향 이탈 후 하락 목표가(${(targetPrice ?? 0).toLocaleString()}) 추적 중`,
         isValidForSignal: true,
         adjustedTargetPrice: targetPrice,
       };
@@ -259,7 +259,7 @@ export function detectAllChartPatterns(
                 category: "DOUBLE_BOTTOM",
                 type: "BULLISH",
                 confidence: Math.min(94, Math.round(82 + (1 - priceDiff / 0.045) * 12)),
-                description: `바닥 1 (${l1.price.toLocaleString()})과 바닥 2 (${l2.price.toLocaleString()}) 지지 후 넥라인(${neckline.toLocaleString()}) 돌파 추적`,
+                description: `바닥 1 (${(l1.price ?? 0).toLocaleString()})과 바닥 2 (${(l2.price ?? 0).toLocaleString()}) 지지 후 넥라인(${(neckline ?? 0).toLocaleString()}) 돌파 추적`,
                 targetPrice: rawTarget,
                 stopLossPrice: rawStop,
                 necklinePrice: neckline,
@@ -329,7 +329,7 @@ export function detectAllChartPatterns(
       category: "DOUBLE_BOTTOM",
       type: "BULLISH",
       confidence: 86,
-      description: `W자 바닥 지지 후 넥라인(${neckline.toLocaleString()}) 돌파 상승 목표가 추적`,
+      description: `W자 바닥 지지 후 넥라인(${(neckline ?? 0).toLocaleString()}) 돌파 상승 목표가 추적`,
       targetPrice,
       stopLossPrice,
       necklinePrice: neckline,
@@ -388,7 +388,7 @@ export function detectAllChartPatterns(
             category: "HEAD_AND_SHOULDERS",
             type: "BEARISH",
             confidence: 88,
-            description: `왼쪽 어깨(${lShoulder.price.toLocaleString()}), 머리(${head.price.toLocaleString()}), 오른쪽 어깨(${rShoulder.price.toLocaleString()}) 완성 후 넥라인 하향 이탈 경보`,
+            description: `왼쪽 어깨(${(lShoulder.price ?? 0).toLocaleString()}), 머리(${(head.price ?? 0).toLocaleString()}), 오른쪽 어깨(${(rShoulder.price ?? 0).toLocaleString()}) 완성 후 넥라인 하향 이탈 경보`,
             targetPrice,
             stopLossPrice,
             necklinePrice: neckline,
@@ -444,7 +444,7 @@ export function detectAllChartPatterns(
       category: "HEAD_AND_SHOULDERS",
       type: "BEARISH",
       confidence: 84,
-      description: `헤드앤숄더 3봉 패턴 완성 및 넥라인(${neckline.toLocaleString()}) 지지선 이탈 경계`,
+      description: `헤드앤숄더 3봉 패턴 완성 및 넥라인(${(neckline ?? 0).toLocaleString()}) 지지선 이탈 경계`,
       targetPrice,
       stopLossPrice,
       necklinePrice: neckline,
@@ -501,7 +501,7 @@ export function detectAllChartPatterns(
       category: "ASCENDING_TRIANGLE",
       type: "BULLISH",
       confidence: isAscending ? 89 : 78,
-      description: `저항선(${resistanceCeiling.toLocaleString()}) 천장과 우상향 지지선 수렴 후 상방 폭발 돌파 준비`,
+      description: `저항선(${(resistanceCeiling ?? 0).toLocaleString()}) 천장과 우상향 지지선 수렴 후 상방 폭발 돌파 준비`,
       targetPrice,
       stopLossPrice,
       necklinePrice: resistanceCeiling,
@@ -556,7 +556,7 @@ export function detectAllChartPatterns(
         category: "BOLLINGER_BREAKOUT",
         type: "BULLISH",
         confidence: 91,
-        description: `변동성 수축 구간 종료 후 볼린저 밴드 상단(${lastUpper.toLocaleString()}) 관통 돌파 가속`,
+        description: `변동성 수축 구간 종료 후 볼린저 밴드 상단(${(lastUpper ?? 0).toLocaleString()}) 관통 돌파 가속`,
         targetPrice: target,
         stopLossPrice: stop,
         state: lifecycle.state,
@@ -600,7 +600,7 @@ export function detectAllChartPatterns(
         category: "RSI_DIVERGENCE",
         type: "BULLISH",
         confidence: 92,
-        description: `가격은 저점(${l2.price.toLocaleString()})을 갱신하였으나 RSI 보조지표(${rsi2})는 저점을 높이며 강력한 추세 반전 신호 발생`,
+        description: `가격은 저점(${(l2.price ?? 0).toLocaleString()})을 갱신하였으나 RSI 보조지표(${rsi2})는 저점을 높이며 강력한 추세 반전 신호 발생`,
         targetPrice: target,
         stopLossPrice: stop,
         state: lifecycle.state,

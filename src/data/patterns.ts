@@ -33,7 +33,7 @@ export class PatternDetector {
           patternName: "W-이중바닥 (Double Bottom) 수급 돌파",
           patternType: "BULLISH",
           confidence: 88,
-          description: `지지선 2회 강력 수직 반등 후 넥라인(${neckline.toLocaleString()}원) 돌파 수급 쏠림 확인`,
+          description: `지지선 2회 강력 수직 반등 후 넥라인(${(neckline ?? 0).toLocaleString()}원) 돌파 수급 쏠림 확인`,
           necklinePrice: neckline,
           breakoutTargetPrice: Math.round(neckline + (neckline - lows[min1Index]))
         });

@@ -306,8 +306,8 @@ export class UnifiedMasterDecisionEngine {
         targetPrice: formatPrice(safePrice * 1.065),
         stopPrice: obSupport,
         rationale: smcStructure === "BULLISH_BOS"
-          ? `기관 오더블록 ₩${obSupport.toLocaleString()} 강력 지지 및 상방 유동성 청산 진입`
-          : `구조 전환(CHoCH) 경계 및 ₩${obResistance.toLocaleString()} 매도벽 저항`
+          ? `기관 오더블록 ₩${(obSupport ?? 0).toLocaleString()} 강력 지지 및 상방 유동성 청산 진입`
+          : `구조 전환(CHoCH) 경계 및 ₩${(obResistance ?? 0).toLocaleString()} 매도벽 저항`
       },
       {
         id: "bot_quant_16",
@@ -521,11 +521,11 @@ export class UnifiedMasterDecisionEngine {
     // 단 하나의 통합 브리핑 요약문 작성
     let unifiedSummary = "";
     if (isConflictTriggered) {
-      unifiedSummary = `${name} (${symbol})은(는) 상승 봇(${bullishCount}개, 가중치 ${bullishWeightPct}%)과 하락 봇(${bearishCount}개, 가중치 ${bearishWeightPct}%)이 팽팽히 맞서는 [신경세포 충돌 구간(격차 ${voteDiffPct}% < 20%)]에 위치해 있습니다. 상충된 신호로 인한 뇌동매매를 방지하기 위해 자율 충돌 해결 규칙에 따라 [관망/대기(Hold/Wait)]를 유지하며, 지지선 ₩${obSupport.toLocaleString()} 확인 후 대응하십시오.`;
+      unifiedSummary = `${name} (${symbol})은(는) 상승 봇(${bullishCount}개, 가중치 ${bullishWeightPct}%)과 하락 봇(${bearishCount}개, 가중치 ${bearishWeightPct}%)이 팽팽히 맞서는 [신경세포 충돌 구간(격차 ${voteDiffPct}% < 20%)]에 위치해 있습니다. 상충된 신호로 인한 뇌동매매를 방지하기 위해 자율 충돌 해결 규칙에 따라 [관망/대기(Hold/Wait)]를 유지하며, 지지선 ₩${(obSupport ?? 0).toLocaleString()} 확인 후 대응하십시오.`;
     } else if (finalVerdict === "STRONG_BUY" || finalVerdict === "BUY_ON_DIP") {
-      unifiedSummary = `${name} (${symbol})은(는) 단기 하락 압력(위험도 ${bearishRisk}%) 대비 강력한 수급 모멘텀(점수 ${bullishMomentum}점, 체결강도 ${executionPower}%)이 압도적으로 우세합니다. 6대 신경세포 가중 찬성율 ${bullishWeightPct}%(신뢰도 ${weightedAvgConfidence}%)로 [${verdictKorean}]을 최종 승인하며, 3단계 분할 익절 전략(TP1 ₩${targetPrice1.toLocaleString()}, TP2 ₩${targetPrice2.toLocaleString()}, TP3 ₩${targetPrice3.toLocaleString()})을 가동합니다.`;
+      unifiedSummary = `${name} (${symbol})은(는) 단기 하락 압력(위험도 ${bearishRisk}%) 대비 강력한 수급 모멘텀(점수 ${bullishMomentum}점, 체결강도 ${executionPower}%)이 압도적으로 우세합니다. 6대 신경세포 가중 찬성율 ${bullishWeightPct}%(신뢰도 ${weightedAvgConfidence}%)로 [${verdictKorean}]을 최종 승인하며, 3단계 분할 익절 전략(TP1 ₩${(targetPrice1 ?? 0).toLocaleString()}, TP2 ₩${(targetPrice2 ?? 0).toLocaleString()}, TP3 ₩${(targetPrice3 ?? 0).toLocaleString()})을 가동합니다.`;
     } else {
-      unifiedSummary = `${name} (${symbol})은(는) 하락봉 및 매도벽 리스크(위험도 ${bearishRisk}%, 하락봇 가중치 ${bearishWeightPct}%)가 상승 모멘텀을 압도하고 있습니다. 단기 반등 시 비중을 축소하고 ₩${stopLossPrice.toLocaleString()} (-${stopLossPct}%) 손절 라인을 엄수해야 합니다.`;
+      unifiedSummary = `${name} (${symbol})은(는) 하락봉 및 매도벽 리스크(위험도 ${bearishRisk}%, 하락봇 가중치 ${bearishWeightPct}%)가 상승 모멘텀을 압도하고 있습니다. 단기 반등 시 비중을 축소하고 ₩${(stopLossPrice ?? 0).toLocaleString()} (-${stopLossPct}%) 손절 라인을 엄수해야 합니다.`;
     }
 
     const synthesisDetails = [
@@ -533,8 +533,8 @@ export class UnifiedMasterDecisionEngine {
       `[가중 평균 신뢰도] 6대 전문 신경세포 가중 평균 ${weightedAvgConfidence}% (투표: 찬성 ${bullishCount} / 반대 ${bearishCount} / 중립 ${neutralCount})`,
       `[하락 분석 결론] 하락봉 리스크 ${bearishRisk}점 (${bearishPattern}) ➔ ${bearishStage === "STABLE" ? "하방 경직성 확보" : "단기 저항선 돌파 시도 중"}`,
       `[수급 분석 결론] 주체 수급 ${institutionalFlow === "STRONG_BUY" ? "외인/기관 대량 순매수" : "순매수 우위"}, 체결강도 ${executionPower}%`,
-      `[SMC 구조 결론] ${smcStructure === "BULLISH_BOS" ? "상승 구조 돌파(BOS)" : "오더블록 매물 소화 중"} (지지 ₩${obSupport.toLocaleString()} / 저항 ₩${obResistance.toLocaleString()})`,
-      `[3단계 익절 가이드] 1차(40%) ₩${targetPrice1.toLocaleString()}(+${target1Pct}%) ➔ 2차(30%) ₩${targetPrice2.toLocaleString()}(+${target2Pct}%) ➔ 3차(30%) ₩${targetPrice3.toLocaleString()}(+${target3Pct}%), 손절 ₩${stopLossPrice.toLocaleString()}(-${stopLossPct}%)`
+      `[SMC 구조 결론] ${smcStructure === "BULLISH_BOS" ? "상승 구조 돌파(BOS)" : "오더블록 매물 소화 중"} (지지 ₩${(obSupport ?? 0).toLocaleString()} / 저항 ₩${(obResistance ?? 0).toLocaleString()})`,
+      `[3단계 익절 가이드] 1차(40%) ₩${(targetPrice1 ?? 0).toLocaleString()}(+${target1Pct}%) ➔ 2차(30%) ₩${(targetPrice2 ?? 0).toLocaleString()}(+${target2Pct}%) ➔ 3차(30%) ₩${(targetPrice3 ?? 0).toLocaleString()}(+${target3Pct}%), 손절 ₩${(stopLossPrice ?? 0).toLocaleString()}(-${stopLossPct}%)`
     ];
 
     const normalizedMarket: "KOREA" | "US" | "BTC" = isCrypto ? "BTC" : (isUS ? "US" : "KOREA");

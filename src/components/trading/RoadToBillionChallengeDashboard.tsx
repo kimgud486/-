@@ -1141,7 +1141,7 @@ export const RoadToBillionChallengeDashboard: React.FC = () => {
     try {
       if (syncRealAccountBalance) {
         const res = await syncRealAccountBalance("all");
-        addToast(`✅ [실계좌 잔고 동기화 완료] 현재 예수금: ₩${res.balance.toLocaleString()}원`, "success");
+        addToast(`✅ [실계좌 잔고 동기화 완료] 현재 예수금: ₩${(res.balance ?? 0).toLocaleString()}원`, "success");
       }
     } catch (e: any) {
       addToast(`❌ 잔고 동기화 실패: ${e?.message || "네트워크 오류"}`, "error");
@@ -1243,7 +1243,7 @@ export const RoadToBillionChallengeDashboard: React.FC = () => {
             const fracRes = UpbitFeeAndNetProfitGuard.calculateFractionalQuantity(effectiveTradeAmount, unitPrice, false);
             calcQty = fracRes.qty;
             if (calcQty <= 0) {
-              addToast(`🛑 [소수점 주문 수량 부족] 주문 금액(₩${effectiveTradeAmount.toLocaleString()}원)이 소수점 주문 수량(0.0001주) 기준에 미달합니다.`, "warning");
+              addToast(`🛑 [소수점 주문 수량 부족] 주문 금액(₩${(effectiveTradeAmount ?? 0).toLocaleString()}원)이 소수점 주문 수량(0.0001주) 기준에 미달합니다.`, "warning");
               return;
             }
           }
@@ -1362,7 +1362,7 @@ export const RoadToBillionChallengeDashboard: React.FC = () => {
     setMockLivePnLDollar(prev => Math.round((prev + pnlAmt) * 10) / 10);
     setMockTodayProfit(prev => Math.round((prev + pnlAmt) * 10) / 10);
 
-    const popupText = `[모의체결] ${selectedAsset.name} ${isLong ? "롱" : "숏"} +$${pnlAmt.toLocaleString()} 익절 (+₩${pnlKrw.toLocaleString()}원)`;
+    const popupText = `[모의체결] ${selectedAsset.name} ${isLong ? "롱" : "숏"} +$${(pnlAmt ?? 0).toLocaleString()} 익절 (+₩${(pnlKrw ?? 0).toLocaleString()}원)`;
     const newPopup = {
       id: `p_man_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
       text: popupText,
@@ -1382,7 +1382,7 @@ export const RoadToBillionChallengeDashboard: React.FC = () => {
     setMockTodayProfit(0);
     setMockLongPositionsCount(0);
     setMockShortPositionsCount(0);
-    addToast(`🔄 [모의 챌린지 초기화] 가상 자금이 $${mockStartBalance.toLocaleString()} (약 ${(mockStartBalance * exchangeRateKRW).toLocaleString()}원)으로 리셋되었습니다.`, "info");
+    addToast(`🔄 [모의 챌린지 초기화] 가상 자금이 $${(mockStartBalance ?? 0).toLocaleString()} (약 ${(mockStartBalance * exchangeRateKRW).toLocaleString()}원)으로 리셋되었습니다.`, "info");
   };
 
   // Save/Update Mock Challenge Capital Configuration
@@ -1395,7 +1395,7 @@ export const RoadToBillionChallengeDashboard: React.FC = () => {
     setMockLongPositionsCount(0);
     setMockShortPositionsCount(0);
     localStorage.setItem("challenge_mock_start_balance", newStartBal.toString());
-    addToast(`💰 [모의자산 설정 완료] 가상 시작 자금: $${newStartBal.toLocaleString()} (약 ${(newStartBal * exchangeRateKRW).toLocaleString()}원), 레버리지: ${leverage}`, "success");
+    addToast(`💰 [모의자산 설정 완료] 가상 시작 자금: $${(newStartBal ?? 0).toLocaleString()} (약 ${(newStartBal * exchangeRateKRW).toLocaleString()}원), 레버리지: ${leverage}`, "success");
     setIsConfigModalOpen(false);
   };
 
@@ -1597,14 +1597,14 @@ export const RoadToBillionChallengeDashboard: React.FC = () => {
                       🏆 {targetGoalTitle} 5단계 스노우볼 복리 마일스톤
                     </span>
                     <span className="text-slate-400 text-[11px] ml-2 font-mono">
-                      현재 목표 달성률: <strong className="text-amber-400">{progressPct.toFixed(2)}%</strong> (${curBalUSD.toLocaleString()} / ${mockTargetGoalUSD.toLocaleString()})
+                      현재 목표 달성률: <strong className="text-amber-400">{progressPct.toFixed(2)}%</strong> (${(curBalUSD ?? 0).toLocaleString()} / ${(mockTargetGoalUSD ?? 0).toLocaleString()})
                     </span>
                   </div>
                 </div>
 
                 <div className="flex items-center gap-1.5 font-mono text-[11px]">
                   <span className="text-slate-400">현재 총 평가자산:</span>
-                  <span className="font-bold text-emerald-400">₩{curBalKRW.toLocaleString()}원</span>
+                  <span className="font-bold text-emerald-400">₩{(curBalKRW ?? 0).toLocaleString()}원</span>
                 </div>
               </div>
 
@@ -1773,7 +1773,7 @@ export const RoadToBillionChallengeDashboard: React.FC = () => {
                         {isUpbitFunded ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" /> : <AlertTriangle className="w-3.5 h-3.5 text-amber-400" />}
                       </div>
                       <div className="font-bold text-white mt-0.5">
-                        ₩{upbitCashVal.toLocaleString()}원 {isUpbitFunded ? "🟢 (주문 가능)" : "⚠️ (5천원 이상 필요)"}
+                        ₩{(upbitCashVal ?? 0).toLocaleString()}원 {isUpbitFunded ? "🟢 (주문 가능)" : "⚠️ (5천원 이상 필요)"}
                       </div>
                     </div>
                   );
@@ -1838,7 +1838,7 @@ export const RoadToBillionChallengeDashboard: React.FC = () => {
               <div>
                 <span className="font-bold text-emerald-300">[모의 가상 시뮬레이션] </span>
                 <span className="text-slate-300">
-                  가상 ${mockStartBalance.toLocaleString()} 머니로 1분봉 핑퐁 스캘핑 알고리즘을 100% 무위험 테스트합니다. (실제 시장 개장 시간 엄격 준수)
+                  가상 ${(mockStartBalance ?? 0).toLocaleString()} 머니로 1분봉 핑퐁 스캘핑 알고리즘을 100% 무위험 테스트합니다. (실제 시장 개장 시간 엄격 준수)
                 </span>
               </div>
             </div>
@@ -2261,7 +2261,7 @@ export const RoadToBillionChallengeDashboard: React.FC = () => {
                         </span>
                       </div>
                       <div className="text-[10px] font-mono text-slate-300 font-bold mt-0.5 truncate">
-                        {asset.unit === "원" ? `₩${asset.currentPrice.toLocaleString()}` : `$${asset.currentPrice.toLocaleString()}`}
+                        {asset.unit === "원" ? `₩${(asset.currentPrice ?? 0).toLocaleString()}` : `$${(asset.currentPrice ?? 0).toLocaleString()}`}
                       </div>
                     </div>
 
@@ -2282,7 +2282,7 @@ export const RoadToBillionChallengeDashboard: React.FC = () => {
                       <div className="flex justify-between items-center text-[8px] text-slate-400 border-t border-slate-900 pt-0.5 truncate">
                         <span>목표TP:</span>
                         <span className="text-amber-300 font-bold">
-                          {asset.unit === "원" ? `₩${asset.profitTargetPrice.toLocaleString()}` : `$${asset.profitTargetPrice}`}
+                          {asset.unit === "원" ? `₩${(asset.profitTargetPrice ?? 0).toLocaleString()}` : `$${asset.profitTargetPrice}`}
                         </span>
                       </div>
                     </div>
@@ -2413,7 +2413,7 @@ export const RoadToBillionChallengeDashboard: React.FC = () => {
                     스캔속도: {scalpSpeed >= 20 ? "100ms ⚡ (초당 10회)" : scalpSpeed >= 10 ? "200ms 🚀 (초당 5회)" : `${Math.round(1500/scalpSpeed)}ms`}
                   </span>
                   <span className="text-[10px] text-slate-400 font-mono hidden md:inline">
-                    • 누적 파닥이 틱: <strong className="text-white">{padakTotalTicksCount.toLocaleString()}회</strong>
+                    • 누적 파닥이 틱: <strong className="text-white">{(padakTotalTicksCount ?? 0).toLocaleString()}회</strong>
                   </span>
                 </div>
 
@@ -2590,7 +2590,7 @@ export const RoadToBillionChallengeDashboard: React.FC = () => {
 
                   <div className="flex items-center justify-between text-[10px] text-slate-400 font-mono mt-0.5">
                     <span>
-                      {asset.unit === "$" ? `$${asset.currentPrice.toLocaleString()}` : `₩${asset.currentPrice.toLocaleString()}`}
+                      {asset.unit === "$" ? `$${(asset.currentPrice ?? 0).toLocaleString()}` : `₩${(asset.currentPrice ?? 0).toLocaleString()}`}
                     </span>
                     {isSelected && <Check className="w-3.5 h-3.5 text-amber-400 shrink-0 font-black" />}
                   </div>
@@ -2717,7 +2717,7 @@ export const RoadToBillionChallengeDashboard: React.FC = () => {
             {displayLivePnL >= 0 ? "+" : ""}{displayLivePnL.toFixed(1)}$
           </div>
           <div className="text-xs font-mono text-slate-400">
-            (약 {displayLiveKRW >= 0 ? "+" : ""}₩{displayLiveKRW.toLocaleString()}원)
+            (약 {displayLiveKRW >= 0 ? "+" : ""}₩{(displayLiveKRW ?? 0).toLocaleString()}원)
           </div>
         </div>
 
@@ -2915,7 +2915,7 @@ export const RoadToBillionChallengeDashboard: React.FC = () => {
                 </button>
               </div>
               <div className="text-xs font-mono text-slate-400 mt-0.5 flex items-center gap-2 flex-wrap">
-                <span>(약 {displayTotalKRW >= 0 ? "+" : ""}₩{displayTotalKRW.toLocaleString()}원)</span>
+                <span>(약 {displayTotalKRW >= 0 ? "+" : ""}₩{(displayTotalKRW ?? 0).toLocaleString()}원)</span>
                 {challengeMode === "REAL" && (
                   <span className="text-[11px] text-slate-500 border-l border-slate-700 pl-2">
                     미실현 평가: <strong className={holdingsSummary.totalPnlUSD >= 0 ? "text-emerald-400" : "text-rose-400"}>{holdingsSummary.totalPnlUSD >= 0 ? "+" : ""}{holdingsSummary.totalPnlUSD.toFixed(1)}$</strong> | 체결 실현: <strong className={realTodayRealizedProfitUSD >= 0 ? "text-emerald-400" : "text-rose-400"}>{realTodayRealizedProfitUSD >= 0 ? "+" : ""}{realTodayRealizedProfitUSD.toFixed(1)}$</strong>
@@ -2964,12 +2964,12 @@ export const RoadToBillionChallengeDashboard: React.FC = () => {
             <div className="flex justify-between text-slate-400">
               <span>오늘 총 손익:</span>
               <span className={`font-bold ${displayTotalProfit >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
-                {displayTotalProfit >= 0 ? "+" : ""}{displayTotalProfit.toFixed(1)}$ (약 ₩{displayTotalKRW.toLocaleString()}원)
+                {displayTotalProfit >= 0 ? "+" : ""}{displayTotalProfit.toFixed(1)}$ (약 ₩{(displayTotalKRW ?? 0).toLocaleString()}원)
               </span>
             </div>
             <div className="flex justify-between text-slate-400">
               <span>{challengeMode === "REAL" ? "실제 계좌 잔고:" : "시작 가상잔고:"}</span>
-              <span>₩{challengeMode === "REAL" ? realBalanceKRW.toLocaleString() : (mockStartBalance * exchangeRateKRW).toLocaleString()}원</span>
+              <span>₩{challengeMode === "REAL" ? (realBalanceKRW ?? 0).toLocaleString() : (mockStartBalance * exchangeRateKRW).toLocaleString()}원</span>
             </div>
             <div className="flex justify-between text-slate-400">
               <span>마무리 평가자산:</span>
@@ -3047,8 +3047,8 @@ export const RoadToBillionChallengeDashboard: React.FC = () => {
           <div className="flex items-center gap-2 flex-wrap self-end sm:self-auto">
             <div className="px-3 py-1.5 bg-slate-900 rounded-xl border border-slate-800 text-xs font-mono flex items-center gap-2">
               <span className="text-slate-400 text-[11px]">총 평가액:</span>
-              <span className="font-black text-white">₩{holdingsSummary.totalValuationKRW.toLocaleString()}원</span>
-              <span className="text-slate-500 text-[10px]">(${holdingsSummary.totalValuationUSD.toLocaleString()})</span>
+              <span className="font-black text-white">₩{(holdingsSummary.totalValuationKRW ?? 0).toLocaleString()}원</span>
+              <span className="text-slate-500 text-[10px]">(${(holdingsSummary.totalValuationUSD ?? 0).toLocaleString()})</span>
             </div>
 
             <div className={`px-3 py-1.5 rounded-xl border text-xs font-mono font-black flex items-center gap-1.5 ${
@@ -3253,7 +3253,7 @@ export const RoadToBillionChallengeDashboard: React.FC = () => {
                     {/* Unrealized PnL Badge */}
                     <div className={`text-right font-mono ${isProfit ? "text-emerald-400" : "text-rose-400"}`}>
                       <div className="text-xs font-black">
-                        {isProfit ? "+" : ""}₩{pnlKRW.toLocaleString()}원
+                        {isProfit ? "+" : ""}₩{(pnlKRW ?? 0).toLocaleString()}원
                       </div>
                       <div className="text-[10px] font-bold">
                         {isProfit ? "+" : ""}{pnlRate.toFixed(2)}%
@@ -3278,7 +3278,7 @@ export const RoadToBillionChallengeDashboard: React.FC = () => {
                     <div className="text-right">
                       <span className="text-slate-500 text-[10px] block">총 평가금액</span>
                       <span className="text-amber-300 font-black">
-                        ₩{totalValuation.toLocaleString()}원
+                        ₩{(totalValuation ?? 0).toLocaleString()}원
                       </span>
                     </div>
                   </div>
@@ -3520,7 +3520,7 @@ export const RoadToBillionChallengeDashboard: React.FC = () => {
                     {isOpen ? (
                       <>
                         <div className="font-black text-xs text-cyan-400 bg-cyan-950/60 px-2 py-0.5 rounded border border-cyan-800/60">
-                          진입가: ₩{rec.entryPrice.toLocaleString()}원
+                          진입가: ₩{(rec.entryPrice ?? 0).toLocaleString()}원
                         </div>
                         <div className="text-[10px] text-slate-400 mt-0.5">
                           보유 유지 (목표가 도달 시 자동 익절)
@@ -3790,8 +3790,8 @@ export const RoadToBillionChallengeDashboard: React.FC = () => {
                         return (
                           <tr key={row.day} className="hover:bg-slate-800/50">
                             <td className="p-2 text-slate-300 font-bold">{row.day}일차</td>
-                            <td className="p-2 text-emerald-400 font-bold">₩{row.balanceKRW.toLocaleString()}원</td>
-                            <td className="p-2 text-amber-300">${row.balanceUSD.toLocaleString()}</td>
+                            <td className="p-2 text-emerald-400 font-bold">₩{(row.balanceKRW ?? 0).toLocaleString()}원</td>
+                            <td className="p-2 text-amber-300">${(row.balanceUSD ?? 0).toLocaleString()}</td>
                             <td className="p-2 text-indigo-300 font-bold">{multiplier}x 배</td>
                           </tr>
                         );

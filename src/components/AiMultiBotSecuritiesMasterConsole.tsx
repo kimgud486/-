@@ -304,7 +304,7 @@ export const AiMultiBotSecuritiesMasterConsole: React.FC = () => {
           {
             id: `log_scan_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
             time: timeStr,
-            text: `[🧠 AI 자율 스캔] ${scanAnalysis.name} (${scanAnalysis.symbol}) 현재가 ${scanAnalysis.market === "US" ? `$${scanAnalysis.currentPrice.toLocaleString()}` : `${scanAnalysis.currentPrice.toLocaleString()}원`} - ${scanAnalysis.setupQualityScore}점 S급 포착! Long Army (${scanAnalysis.longShortArmy.longScore}점) 승인`,
+            text: `[🧠 AI 자율 스캔] ${scanAnalysis.name} (${scanAnalysis.symbol}) 현재가 ${scanAnalysis.market === "US" ? `$${(scanAnalysis.currentPrice ?? 0).toLocaleString()}` : `${(scanAnalysis.currentPrice ?? 0).toLocaleString()}원`} - ${scanAnalysis.setupQualityScore}점 S급 포착! Long Army (${scanAnalysis.longShortArmy.longScore}점) 승인`,
             type: "BUY"
           },
           ...prev.slice(0, 30)
@@ -349,12 +349,12 @@ export const AiMultiBotSecuritiesMasterConsole: React.FC = () => {
           {
             id: `log_buy_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
             time: timeStr,
-            text: `[⚡ 1초 즉시 자율 매수 체결] ${bestStock.name} (${bestStock.symbol}) ${qty}주 @ ${bestStock.market === "US" ? `$${bestStock.price.toLocaleString()}` : `${bestStock.price.toLocaleString()}원`} (${bestAnalysis.setupQualityScore}점 S+급)`,
+            text: `[⚡ 1초 즉시 자율 매수 체결] ${bestStock.name} (${bestStock.symbol}) ${qty}주 @ ${bestStock.market === "US" ? `$${(bestStock.price ?? 0).toLocaleString()}` : `${(bestStock.price ?? 0).toLocaleString()}원`} (${bestAnalysis.setupQualityScore}점 S+급)`,
             type: "BUY"
           },
           ...prev.slice(0, 30)
         ]);
-        addToast(`⚡ [${bestStock.name}] AI 자율 매수 체결 완료 (${bestStock.market === "US" ? `$${bestStock.price.toLocaleString()}` : `${bestStock.price.toLocaleString()}원`})`, "SUCCESS");
+        addToast(`⚡ [${bestStock.name}] AI 자율 매수 체결 완료 (${bestStock.market === "US" ? `$${(bestStock.price ?? 0).toLocaleString()}` : `${(bestStock.price ?? 0).toLocaleString()}원`})`, "SUCCESS");
       }
     } catch (err: any) {
       addToast(`매수 주문 오류: ${err.message || err}`, "ERROR");
@@ -367,7 +367,7 @@ export const AiMultiBotSecuritiesMasterConsole: React.FC = () => {
     const qty = Math.max(1, Math.floor(amount / currentStockData.price));
 
     try {
-      addToast(`[${currentStockData.name}] ${currentStockData.market === "US" ? `$${amount.toLocaleString()}` : `${(amount / 10000).toLocaleString()}만원`} 매수 주문 검증 중...`, "INFO");
+      addToast(`[${currentStockData.name}] ${currentStockData.market === "US" ? `$${(amount ?? 0).toLocaleString()}` : `${(amount / 10000).toLocaleString()}만원`} 매수 주문 검증 중...`, "INFO");
       const confirmed = await requestTradeConfirmation({
         symbol: currentStockData.symbol,
         name: currentStockData.name,
@@ -383,7 +383,7 @@ export const AiMultiBotSecuritiesMasterConsole: React.FC = () => {
           {
             id: `log_mbuy_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
             time: timeStr,
-            text: `[수동 매수 완료] ${currentStockData.name} ${qty}주 (${currentStockData.market === "US" ? `$${amount.toLocaleString()}` : `${(amount / 10000).toLocaleString()}만원`}) @ ${currentStockData.market === "US" ? `$${currentStockData.price.toLocaleString()}` : `${currentStockData.price.toLocaleString()}원`} 체결 완료`,
+            text: `[수동 매수 완료] ${currentStockData.name} ${qty}주 (${currentStockData.market === "US" ? `$${(amount ?? 0).toLocaleString()}` : `${(amount / 10000).toLocaleString()}만원`}) @ ${currentStockData.market === "US" ? `$${(currentStockData.price ?? 0).toLocaleString()}` : `${(currentStockData.price ?? 0).toLocaleString()}원`} 체결 완료`,
             type: "BUY"
           },
           ...prev.slice(0, 30)
@@ -461,7 +461,7 @@ MASTER TRADING REPORT (실시간 실제 주가 연동)
 
 종목명      : ${analysis.name} (${analysis.symbol})
 시장구분    : ${analysis.market}
-현재가      : ${analysis.market === "US" ? `$${analysis.currentPrice.toLocaleString()}` : `${analysis.currentPrice.toLocaleString()}원`} (${analysis.changePct >= 0 ? "+" : ""}${analysis.changePct}%)
+현재가      : ${analysis.market === "US" ? `$${(analysis.currentPrice ?? 0).toLocaleString()}` : `${(analysis.currentPrice ?? 0).toLocaleString()}원`} (${analysis.changePct >= 0 ? "+" : ""}${analysis.changePct}%)
 거래대금    : ${analysis.tradingValue} (RVOL ${analysis.rvol}배)
 체결강도    : ${analysis.executionStrength}%
 
@@ -493,11 +493,11 @@ VWAP 상태    : ${analysis.vwapStatus}
 
 5. TARGET MAP & RISK FILTER
 ---------------------------------------
-관심 진입존  : ${analysis.market === "US" ? `$${analysis.entryZoneMin.toLocaleString()} ~ $${analysis.entryZoneMax.toLocaleString()}` : `${analysis.entryZoneMin.toLocaleString()} ~ ${analysis.entryZoneMax.toLocaleString()}원`}
-돌파 확인가  : ${analysis.market === "US" ? `$${analysis.breakoutConfirmPrice.toLocaleString()}` : `${analysis.breakoutConfirmPrice.toLocaleString()}원`}
-구조 무효(손절): ${analysis.market === "US" ? `$${analysis.invalidationPrice.toLocaleString()}` : `${analysis.invalidationPrice.toLocaleString()}원`}
-1차 목표가   : ${analysis.market === "US" ? `$${analysis.targetPrice1.toLocaleString()}` : `${analysis.targetPrice1.toLocaleString()}원`}
-2차 목표가   : ${analysis.market === "US" ? `$${analysis.targetPrice2.toLocaleString()}` : `${analysis.targetPrice2.toLocaleString()}원`}
+관심 진입존  : ${analysis.market === "US" ? `$${(analysis.entryZoneMin ?? 0).toLocaleString()} ~ $${(analysis.entryZoneMax ?? 0).toLocaleString()}` : `${(analysis.entryZoneMin ?? 0).toLocaleString()} ~ ${(analysis.entryZoneMax ?? 0).toLocaleString()}원`}
+돌파 확인가  : ${analysis.market === "US" ? `$${(analysis.breakoutConfirmPrice ?? 0).toLocaleString()}` : `${(analysis.breakoutConfirmPrice ?? 0).toLocaleString()}원`}
+구조 무효(손절): ${analysis.market === "US" ? `$${(analysis.invalidationPrice ?? 0).toLocaleString()}` : `${(analysis.invalidationPrice ?? 0).toLocaleString()}원`}
+1차 목표가   : ${analysis.market === "US" ? `$${(analysis.targetPrice1 ?? 0).toLocaleString()}` : `${(analysis.targetPrice1 ?? 0).toLocaleString()}원`}
+2차 목표가   : ${analysis.market === "US" ? `$${(analysis.targetPrice2 ?? 0).toLocaleString()}` : `${(analysis.targetPrice2 ?? 0).toLocaleString()}원`}
 
 6. FINAL SYSTEM DECISION
 ---------------------------------------
@@ -686,7 +686,7 @@ SETUP SCORE : ${analysis.setupQualityScore} / 100 [${analysis.grade}등급]
             <Radio className="w-3.5 h-3.5 text-emerald-400 animate-ping" />
             <span>선택 종목: <strong className="text-white">{currentStockData.name} ({currentStockData.symbol})</strong></span>
             <span className="text-cyan-300 font-black pl-1">
-              {currentStockData.price.toLocaleString()} {currentStockData.market === "US" ? "$" : "원"}
+              {(currentStockData.price ?? 0).toLocaleString()} {currentStockData.market === "US" ? "$" : "원"}
             </span>
             <span className={`text-[11px] font-bold ${currentStockData.changePct >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
               ({currentStockData.changePct >= 0 ? "+" : ""}{currentStockData.changePct}%)
@@ -709,7 +709,7 @@ SETUP SCORE : ${analysis.setupQualityScore} / 100 [${analysis.grade}등급]
                 <span>🤖 AI 자율매매 (AUTONOMOUS ENGINE) &amp; 실계좌/모의 제어 데스크</span>
               </h2>
               <p className="text-xs text-zinc-400 font-mono">
-                AI 뇌엔진이 실시간 실제 시세({currentStockData.price.toLocaleString()}{currentStockData.market === "US" ? "$" : "원"})를 기반으로 자동 감시·매수·익절을 수행합니다.
+                AI 뇌엔진이 실시간 실제 시세({(currentStockData.price ?? 0).toLocaleString()}{currentStockData.market === "US" ? "$" : "원"})를 기반으로 자동 감시·매수·익절을 수행합니다.
               </p>
             </div>
           </div>
@@ -797,7 +797,7 @@ SETUP SCORE : ${analysis.setupQualityScore} / 100 [${analysis.grade}등급]
             <div className="flex items-center justify-between border-b border-zinc-800 pb-2">
               <span className="text-xs font-bold text-zinc-300 font-mono">수동 주문 제어 (실제 시세 기반 주문)</span>
               <span className="text-xs text-indigo-400 font-mono font-bold">
-                선택: {currentStockData.name} ({currentStockData.price.toLocaleString()}{currentStockData.market === "US" ? "$" : "원"})
+                선택: {currentStockData.name} ({(currentStockData.price ?? 0).toLocaleString()}{currentStockData.market === "US" ? "$" : "원"})
               </span>
             </div>
 
@@ -865,11 +865,11 @@ SETUP SCORE : ${analysis.setupQualityScore} / 100 [${analysis.grade}등급]
                 </div>
                 <div className="flex justify-between text-zinc-400 text-[11px]">
                   <span>보유수량: {activePosition.qty}주</span>
-                  <span>평단가: {activePosition.market === "US" ? `$${activePosition.buyPrice.toLocaleString()}` : `${activePosition.buyPrice.toLocaleString()}원`}</span>
+                  <span>평단가: {activePosition.market === "US" ? `$${(activePosition.buyPrice ?? 0).toLocaleString()}` : `${(activePosition.buyPrice ?? 0).toLocaleString()}원`}</span>
                 </div>
                 <div className="flex justify-between text-zinc-400 text-[11px]">
-                  <span>현재가: {activePosition.market === "US" ? `$${activePosition.currentPrice.toLocaleString()}` : `${activePosition.currentPrice.toLocaleString()}원`}</span>
-                  <span className="text-amber-300">익절보장선: {activePosition.market === "US" ? `$${activePosition.trailingShieldPrice.toLocaleString()}` : `${activePosition.trailingShieldPrice.toLocaleString()}원`}</span>
+                  <span>현재가: {activePosition.market === "US" ? `$${(activePosition.currentPrice ?? 0).toLocaleString()}` : `${(activePosition.currentPrice ?? 0).toLocaleString()}원`}</span>
+                  <span className="text-amber-300">익절보장선: {activePosition.market === "US" ? `$${(activePosition.trailingShieldPrice ?? 0).toLocaleString()}` : `${(activePosition.trailingShieldPrice ?? 0).toLocaleString()}원`}</span>
                 </div>
               </div>
             ) : (
@@ -944,7 +944,7 @@ SETUP SCORE : ${analysis.setupQualityScore} / 100 [${analysis.grade}등급]
               <div>
                 <span className="text-zinc-500">현재가      :</span>{" "}
                 <span className="text-white font-bold">
-                  {analysis.currentPrice.toLocaleString()} {analysis.market === "US" ? "$" : "원"} ({analysis.changePct >= 0 ? "+" : ""}{analysis.changePct}%)
+                  {(analysis.currentPrice ?? 0).toLocaleString()} {analysis.market === "US" ? "$" : "원"} ({analysis.changePct >= 0 ? "+" : ""}{analysis.changePct}%)
                 </span>
               </div>
               <div><span className="text-zinc-500">거래대금    :</span> <span className="text-amber-300 font-bold">{analysis.tradingValue}억원 (RVOL {analysis.rvol}배)</span></div>
@@ -1010,20 +1010,20 @@ SETUP SCORE : ${analysis.setupQualityScore} / 100 [${analysis.grade}등급]
             <div className="space-y-1 text-xs bg-zinc-900/80 p-3 rounded-2xl border border-zinc-800">
               <div className="flex justify-between">
                 <span className="text-amber-300 font-bold">🟡 관심 진입구간</span>{" "}
-                <span className="text-white font-bold">{analysis.entryZoneMin.toLocaleString()} ~ {analysis.entryZoneMax.toLocaleString()} {analysis.market === "US" ? "$" : "원"}</span>
+                <span className="text-white font-bold">{(analysis.entryZoneMin ?? 0).toLocaleString()} ~ {(analysis.entryZoneMax ?? 0).toLocaleString()} {analysis.market === "US" ? "$" : "원"}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-cyan-300 font-bold">🔵 돌파 확인가</span>{" "}
-                <span className="text-white font-bold">{analysis.breakoutConfirmPrice.toLocaleString()} {analysis.market === "US" ? "$" : "원"}</span>
+                <span className="text-white font-bold">{(analysis.breakoutConfirmPrice ?? 0).toLocaleString()} {analysis.market === "US" ? "$" : "원"}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-rose-400 font-bold">🔴 구조 무효(손절가)</span>{" "}
-                <span className="text-white font-bold">{analysis.invalidationPrice.toLocaleString()} {analysis.market === "US" ? "$" : "원"}</span>
+                <span className="text-white font-bold">{(analysis.invalidationPrice ?? 0).toLocaleString()} {analysis.market === "US" ? "$" : "원"}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-emerald-400 font-bold">🎯 Target Resistance</span>{" "}
                 <span className="text-white font-bold">
-                  {analysis.targetPrice1.toLocaleString()} / {analysis.targetPrice2.toLocaleString()} {analysis.market === "US" ? "$" : "원"}
+                  {(analysis.targetPrice1 ?? 0).toLocaleString()} / {(analysis.targetPrice2 ?? 0).toLocaleString()} {analysis.market === "US" ? "$" : "원"}
                 </span>
               </div>
             </div>

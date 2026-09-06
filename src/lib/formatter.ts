@@ -18,7 +18,7 @@ export function formatStockQty(qty: number | null | undefined, isCrypto?: boolea
   }
 
   // Stock / standard assets
-  return num.toLocaleString(undefined, {
+  return (num ?? 0).toLocaleString(undefined, {
     minimumFractionDigits: 0,
     maximumFractionDigits: 4
   });

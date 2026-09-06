@@ -328,7 +328,7 @@ export class RealtimeMarketStreamManagerClass {
               newPrice: tick.price,
               shiftPct: tick.changePct,
               timestamp: tick.time,
-              message: `⚡ [0.1초 KIS 실시간 연동] ${tick.name} (${tick.symbol}) ${tick.price.toLocaleString()}원 (${tick.changePct >= 0 ? "+" : ""}${tick.changePct}%)`
+              message: `⚡ [0.1초 KIS 실시간 연동] ${tick.name} (${tick.symbol}) ${(tick.price ?? 0).toLocaleString()}원 (${tick.changePct >= 0 ? "+" : ""}${tick.changePct}%)`
             }
           })
         );

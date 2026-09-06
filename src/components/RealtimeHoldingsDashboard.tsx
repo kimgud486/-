@@ -136,7 +136,7 @@ const PositionRowItem: React.FC<{
 
       {/* Quantity & Avg Price */}
       <td className="py-3.5 px-4 text-right">
-        <div className="text-zinc-900 font-bold">{pos.quantity.toLocaleString()}주</div>
+        <div className="text-zinc-900 font-bold">{(pos.quantity ?? 0).toLocaleString()}주</div>
         <div className="text-[10px] text-zinc-400">평단: ₩{Math.round(pos.avgPrice).toLocaleString()}원</div>
       </td>
 
@@ -440,7 +440,7 @@ export const RealtimeHoldingsDashboard: React.FC = () => {
             currentPrice: liveP,
             profitLoss,
             returnPct,
-            prompt: `현재 실계좌 보유 종목인 ${pos.name} (${pos.symbol}, ${pos.market} 마켓)의 수량 ${pos.quantity}, 평단가 ${pos.avgPrice.toLocaleString()}원, 현재가 ${liveP.toLocaleString()}원, 수익률 ${returnPct.toFixed(2)}%에 대하여 딥러닝 퀀트 분석 보고서를 작성해줘. 투자 판단(추가매수/홀딩/부분익절/손절), AI 신뢰도, 손절가, 목표가, 3가지 핵심 모멘텀 리스크 요인을 명확히 제시해줘.`
+            prompt: `현재 실계좌 보유 종목인 ${pos.name} (${pos.symbol}, ${pos.market} 마켓)의 수량 ${pos.quantity}, 평단가 ${(pos.avgPrice ?? 0).toLocaleString()}원, 현재가 ${(liveP ?? 0).toLocaleString()}원, 수익률 ${returnPct.toFixed(2)}%에 대하여 딥러닝 퀀트 분석 보고서를 작성해줘. 투자 판단(추가매수/홀딩/부분익절/손절), AI 신뢰도, 손절가, 목표가, 3가지 핵심 모멘텀 리스크 요인을 명확히 제시해줘.`
           }
         })
       });
@@ -466,7 +466,7 @@ export const RealtimeHoldingsDashboard: React.FC = () => {
     try {
       const posSummary = positions.map(p => {
         const liveP = livePrices[p.id]?.currentPrice || p.currentPrice;
-        return `${p.name}(${p.market}, 수량:${p.quantity}, 평단:${p.avgPrice.toLocaleString()}원, 현재가:${liveP.toLocaleString()}원)`;
+        return `${p.name}(${p.market}, 수량:${p.quantity}, 평단:${(p.avgPrice ?? 0).toLocaleString()}원, 현재가:${(liveP ?? 0).toLocaleString()}원)`;
       }).join(", ");
 
       const res = await fetch("/api/ai/analyze", {
@@ -484,7 +484,7 @@ export const RealtimeHoldingsDashboard: React.FC = () => {
             koreaInvested,
             btcInvested,
             positionsSummary: posSummary,
-            prompt: `현재 한국투자증권 및 업비트 실계좌 통합 보유 종목 (${positions.length}개 종목, 총자산 ${grandTotalAssets.toLocaleString()}원, 현금 ${totalCash.toLocaleString()}원, 주식/코인 투자금 ${totalInvestedValuation.toLocaleString()}원)에 대한 딥러닝 AI 자산 분배 및 리스크 진단 보고서를 작성해줘.`
+            prompt: `현재 한국투자증권 및 업비트 실계좌 통합 보유 종목 (${positions.length}개 종목, 총자산 ${(grandTotalAssets ?? 0).toLocaleString()}원, 현금 ${(totalCash ?? 0).toLocaleString()}원, 주식/코인 투자금 ${(totalInvestedValuation ?? 0).toLocaleString()}원)에 대한 딥러닝 AI 자산 분배 및 리스크 진단 보고서를 작성해줘.`
           }
         })
       });
@@ -555,11 +555,11 @@ export const RealtimeHoldingsDashboard: React.FC = () => {
               </span>
             </div>
             <div className="text-xl font-black text-emerald-300 font-mono tracking-tight">
-              ₩{grandTotalAssets.toLocaleString()}원
+              ₩{(grandTotalAssets ?? 0).toLocaleString()}원
             </div>
             <div className="flex items-center justify-between text-[11px] text-zinc-400 font-mono pt-1 border-t border-slate-800">
-              <span>예수금: ₩{totalCash.toLocaleString()}</span>
-              <span>투자금: ₩{totalInvestedValuation.toLocaleString()}</span>
+              <span>예수금: ₩{(totalCash ?? 0).toLocaleString()}</span>
+              <span>투자금: ₩{(totalInvestedValuation ?? 0).toLocaleString()}</span>
             </div>
           </div>
 
@@ -577,8 +577,8 @@ export const RealtimeHoldingsDashboard: React.FC = () => {
               ₩{((cashBreakdown?.koreaTotal ?? (koreaCash + koreaInvested))).toLocaleString()}원
             </div>
             <div className="flex items-center justify-between text-[11px] text-zinc-400 font-mono pt-1 border-t border-slate-800">
-              <span>예수금 ₩{koreaCash.toLocaleString()}</span>
-              <span className="text-emerald-400 font-bold">주식 ₩{koreaInvested.toLocaleString()}</span>
+              <span>예수금 ₩{(koreaCash ?? 0).toLocaleString()}</span>
+              <span className="text-emerald-400 font-bold">주식 ₩{(koreaInvested ?? 0).toLocaleString()}</span>
             </div>
           </div>
 
@@ -596,8 +596,8 @@ export const RealtimeHoldingsDashboard: React.FC = () => {
               ₩{((cashBreakdown?.upbitTotal ?? (upbitCash + btcInvested))).toLocaleString()}원
             </div>
             <div className="flex items-center justify-between text-[11px] text-zinc-400 font-mono pt-1 border-t border-slate-800">
-              <span>원화 ₩{upbitCash.toLocaleString()}</span>
-              <span className="text-cyan-400 font-bold">코인 ₩{btcInvested.toLocaleString()}</span>
+              <span>원화 ₩{(upbitCash ?? 0).toLocaleString()}</span>
+              <span className="text-cyan-400 font-bold">코인 ₩{(btcInvested ?? 0).toLocaleString()}</span>
             </div>
           </div>
 
@@ -984,7 +984,7 @@ export const RealtimeHoldingsDashboard: React.FC = () => {
                 <span className="text-[10px] text-zinc-400 block font-sans">매수평단가</span>
                 <strong className="text-white block mt-0.5">
                   {selectedPositionForAi.market === "US"
-                    ? `$${selectedPositionForAi.avgPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                    ? `$${(selectedPositionForAi.avgPrice ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
                     : `₩${Math.round(selectedPositionForAi.avgPrice).toLocaleString()}`}
                 </strong>
               </div>

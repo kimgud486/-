@@ -4,6 +4,8 @@ import { IndicatorEngine } from "../src/realtime/IndicatorEngine";
 import { LiveDataIntegrityGate } from "../src/realtime/LiveDataIntegrityGate";
 import { evaluateNetEdge } from "../src/strategy/NetEdgeGate";
 import { FalseSignalFilter } from "../src/realtime/FalseSignalFilter";
+import { ProbabilityCalibrator } from "../src/prediction/calibration";
+import { MetaLabelingFilter } from "../src/prediction/metaLabeling";
 import type { LiveCandle } from "../src/realtime/types";
 
 describe("v14 Real Market Core Engine Tests", () => {
@@ -21,7 +23,7 @@ describe("v14 Real Market Core Engine Tests", () => {
 
     const resultShort = IndicatorEngine.calculate(shortCandles);
     assert.strictEqual(resultShort.indicatorsReady, false);
-    assert.ok(resultShort.warmupReason?.includes("Insufficient bars for EMA200"));
+    assert.ok(resultShort.warmupReason?.includes("INDICATOR_WARMUP_NOT_COMPLETE"));
 
     // 2. Warm-up complete with 220 bars
     const fullCandles: LiveCandle[] = Array.from({ length: 220 }, (_, i) => ({
@@ -125,9 +127,6 @@ describe("v14 Real Market Core Engine Tests", () => {
   });
 
   it("ProbabilityCalibrator and MetaLabelingFilter strictly block unverified ML probabilities", () => {
-    const { ProbabilityCalibrator } = require("../src/prediction/calibration");
-    const { MetaLabelingFilter } = require("../src/prediction/metaLabeling");
-
     // Unverified probability calibration must return null
     const calRes = ProbabilityCalibrator.calibrate(85, "LIGHTGBM", false);
     assert.strictEqual(calRes, null);

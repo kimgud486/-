@@ -1755,7 +1755,7 @@ export const UnifiedOmniBrainAiControlCenter: React.FC = () => {
         <div className="hidden lg:flex items-center gap-5 font-mono text-xs">
           <div className="flex items-center gap-1.5">
             <span className="text-slate-400 font-bold">KOSPI</span>
-            <span className="text-white font-black">{marketIndices?.kospi?.value ? marketIndices.kospi.value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "2,685.42"}</span>
+            <span className="text-white font-black">{marketIndices?.kospi?.value ? (marketIndices.kospi.value ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "2,685.42"}</span>
             <span className={(marketIndices?.kospi?.change ?? 0) >= 0 ? "text-rose-400 font-bold" : "text-cyan-400 font-bold"}>
               {(marketIndices?.kospi?.change ?? 0) >= 0 ? "▲" : "▼"} {Math.abs(marketIndices?.kospi?.change ?? 32.12)} ({(marketIndices?.kospi?.pct ?? 0) >= 0 ? "+" : ""}{marketIndices?.kospi?.pct ?? 1.21}%)
             </span>
@@ -1763,7 +1763,7 @@ export const UnifiedOmniBrainAiControlCenter: React.FC = () => {
 
           <div className="flex items-center gap-1.5">
             <span className="text-slate-400 font-bold">KOSDAQ</span>
-            <span className="text-white font-black">{marketIndices?.kosdaq?.value ? marketIndices.kosdaq.value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "855.12"}</span>
+            <span className="text-white font-black">{marketIndices?.kosdaq?.value ? (marketIndices.kosdaq.value ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "855.12"}</span>
             <span className={(marketIndices?.kosdaq?.change ?? 0) >= 0 ? "text-rose-400 font-bold" : "text-cyan-400 font-bold"}>
               {(marketIndices?.kosdaq?.change ?? 0) >= 0 ? "▲" : "▼"} {Math.abs(marketIndices?.kosdaq?.change ?? 8.44)} ({(marketIndices?.kosdaq?.pct ?? 0) >= 0 ? "+" : ""}{marketIndices?.kosdaq?.pct ?? 1.00}%)
             </span>
@@ -1771,7 +1771,7 @@ export const UnifiedOmniBrainAiControlCenter: React.FC = () => {
 
           <div className="flex items-center gap-1.5">
             <span className="text-slate-400 font-bold">USD/KRW</span>
-            <span className="text-amber-300 font-bold">{marketIndices?.exchangeRate?.value ? marketIndices.exchangeRate.value.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 }) : "1,384.5"}원</span>
+            <span className="text-amber-300 font-bold">{marketIndices?.exchangeRate?.value ? (marketIndices.exchangeRate.value ?? 0).toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 }) : "1,384.5"}원</span>
           </div>
 
           <div className="flex items-center gap-1.5 bg-emerald-950/80 border border-emerald-700/60 px-2.5 py-1 rounded-lg">
@@ -2539,7 +2539,7 @@ export const UnifiedOmniBrainAiControlCenter: React.FC = () => {
                             <span className="truncate max-w-[80px]">{st.name}</span>
                           </td>
                           <td className="py-1.5 text-right font-bold text-white">
-                            {st.price != null ? st.price.toLocaleString() : "0"}
+                            {st.price != null ? (st.price ?? 0).toLocaleString() : "0"}
                           </td>
                           <td className="py-1.5 text-right font-bold text-rose-400">
                             +{st.changePercent}%
@@ -2682,10 +2682,10 @@ export const UnifiedOmniBrainAiControlCenter: React.FC = () => {
             const formatPriceVal = (val?: number | null) => {
               if (val == null || isNaN(val)) return isUsStock ? "$0.00" : "0원";
               if (isUsStock) {
-                return `$${val.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+                return `$${(val ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
               }
               if (val < 1000 && val > 0) {
-                return `${val.toLocaleString()}원`;
+                return `${(val ?? 0).toLocaleString()}원`;
               }
               return `${Math.round(val).toLocaleString()}원`;
             };
@@ -3068,10 +3068,10 @@ export const UnifiedOmniBrainAiControlCenter: React.FC = () => {
                 const formatTargetVal = (val?: number | null) => {
                   if (val == null || isNaN(val)) return isUsStock ? "$0.00" : "0원";
                   if (isUsStock) {
-                    return `$${val.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+                    return `$${(val ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
                   }
                   if (val < 1000 && val > 0) {
-                    return `${val.toLocaleString()}원`;
+                    return `${(val ?? 0).toLocaleString()}원`;
                   }
                   return `${Math.round(val).toLocaleString()}원`;
                 };
@@ -3173,10 +3173,10 @@ export const UnifiedOmniBrainAiControlCenter: React.FC = () => {
                 const formatTargetVal = (val?: number | null) => {
                   if (val == null || isNaN(val)) return isUsStock ? "$0.00" : "0원";
                   if (isUsStock) {
-                    return `$${val.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+                    return `$${(val ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
                   }
                   if (val < 1000 && val > 0) {
-                    return `${val.toLocaleString()}원`;
+                    return `${(val ?? 0).toLocaleString()}원`;
                   }
                   return `${Math.round(val).toLocaleString()}원`;
                 };

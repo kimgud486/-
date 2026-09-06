@@ -275,7 +275,7 @@ export const AiLongShortAnalysisScannerSuite: React.FC = () => {
       addToast({
         type: "SUCCESS",
         title: `✅ ${actionName} 주문 집행 성공!`,
-        message: `${signal.name} (${signal.symbol}) ${actionName} 주문이 성공적으로 제출되었습니다. (목표가: ${signal.targetPrice.toLocaleString()} / 손절가: ${signal.stopLoss.toLocaleString()})`
+        message: `${signal.name} (${signal.symbol}) ${actionName} 주문이 성공적으로 제출되었습니다. (목표가: ${(signal.targetPrice ?? 0).toLocaleString()} / 손절가: ${(signal.stopLoss ?? 0).toLocaleString()})`
       });
     } catch (err: any) {
       addToast({
@@ -329,14 +329,14 @@ export const AiLongShortAnalysisScannerSuite: React.FC = () => {
         type: isLong ? "LONG" : "SHORT",
         category: "주식",
         currentPrice: basePrice,
-        entryZone: `${Math.round(basePrice * 0.99).toLocaleString()} ~ ${basePrice.toLocaleString()}원`,
+        entryZone: `${Math.round(basePrice * 0.99).toLocaleString()} ~ ${(basePrice ?? 0).toLocaleString()}원`,
         targetPrice: isLong ? Math.round(basePrice * (1 + profitPct / 100)) : Math.round(basePrice * (1 - profitPct / 100)),
         stopLoss: isLong ? Math.round(basePrice * 0.96) : Math.round(basePrice * 1.04),
         expectedProfitPct: profitPct,
         aiWinConfidence: confidence,
         riskRewardRatio: rrRatio,
         timeframe: "스윙 2~5일",
-        rationale: `AI 딥러닝 롱/숏 정밀 스캔 결과: 실시간 시세(${basePrice.toLocaleString()}원) 및 기술적 차트 이격도 조건 충족. ${isLong ? '상승 골든크로스 모멘텀 유입으로 강력한 롱 타점 포착' : '단기 과매수 이탈 및 차익실현 매물 유출로 숏/인버스 타점 포착'}.`,
+        rationale: `AI 딥러닝 롱/숏 정밀 스캔 결과: 실시간 시세(${(basePrice ?? 0).toLocaleString()}원) 및 기술적 차트 이격도 조건 충족. ${isLong ? '상승 골든크로스 모멘텀 유입으로 강력한 롱 타점 포착' : '단기 과매수 이탈 및 차익실현 매물 유출로 숏/인버스 타점 포착'}.`,
         technicalFactors: [
           `RSI ${isLong ? '58.4 (상승 여력)' : '72.1 (과매수 헤드)'}`,
           `손익비(R:R) 1:${rrRatio} 우수 타점`,
@@ -599,8 +599,8 @@ export const AiLongShortAnalysisScannerSuite: React.FC = () => {
             <div className="flex flex-wrap items-center justify-between gap-2 pt-2">
               <div className="flex items-center gap-4 text-xs font-mono">
                 <span>진입가: <strong className="text-white">{customAnalysisResult.entryZone}</strong></span>
-                <span>목표가: <strong className="text-emerald-400">{customAnalysisResult.targetPrice.toLocaleString()}원</strong></span>
-                <span>손절가: <strong className="text-rose-400">{customAnalysisResult.stopLoss.toLocaleString()}원</strong></span>
+                <span>목표가: <strong className="text-emerald-400">{(customAnalysisResult.targetPrice ?? 0).toLocaleString()}원</strong></span>
+                <span>손절가: <strong className="text-rose-400">{(customAnalysisResult.stopLoss ?? 0).toLocaleString()}원</strong></span>
               </div>
 
               <button
@@ -769,7 +769,7 @@ export const AiLongShortAnalysisScannerSuite: React.FC = () => {
                 <div className="space-y-1.5 text-xs font-mono bg-slate-950/50 p-3 rounded-2xl border border-slate-800/80">
                   <div className="flex justify-between text-slate-300">
                     <span className="text-slate-400">현재가:</span>
-                    <span className="font-bold text-white">{sig.currentPrice.toLocaleString()}원</span>
+                    <span className="font-bold text-white">{(sig.currentPrice ?? 0).toLocaleString()}원</span>
                   </div>
                   <div className="flex justify-between text-slate-300">
                     <span className="text-slate-400">권장 진입 타점:</span>
@@ -777,11 +777,11 @@ export const AiLongShortAnalysisScannerSuite: React.FC = () => {
                   </div>
                   <div className="flex justify-between">
                     <span className="text-slate-400">AI 목표가 (TP):</span>
-                    <span className="font-bold text-emerald-400">{sig.targetPrice.toLocaleString()}원 (+{sig.expectedProfitPct}%)</span>
+                    <span className="font-bold text-emerald-400">{(sig.targetPrice ?? 0).toLocaleString()}원 (+{sig.expectedProfitPct}%)</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-slate-400">AI 손절가 (SL):</span>
-                    <span className="font-bold text-rose-400">{sig.stopLoss.toLocaleString()}원</span>
+                    <span className="font-bold text-rose-400">{(sig.stopLoss ?? 0).toLocaleString()}원</span>
                   </div>
                 </div>
 

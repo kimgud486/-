@@ -61,7 +61,7 @@ export class AdaptiveExitDecisionEngine {
       breakdown.push({
         factor: "STRUCTURE_BREAK",
         points: 22,
-        description: `고점(${position.highPriceSinceBuy.toLocaleString()}) 대비 -1.5% 이상 하락하여 HH/HL 상승파동 구조 붕괴`
+        description: `고점(${(position.highPriceSinceBuy ?? 0).toLocaleString()}) 대비 -1.5% 이상 하락하여 HH/HL 상승파동 구조 붕괴`
       });
       totalSellScore += 22;
     }
@@ -73,7 +73,7 @@ export class AdaptiveExitDecisionEngine {
         breakdown.push({
           factor: "VWAP_LOST",
           points: 18,
-          description: `VWAP 지지선(${bar.vwap.toLocaleString()}) 대비 ${vwapDiff.toFixed(1)}% 이탈`
+          description: `VWAP 지지선(${(bar.vwap ?? 0).toLocaleString()}) 대비 ${vwapDiff.toFixed(1)}% 이탈`
         });
         totalSellScore += 18;
       }

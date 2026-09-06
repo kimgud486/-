@@ -387,7 +387,7 @@ export const FloatingSearchBar: React.FC<FloatingSearchBarProps> = ({ variant = 
 
                           {stock.price ? (
                             <div className="text-right font-mono text-xs shrink-0">
-                              <div className="text-white font-bold">{stock.market === "US" ? `$${stock.price.toLocaleString()}` : `${stock.price.toLocaleString()}원`}</div>
+                              <div className="text-white font-bold">{stock.market === "US" ? `$${(stock.price ?? 0).toLocaleString()}` : `${(stock.price ?? 0).toLocaleString()}원`}</div>
                               <div className={`text-[10px] ${isUp ? "text-emerald-400" : "text-rose-400"}`}>
                                 {isUp ? "+" : ""}{stock.changePct}%
                               </div>

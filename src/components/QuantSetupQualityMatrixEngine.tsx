@@ -1621,10 +1621,10 @@ export const QuantSetupQualityMatrixEngine: React.FC<QuantSetupQualityMatrixEngi
                               {d.candleTag && <span className="bg-amber-950 text-amber-300 border border-amber-700 px-1.5 py-0.2 rounded text-[10px]">{d.candleTag}</span>}
                             </p>
                             <div className="grid grid-cols-2 gap-3 text-[11px] pt-1">
-                              <span>시가: ₩{d.open.toLocaleString()}</span>
-                              <span className="text-emerald-400">고가: ₩{d.high.toLocaleString()}</span>
-                              <span className="text-rose-400">저가: ₩{d.low.toLocaleString()}</span>
-                              <span className="font-bold text-cyan-300">종가: ₩{d.close.toLocaleString()}</span>
+                              <span>시가: ₩{(d.open ?? 0).toLocaleString()}</span>
+                              <span className="text-emerald-400">고가: ₩{(d.high ?? 0).toLocaleString()}</span>
+                              <span className="text-rose-400">저가: ₩{(d.low ?? 0).toLocaleString()}</span>
+                              <span className="font-bold text-cyan-300">종가: ₩{(d.close ?? 0).toLocaleString()}</span>
                             </div>
                             {d.isForecast && (
                               <p className="text-[10px] text-purple-300 pt-1 border-t border-slate-800">

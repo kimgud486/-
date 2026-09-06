@@ -279,20 +279,20 @@ const MeticulousDetailedChart: React.FC<{
           </div>
           <div>
             <span className="text-zinc-500 text-[10px] block">시가 (Open):</span>
-            <span className="text-white font-bold">{hoveredCandle.open.toLocaleString("ko-KR", { maximumFractionDigits: 2 })}</span>
+            <span className="text-white font-bold">{(hoveredCandle.open ?? 0).toLocaleString("ko-KR", { maximumFractionDigits: 2 })}</span>
           </div>
           <div>
             <span className="text-zinc-500 text-[10px] block">고가 (High):</span>
-            <span className="text-emerald-400 font-bold">{hoveredCandle.high.toLocaleString("ko-KR", { maximumFractionDigits: 2 })}</span>
+            <span className="text-emerald-400 font-bold">{(hoveredCandle.high ?? 0).toLocaleString("ko-KR", { maximumFractionDigits: 2 })}</span>
           </div>
           <div>
             <span className="text-zinc-500 text-[10px] block">저가 (Low):</span>
-            <span className="text-rose-400 font-bold">{hoveredCandle.low.toLocaleString("ko-KR", { maximumFractionDigits: 2 })}</span>
+            <span className="text-rose-400 font-bold">{(hoveredCandle.low ?? 0).toLocaleString("ko-KR", { maximumFractionDigits: 2 })}</span>
           </div>
           <div>
             <span className="text-zinc-500 text-[10px] block">종가 (Close):</span>
             <span className={`font-black ${hoveredCandle.isUp ? "text-emerald-400" : "text-rose-400"}`}>
-              {hoveredCandle.close.toLocaleString("ko-KR", { maximumFractionDigits: 2 })}
+              {(hoveredCandle.close ?? 0).toLocaleString("ko-KR", { maximumFractionDigits: 2 })}
             </span>
           </div>
           <div>
@@ -315,7 +315,7 @@ const MeticulousDetailedChart: React.FC<{
               <g key={i}>
                 <line x1={paddingLeft} y1={y} x2={svgWidth - paddingRight} y2={y} stroke="#27272a" strokeDasharray="3 3" />
                 <text x={svgWidth - paddingRight + 6} y={y + 4} fill="#71717a" fontSize="10" fontFamily="monospace">
-                  {priceVal.toLocaleString("ko-KR", { maximumFractionDigits: 1 })}
+                  {(priceVal ?? 0).toLocaleString("ko-KR", { maximumFractionDigits: 1 })}
                 </text>
               </g>
             );

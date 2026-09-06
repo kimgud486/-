@@ -749,7 +749,7 @@ export const SmartThemeSearchModal: React.FC<SmartThemeSearchModalProps> = ({
 
                                 <div className="text-right shrink-0">
                                   <p className="text-xs font-mono font-extrabold text-white">
-                                    {stock.price ? stock.price.toLocaleString() : "-"}
+                                    {stock.price ? (stock.price ?? 0).toLocaleString() : "-"}
                                   </p>
                                   <p className={`text-xs font-mono font-bold flex items-center justify-end ${isUp ? "text-emerald-400" : "text-rose-400"}`}>
                                     {isUp ? <ArrowUpRight className="h-3 w-3 mr-0.5" /> : <ArrowDownRight className="h-3 w-3 mr-0.5" />}
@@ -875,7 +875,7 @@ export const SmartThemeSearchModal: React.FC<SmartThemeSearchModalProps> = ({
                               <div className="flex items-center justify-between sm:justify-end gap-4 shrink-0">
                                 <div className="text-right">
                                   <p className="text-sm font-mono font-black text-white">
-                                    {stock.price ? stock.price.toLocaleString() : "-"}
+                                    {stock.price ? (stock.price ?? 0).toLocaleString() : "-"}
                                   </p>
                                   <p className={`text-xs font-mono font-bold flex items-center justify-end ${isUp ? "text-emerald-400" : "text-rose-400"}`}>
                                     {isUp ? <ArrowUpRight className="h-3 w-3 mr-0.5" /> : <ArrowDownRight className="h-3 w-3 mr-0.5" />}

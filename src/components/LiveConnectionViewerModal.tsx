@@ -136,7 +136,7 @@ export const LiveConnectionViewerModal: React.FC<LiveConnectionViewerModalProps>
                 </div>
                 <div className="flex justify-between pt-1 border-t border-slate-800/80">
                   <span className="text-zinc-300 font-bold">실제 가용 예수금:</span>
-                  <span className="text-amber-300 font-black text-sm">₩{koreaCash.toLocaleString()}원</span>
+                  <span className="text-amber-300 font-black text-sm">₩{(koreaCash ?? 0).toLocaleString()}원</span>
                 </div>
               </div>
             </div>
@@ -175,7 +175,7 @@ export const LiveConnectionViewerModal: React.FC<LiveConnectionViewerModalProps>
                 </div>
                 <div className="flex justify-between pt-1 border-t border-slate-800/80">
                   <span className="text-zinc-300 font-bold">실제 원화 예수금:</span>
-                  <span className="text-amber-300 font-black text-sm">₩{upbitCash.toLocaleString()}원</span>
+                  <span className="text-amber-300 font-black text-sm">₩{(upbitCash ?? 0).toLocaleString()}원</span>
                 </div>
               </div>
             </div>
@@ -189,7 +189,7 @@ export const LiveConnectionViewerModal: React.FC<LiveConnectionViewerModalProps>
                 통합 연동 계좌 실제 예수금 총액:
               </span>
               <span className="text-base font-black text-amber-300">
-                ₩{totalRealCash.toLocaleString()}원
+                ₩{(totalRealCash ?? 0).toLocaleString()}원
               </span>
             </div>
 

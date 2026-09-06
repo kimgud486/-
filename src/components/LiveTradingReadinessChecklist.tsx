@@ -222,7 +222,7 @@ export const LiveTradingReadinessChecklist: React.FC = () => {
             <li className="flex items-center justify-between">
               <span>총 자산 상태:</span>
               <span className="font-mono font-bold">
-                {profile.totalBalance ? `${profile.totalBalance.toLocaleString()} 원` : "자금 보유"}
+                {profile.totalBalance ? `${(profile.totalBalance ?? 0).toLocaleString()} 원` : "자금 보유"}
               </span>
             </li>
           </ul>

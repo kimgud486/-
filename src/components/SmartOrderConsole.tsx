@@ -156,7 +156,7 @@ export const SmartOrderConsole: React.FC<SmartOrderConsoleProps> = ({
       if (orderType === "OCO") typeLabel = "OCO (스탑로스/익절 결합)";
       if (orderType === "TWAP") typeLabel = `TWAP (AI ${splitCount}회 분할 체결)`;
 
-      const rationale = `[스마트 주문 콘솔] ${typeLabel} ${side === "BUY" ? "매수" : "매도"} 주문. 단가: ${orderPrice.toLocaleString()}${unit}, 수량: ${orderQty}주. (예상금액: ${totalCost.toLocaleString()}${unit})`;
+      const rationale = `[스마트 주문 콘솔] ${typeLabel} ${side === "BUY" ? "매수" : "매도"} 주문. 단가: ${(orderPrice ?? 0).toLocaleString()}${unit}, 수량: ${orderQty}주. (예상금액: ${(totalCost ?? 0).toLocaleString()}${unit})`;
 
       await executeTrade(
         symbol,
@@ -276,11 +276,11 @@ export const SmartOrderConsole: React.FC<SmartOrderConsoleProps> = ({
                   AI 연동
                 </span>
                 <span className="text-zinc-800 font-bold text-[11px]">
-                  실시간 목표가 <strong className="text-emerald-700 font-black">+{Math.round((takeProfitPrice - currentPrice) / currentPrice * 1000) / 10}%</strong> ({takeProfitPrice.toLocaleString()}{unit})
+                  실시간 목표가 <strong className="text-emerald-700 font-black">+{Math.round((takeProfitPrice - currentPrice) / currentPrice * 1000) / 10}%</strong> ({(takeProfitPrice ?? 0).toLocaleString()}{unit})
                 </span>
                 <span className="text-zinc-400">|</span>
                 <span className="text-zinc-600 font-medium text-[11px]">
-                  손절가 {stopLossPrice.toLocaleString()}{unit} (-5.0%)
+                  손절가 {(stopLossPrice ?? 0).toLocaleString()}{unit} (-5.0%)
                 </span>
               </div>
 
@@ -293,7 +293,7 @@ export const SmartOrderConsole: React.FC<SmartOrderConsoleProps> = ({
                     addToast({
                       type: "INFO",
                       title: "실시간 호가 적용",
-                      message: `현재 호가 ${currentPrice.toLocaleString()}${unit}가 주문단가로 자동 세팅되었습니다.`
+                      message: `현재 호가 ${(currentPrice ?? 0).toLocaleString()}${unit}가 주문단가로 자동 세팅되었습니다.`
                     });
                   }}
                   className="px-2 py-1 bg-white hover:bg-zinc-100 border border-emerald-300 text-emerald-800 rounded font-bold text-[10px] transition cursor-pointer"
@@ -388,7 +388,7 @@ export const SmartOrderConsole: React.FC<SmartOrderConsoleProps> = ({
                 </label>
                 {side === "BUY" && (
                   <span className="text-[10px] text-zinc-500 font-mono">
-                    가능 잔고: {userBalance.toLocaleString()}{unit}
+                    가능 잔고: {(userBalance ?? 0).toLocaleString()}{unit}
                   </span>
                 )}
                 {side === "SELL" && (
@@ -564,28 +564,28 @@ export const SmartOrderConsole: React.FC<SmartOrderConsoleProps> = ({
               <div className="space-y-2 py-3 font-mono">
                 <div className="flex justify-between text-zinc-600">
                   <span>주문 가액 (Order Value)</span>
-                  <span className="font-bold text-zinc-900">{estimatedOrderCost.toLocaleString()} {unit}</span>
+                  <span className="font-bold text-zinc-900">{(estimatedOrderCost ?? 0).toLocaleString()} {unit}</span>
                 </div>
                 <div className="flex justify-between text-zinc-500 text-[11px]">
                   <span>증권사 수수료 ({market === "KOREA" ? "0.015%" : "0.02%"})</span>
-                  <span>{estimatedFee.toLocaleString()} {unit}</span>
+                  <span>{(estimatedFee ?? 0).toLocaleString()} {unit}</span>
                 </div>
                 {taxRate > 0 && (
                   <div className="flex justify-between text-zinc-500 text-[11px]">
                     <span>매도 제세금 ({market === "KOREA" ? "0.18%" : "SEC Fee"})</span>
-                    <span>{estimatedTax.toLocaleString()} {unit}</span>
+                    <span>{(estimatedTax ?? 0).toLocaleString()} {unit}</span>
                   </div>
                 )}
 
                 <div className="border-t border-zinc-200 my-1 pt-2 flex justify-between font-black text-xs">
                   <span className="text-zinc-800">최종 청구/정산금액</span>
-                  <span className="text-emerald-700 text-sm">{totalCost.toLocaleString()} {unit}</span>
+                  <span className="text-emerald-700 text-sm">{(totalCost ?? 0).toLocaleString()} {unit}</span>
                 </div>
 
                 <div className="border-t border-dashed border-zinc-200 pt-2 space-y-1 text-[11px]">
                   <div className="flex justify-between text-zinc-600">
                     <span>체결 후 예상 유휴 잔고</span>
-                    <span className="font-bold text-zinc-900">{expectedPostBalance.toLocaleString()} {unit}</span>
+                    <span className="font-bold text-zinc-900">{(expectedPostBalance ?? 0).toLocaleString()} {unit}</span>
                   </div>
                   <div className="flex justify-between text-zinc-600">
                     <span>포트폴리오 비중 변화</span>
@@ -675,7 +675,7 @@ export const SmartOrderConsole: React.FC<SmartOrderConsoleProps> = ({
                     </div>
                     <p className="text-[11px] font-mono text-zinc-500">
                       수량: <span className="font-bold text-zinc-800">{ord.quantity}주</span> | 
-                      단가: <span className="font-bold text-zinc-800">{ord.price.toLocaleString()}{unit}</span>
+                      단가: <span className="font-bold text-zinc-800">{(ord.price ?? 0).toLocaleString()}{unit}</span>
                     </p>
                   </div>
 

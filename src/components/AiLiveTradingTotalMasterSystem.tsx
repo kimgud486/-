@@ -729,7 +729,7 @@ export function AiLiveTradingTotalMasterSystem() {
                     riskScore: 26,
                     triggerPrice: trig,
                     distancePct: 0.5,
-                    entryRange: `${p.toLocaleString()} ~ ${trig.toLocaleString()}`,
+                    entryRange: `${(p ?? 0).toLocaleString()} ~ ${(trig ?? 0).toLocaleString()}`,
                     invalidationPrice: Math.round(p * 0.975),
                     tp1: Math.round(p * 1.03),
                     tp2: Math.round(p * 1.06),
@@ -793,7 +793,7 @@ export function AiLiveTradingTotalMasterSystem() {
           riskScore: 24,
           triggerPrice: Math.round(p * 1.005),
           distancePct: 0.5,
-          entryRange: `${p.toLocaleString()} ~ ${(Math.round(p * 1.005)).toLocaleString()}`,
+          entryRange: `${(p ?? 0).toLocaleString()} ~ ${(Math.round(p * 1.005)).toLocaleString()}`,
           invalidationPrice: Math.round(p * 0.975),
           tp1: Math.round(p * 1.03),
           tp2: Math.round(p * 1.06),
@@ -930,7 +930,7 @@ export function AiLiveTradingTotalMasterSystem() {
           name: selectedStock.name,
           market: selectedStock.market,
           action: "SELL",
-          message: `[v7.7 Master Terminal] ${selectedStock.name} (${selectedStock.symbol}) 10주 매도 체결 완료 (현재가: ${selectedStock.currentPrice.toLocaleString()}원)`
+          message: `[v7.7 Master Terminal] ${selectedStock.name} (${selectedStock.symbol}) 10주 매도 체결 완료 (현재가: ${(selectedStock.currentPrice ?? 0).toLocaleString()}원)`
         });
         addToast(`${selectedStock.name} 매도 청산 완료!`, "SUCCESS");
       }
@@ -1208,7 +1208,7 @@ export function AiLiveTradingTotalMasterSystem() {
                   <span className="text-[10px] text-cyan-300 font-mono font-bold">[{selectedStock.name}]</span>
                 </div>
                 <div className="text-white font-extrabold font-mono text-sm">
-                  {selectedStock.entryRange || `${currSign}${selectedStock.triggerPrice.toLocaleString()} 돌파 시`}
+                  {selectedStock.entryRange || `${currSign}${(selectedStock.triggerPrice ?? 0).toLocaleString()} 돌파 시`}
                 </div>
                 <p className="text-[10px] text-zinc-400">
                   거래량(RVOL 2.5배+) 폭발 및 돌파 타점 포착 시 KIS API로 자동 매수 발주
@@ -1218,10 +1218,10 @@ export function AiLiveTradingTotalMasterSystem() {
               <div className="bg-zinc-950/80 p-2.5 rounded-xl border border-emerald-500/30 space-y-0.5">
                 <div className="text-emerald-400 font-black text-[11px]">2. 어디서 팔고 (AI 자율 매도)</div>
                 <div className="text-white font-extrabold font-mono text-sm">
-                  1차 {currSign}{selectedStock.tp1.toLocaleString()} (+{tp1Pct}%) / 2차 {currSign}{selectedStock.tp2.toLocaleString()} (+{tp2Pct}%)
+                  1차 {currSign}{(selectedStock.tp1 ?? 0).toLocaleString()} (+{tp1Pct}%) / 2차 {currSign}{(selectedStock.tp2 ?? 0).toLocaleString()} (+{tp2Pct}%)
                 </div>
                 <p className="text-[10px] text-zinc-400">
-                  목표 도달 시 AI 분할 익절 매도 및 손절선({currSign}{selectedStock.invalidationPrice.toLocaleString()}) 이탈 시 자동 청산
+                  목표 도달 시 AI 분할 익절 매도 및 손절선({currSign}{(selectedStock.invalidationPrice ?? 0).toLocaleString()}) 이탈 시 자동 청산
                 </p>
               </div>
 
@@ -1229,7 +1229,7 @@ export function AiLiveTradingTotalMasterSystem() {
                 <div className="text-amber-300 font-black text-[11px]">3. 얼마의 이익을 보는지 (선택종목 수익 목표)</div>
                 <div className="text-amber-300 font-extrabold font-mono text-sm">
                   {isUsd 
-                    ? `+${tp1Pct}% ~ +${tp2Pct}% (+$${profit1.toLocaleString()} ~ +$${profit2.toLocaleString()} / $5천불 기준)`
+                    ? `+${tp1Pct}% ~ +${tp2Pct}% (+$${(profit1 ?? 0).toLocaleString()} ~ +$${(profit2 ?? 0).toLocaleString()} / $5천불 기준)`
                     : `+${tp1Pct}% ~ +${tp2Pct}% (+${Math.round(profit1/10000)}만 ~ +${Math.round(profit2/10000)}만원 / 500만 투자 시)`
                   }
                 </div>
@@ -1335,7 +1335,7 @@ export function AiLiveTradingTotalMasterSystem() {
                   riskScore: 24,
                   triggerPrice: Math.round(p * 1.005),
                   distancePct: 0.5,
-                  entryRange: `${p.toLocaleString()} ~ ${(Math.round(p * 1.005)).toLocaleString()}`,
+                  entryRange: `${(p ?? 0).toLocaleString()} ~ ${(Math.round(p * 1.005)).toLocaleString()}`,
                   invalidationPrice: Math.round(p * 0.975),
                   tp1: Math.round(p * 1.03),
                   tp2: Math.round(p * 1.06),
@@ -1406,7 +1406,7 @@ export function AiLiveTradingTotalMasterSystem() {
                           riskScore: 24,
                           triggerPrice: Math.round(p * 1.005),
                           distancePct: 0.5,
-                          entryRange: `${p.toLocaleString()} ~ ${(Math.round(p * 1.005)).toLocaleString()}`,
+                          entryRange: `${(p ?? 0).toLocaleString()} ~ ${(Math.round(p * 1.005)).toLocaleString()}`,
                           invalidationPrice: Math.round(p * 0.975),
                           tp1: Math.round(p * 1.03),
                           tp2: Math.round(p * 1.06),
@@ -1646,7 +1646,7 @@ export function AiLiveTradingTotalMasterSystem() {
                       {/* Rank Surge & Sparkline */}
                       <div className="flex items-center justify-between text-[11px] mb-2">
                         <div className="flex items-center gap-2">
-                          <span className="font-bold text-white">{stock.currentPrice.toLocaleString()}원</span>
+                          <span className="font-bold text-white">{(stock.currentPrice ?? 0).toLocaleString()}원</span>
                           <span className={`font-extrabold ${stock.changePct >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
                             {stock.changePct >= 0 ? "+" : ""}{stock.changePct}%
                           </span>
@@ -1681,7 +1681,7 @@ export function AiLiveTradingTotalMasterSystem() {
 
                       {/* Trigger Target Distance */}
                       <div className="flex items-center justify-between text-[10px] text-zinc-400 font-medium pt-1 border-t border-zinc-800/60">
-                        <span>돌파기준가: <strong className="text-zinc-200">{stock.triggerPrice.toLocaleString()}원</strong></span>
+                        <span>돌파기준가: <strong className="text-zinc-200">{(stock.triggerPrice ?? 0).toLocaleString()}원</strong></span>
                         <span className="text-cyan-400 font-bold">
                           {stock.distancePct > 0 ? `돌파까지 ${stock.distancePct}%` : "돌파 성공"}
                         </span>
@@ -1717,7 +1717,7 @@ export function AiLiveTradingTotalMasterSystem() {
                 <span className="text-sm font-black text-white">{selectedStock.name}</span>
                 <span className="text-xs text-zinc-400 font-medium">({selectedStock.symbol})</span>
                 <span className="text-xs font-bold text-emerald-400 bg-emerald-950/60 px-2 py-0.5 rounded border border-emerald-800">
-                  {selectedStock.currentPrice.toLocaleString()}원 ({selectedStock.changePct >= 0 ? "+" : ""}{selectedStock.changePct}%)
+                  {(selectedStock.currentPrice ?? 0).toLocaleString()}원 ({selectedStock.changePct >= 0 ? "+" : ""}{selectedStock.changePct}%)
                 </span>
               </div>
 
@@ -1725,7 +1725,7 @@ export function AiLiveTradingTotalMasterSystem() {
                 <div className="hidden sm:flex items-center gap-1.5 text-[10px] font-bold text-zinc-400 border-r border-zinc-800 pr-2">
                   <span>상대거래량(RVOL): <strong className="text-amber-300">{selectedStock.volumeRvol}배</strong></span>
                   <span>•</span>
-                  <span>VWAP: <strong className="text-cyan-300">{selectedStock.vwapPrice.toLocaleString()}원</strong></span>
+                  <span>VWAP: <strong className="text-cyan-300">{(selectedStock.vwapPrice ?? 0).toLocaleString()}원</strong></span>
                 </div>
 
                 <button
@@ -1771,19 +1771,19 @@ export function AiLiveTradingTotalMasterSystem() {
               {chartMode !== "CLEAN" && (
                 <div className="absolute top-3 left-3 z-10 flex flex-col gap-1 text-[10px] font-bold">
                   <div className="bg-emerald-950/90 text-emerald-300 border border-emerald-500/50 px-2 py-0.5 rounded shadow">
-                    🎯 2차 목표가 (TP2): {selectedStock.tp2.toLocaleString()}원
+                    🎯 2차 목표가 (TP2): {(selectedStock.tp2 ?? 0).toLocaleString()}원
                   </div>
                   <div className="bg-emerald-950/90 text-emerald-400 border border-emerald-600/50 px-2 py-0.5 rounded shadow">
-                    🎯 1차 목표가 (TP1): {selectedStock.tp1.toLocaleString()}원
+                    🎯 1차 목표가 (TP1): {(selectedStock.tp1 ?? 0).toLocaleString()}원
                   </div>
                   <div className="bg-cyan-950/90 text-cyan-300 border border-cyan-500/50 px-2 py-0.5 rounded shadow">
-                    🟢 진입 기준가: {selectedStock.triggerPrice.toLocaleString()}원
+                    🟢 진입 기준가: {(selectedStock.triggerPrice ?? 0).toLocaleString()}원
                   </div>
                   <div className="bg-amber-950/90 text-amber-300 border border-amber-500/50 px-2 py-0.5 rounded shadow">
-                    🛡️ 트레일링 보호선: {selectedStock.protectedLevel.toLocaleString()}원
+                    🛡️ 트레일링 보호선: {(selectedStock.protectedLevel ?? 0).toLocaleString()}원
                   </div>
                   <div className="bg-rose-950/90 text-rose-400 border border-rose-500/50 px-2 py-0.5 rounded shadow">
-                    🛑 무효화 손절선 (SL): {selectedStock.invalidationPrice.toLocaleString()}원
+                    🛑 무효화 손절선 (SL): {(selectedStock.invalidationPrice ?? 0).toLocaleString()}원
                   </div>
                 </div>
               )}
@@ -1886,7 +1886,7 @@ export function AiLiveTradingTotalMasterSystem() {
                 <div className="grid grid-cols-4 gap-1 text-[10px] text-center bg-zinc-950/80 p-2 rounded-xl border border-zinc-800">
                   <div>
                     <div className="text-zinc-500">진입가</div>
-                    <div className="font-bold text-white">{positionStats.entryPrice.toLocaleString()}원</div>
+                    <div className="font-bold text-white">{(positionStats.entryPrice ?? 0).toLocaleString()}원</div>
                   </div>
                   <div>
                     <div className="text-zinc-500">R배수</div>
@@ -1898,7 +1898,7 @@ export function AiLiveTradingTotalMasterSystem() {
                   </div>
                   <div>
                     <div className="text-zinc-500">보호선</div>
-                    <div className="font-bold text-amber-300">{positionStats.protectedLevel.toLocaleString()}원</div>
+                    <div className="font-bold text-amber-300">{(positionStats.protectedLevel ?? 0).toLocaleString()}원</div>
                   </div>
                 </div>
               </div>
@@ -1944,15 +1944,15 @@ export function AiLiveTradingTotalMasterSystem() {
                   </div>
                   <div>
                     <span className="text-zinc-500 text-[10px]">손절 기준가 (SL):</span>
-                    <div className="font-extrabold text-rose-400">{selectedStock.invalidationPrice.toLocaleString()}원</div>
+                    <div className="font-extrabold text-rose-400">{(selectedStock.invalidationPrice ?? 0).toLocaleString()}원</div>
                   </div>
                   <div>
                     <span className="text-zinc-500 text-[10px]">1차 목표가 (TP1):</span>
-                    <div className="font-extrabold text-emerald-400">{selectedStock.tp1.toLocaleString()}원</div>
+                    <div className="font-extrabold text-emerald-400">{(selectedStock.tp1 ?? 0).toLocaleString()}원</div>
                   </div>
                   <div>
                     <span className="text-zinc-500 text-[10px]">2차 목표가 (TP2):</span>
-                    <div className="font-extrabold text-emerald-300">{selectedStock.tp2.toLocaleString()}원</div>
+                    <div className="font-extrabold text-emerald-300">{(selectedStock.tp2 ?? 0).toLocaleString()}원</div>
                   </div>
                 </div>
 
@@ -2094,7 +2094,7 @@ export function AiLiveTradingTotalMasterSystem() {
                       <div className="flex items-center gap-1.5 font-bold">
                         <span className="text-zinc-500 font-mono">{log.time}</span>
                         <span className="text-emerald-400">{log.label}</span>
-                        <span className="text-zinc-300">({log.price.toLocaleString()}원)</span>
+                        <span className="text-zinc-300">({(log.price ?? 0).toLocaleString()}원)</span>
                       </div>
                       <div className="text-zinc-400">{log.reason}</div>
                     </div>

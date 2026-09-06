@@ -341,19 +341,19 @@ export const PatternUpgradeFilterInspectorModal: React.FC<PatternUpgradeFilterIn
               <div className="p-2.5 bg-slate-900 border border-slate-800 rounded-xl">
                 <span className="text-slate-400 text-[10px] block">추천 진입 가격</span>
                 <span className="text-white font-bold text-sm">
-                  ₩{evaluation.executionRecommendation.recommendedEntryPrice.toLocaleString()}
+                  ₩{(evaluation.executionRecommendation.recommendedEntryPrice ?? 0).toLocaleString()}
                 </span>
               </div>
               <div className="p-2.5 bg-slate-900 border border-slate-800 rounded-xl">
                 <span className="text-slate-400 text-[10px] block">방어 손절선 (Stop Loss)</span>
                 <span className="text-rose-400 font-bold text-sm">
-                  ₩{evaluation.executionRecommendation.recommendedStopLoss.toLocaleString()}
+                  ₩{(evaluation.executionRecommendation.recommendedStopLoss ?? 0).toLocaleString()}
                 </span>
               </div>
               <div className="p-2.5 bg-slate-900 border border-slate-800 rounded-xl">
                 <span className="text-slate-400 text-[10px] block">1차 목표 익절가 (Take Profit)</span>
                 <span className="text-emerald-400 font-bold text-sm">
-                  ₩{evaluation.executionRecommendation.recommendedTakeProfit.toLocaleString()}
+                  ₩{(evaluation.executionRecommendation.recommendedTakeProfit ?? 0).toLocaleString()}
                 </span>
               </div>
             </div>

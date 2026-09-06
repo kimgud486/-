@@ -443,7 +443,7 @@ export const SingleStockPatternTradingStudio: React.FC<SingleStockPatternTrading
       // AI Auto Trade Execution Logic based on Indicator Shapes
       if (isAutoPatternTraderActive) {
         if (buyToSellStage === "READY_BUY" && dynamicRise >= 80) {
-          const buyMsg = `🤖 [AI 지표상승 모양 감지] 상승 지표 강도 ${dynamicRise}% 포착! 🟢 BUY 매수 지정가 발주 완료 (가: ${effectivePrice.toLocaleString()}원)`;
+          const buyMsg = `🤖 [AI 지표상승 모양 감지] 상승 지표 강도 ${dynamicRise}% 포착! 🟢 BUY 매수 지정가 발주 완료 (가: ${(effectivePrice ?? 0).toLocaleString()}원)`;
           const logId = `${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
           setExecutionLog((prev) => [
             { id: logId, time: timeStr, msg: buyMsg, type: "SUCCESS" },
@@ -515,7 +515,7 @@ export const SingleStockPatternTradingStudio: React.FC<SingleStockPatternTrading
   // Handle Trade Execution Action (Buy to Sell Lifecycle Sync)
   const handleExecutePatternOrder = (type: "BUY" | "SELL") => {
     const timeStr = new Date().toLocaleTimeString("ko-KR", { hour12: false });
-    const logMsg = `[${activeShape.nameKr}] ${type === "BUY" ? "🟢 BUY 진입" : "🔴 SELL 청산"} 실행! 가: ${effectivePrice.toLocaleString()}원 | 목표: ${targetProfitPrice.toLocaleString()}원 (+${activeShape.breakoutTargetPct}%) | 손절: ${stopLossPrice.toLocaleString()}원 (${activeShape.stopLossPct}%)`;
+    const logMsg = `[${activeShape.nameKr}] ${type === "BUY" ? "🟢 BUY 진입" : "🔴 SELL 청산"} 실행! 가: ${(effectivePrice ?? 0).toLocaleString()}원 | 목표: ${(targetProfitPrice ?? 0).toLocaleString()}원 (+${activeShape.breakoutTargetPct}%) | 손절: ${(stopLossPrice ?? 0).toLocaleString()}원 (${activeShape.stopLossPct}%)`;
     const execLogId = `${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
 
     setExecutionLog((prev) => [
@@ -549,8 +549,8 @@ export const SingleStockPatternTradingStudio: React.FC<SingleStockPatternTrading
   });
 
   const formatPriceStr = (val: number) => {
-    if (market === "US" || symbol.length <= 5) return `$${val.toLocaleString()}`;
-    return `₩${val.toLocaleString()}`;
+    if (market === "US" || symbol.length <= 5) return `$${(val ?? 0).toLocaleString()}`;
+    return `₩${(val ?? 0).toLocaleString()}`;
   };
 
   return (
@@ -689,7 +689,7 @@ export const SingleStockPatternTradingStudio: React.FC<SingleStockPatternTrading
               <span className="px-1.5 py-0.5 rounded bg-rose-500/20 text-rose-300 text-[10px]">✓ 청산완료</span>
             </div>
             <div className="mt-2 text-[11px] text-slate-300 font-sans">
-              수익 확정: +{profitAmount.toLocaleString()}원
+              수익 확정: +{(profitAmount ?? 0).toLocaleString()}원
             </div>
           </div>
         </div>
@@ -823,7 +823,7 @@ export const SingleStockPatternTradingStudio: React.FC<SingleStockPatternTrading
                   <YAxis domain={["auto", "auto"]} stroke="#64748b" tick={{ fontSize: 10 }} orientation="right" />
                   <Tooltip
                     contentStyle={{ backgroundColor: "#090d16", borderColor: "#334155", borderRadius: "12px", color: "#fff" }}
-                    formatter={(val: any) => [val ? val.toLocaleString() + "원" : "-", ""]}
+                    formatter={(val: any) => [val ? (val ?? 0).toLocaleString() + "원" : "-", ""]}
                   />
 
                   {/* Shaded Profit Target Area */}
@@ -838,19 +838,19 @@ export const SingleStockPatternTradingStudio: React.FC<SingleStockPatternTrading
                     y={targetProfitPrice}
                     stroke="#10b981"
                     strokeDasharray="4 4"
-                    label={{ value: `🎯 SELL Target +${activeShape.breakoutTargetPct}% (${targetProfitPrice.toLocaleString()}원)`, fill: "#10b981", fontSize: 11, position: "top" }}
+                    label={{ value: `🎯 SELL Target +${activeShape.breakoutTargetPct}% (${(targetProfitPrice ?? 0).toLocaleString()}원)`, fill: "#10b981", fontSize: 11, position: "top" }}
                   />
                   <ReferenceLine
                     y={effectivePrice}
                     stroke="#6366f1"
                     strokeWidth={2}
-                    label={{ value: `📍 Current (${effectivePrice.toLocaleString()}원)`, fill: "#818cf8", fontSize: 11, position: "insideBottomRight" }}
+                    label={{ value: `📍 Current (${(effectivePrice ?? 0).toLocaleString()}원)`, fill: "#818cf8", fontSize: 11, position: "insideBottomRight" }}
                   />
                   <ReferenceLine
                     y={stopLossPrice}
                     stroke="#f43f5e"
                     strokeDasharray="4 4"
-                    label={{ value: `🛡️ Stop Loss ${activeShape.stopLossPct}% (${stopLossPrice.toLocaleString()}원)`, fill: "#f43f5e", fontSize: 11, position: "bottom" }}
+                    label={{ value: `🛡️ Stop Loss ${activeShape.stopLossPct}% (${(stopLossPrice ?? 0).toLocaleString()}원)`, fill: "#f43f5e", fontSize: 11, position: "bottom" }}
                   />
 
                   {/* REALTIME BUY ▲ AND SELL ▼ SHAPE DOT MARKERS ON CHART */}
@@ -1037,7 +1037,7 @@ export const SingleStockPatternTradingStudio: React.FC<SingleStockPatternTrading
 
               <div className="flex justify-between p-2.5 bg-slate-950 rounded-lg border border-slate-800">
                 <span className="text-slate-400">예상 순수익금 (Goal PnL):</span>
-                <span className="text-emerald-400 font-bold">+{profitAmount.toLocaleString()}원</span>
+                <span className="text-emerald-400 font-bold">+{(profitAmount ?? 0).toLocaleString()}원</span>
               </div>
             </div>
 
@@ -1045,7 +1045,7 @@ export const SingleStockPatternTradingStudio: React.FC<SingleStockPatternTrading
             <div className="space-y-2">
               <label className="text-xs font-bold text-slate-300 flex justify-between">
                 <span>주문 금액 설정</span>
-                <span className="text-slate-400 font-mono">{orderAmount.toLocaleString()}원</span>
+                <span className="text-slate-400 font-mono">{(orderAmount ?? 0).toLocaleString()}원</span>
               </label>
               <div className="grid grid-cols-4 gap-1.5 font-mono text-xs">
                 <button

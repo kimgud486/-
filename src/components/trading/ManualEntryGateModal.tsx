@@ -247,7 +247,7 @@ export const ManualEntryGateModal: React.FC<ManualEntryGateModalProps> = ({
                   </span>
                 </div>
                 <div className="text-sm font-semibold text-emerald-400 mt-0.5">
-                  {analysisResult.currentPrice.toLocaleString()} {analysisResult.market === "US" ? "$" : "원"}
+                  {(analysisResult.currentPrice ?? 0).toLocaleString()} {analysisResult.market === "US" ? "$" : "원"}
                 </div>
               </div>
 

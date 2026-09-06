@@ -296,7 +296,7 @@ export class StrictQuantSignalPipeline {
       smcDetails: {
         structure: smcResult.currentStructureTrend,
         hasBullishOB: smcResult.keyLevels.nearestBullishOB !== null,
-        obStatus: smcResult.keyLevels.nearestBullishOB ? `OB 가격대 ₩${smcResult.keyLevels.nearestBullishOB.priceBottom.toLocaleString()} ~ ₩${smcResult.keyLevels.nearestBullishOB.priceTop.toLocaleString()}` : "미형성",
+        obStatus: smcResult.keyLevels.nearestBullishOB ? `OB 가격대 ₩${(smcResult.keyLevels.nearestBullishOB.priceBottom ?? 0).toLocaleString()} ~ ₩${(smcResult.keyLevels.nearestBullishOB.priceTop ?? 0).toLocaleString()}` : "미형성",
         hasActiveFVG: smcResult.keyLevels.activeBullishFVG !== null,
         institutionalScore: smcResult.institutionalScore
       },

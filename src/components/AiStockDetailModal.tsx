@@ -199,7 +199,7 @@ export const AiStockDetailModal: React.FC<AiStockDetailModalProps> = ({
             <span className="text-xs text-slate-400 font-medium">실시간 현재가 & 변동률</span>
             <div className="mt-2 flex items-baseline justify-between">
               <span className="text-2xl sm:text-3xl font-black font-mono tracking-tight text-white">
-                ₩{stock.price ? stock.price.toLocaleString() : 'N/A'}
+                ₩{stock.price ? (stock.price ?? 0).toLocaleString() : 'N/A'}
               </span>
               <div className={`flex items-center gap-1 text-sm font-bold font-mono px-2.5 py-1 rounded-lg border ${
                 isPositive 

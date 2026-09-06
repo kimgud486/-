@@ -263,8 +263,8 @@ export const AiScannedYieldAnalyticsTab: React.FC<AiScannedYieldAnalyticsTabProp
                       <td className="py-2 px-2 text-right">
                         <div className="font-bold text-slate-200">
                           {stock.symbol.startsWith("KRW-")
-                            ? `${stock.price.toLocaleString()}원`
-                            : `${stock.price.toLocaleString()}원`}
+                            ? `${(stock.price ?? 0).toLocaleString()}원`
+                            : `${(stock.price ?? 0).toLocaleString()}원`}
                         </div>
                         <div className={`text-[10px] font-bold ${
                           stock.changeRate >= 0 ? "text-emerald-400" : "text-rose-400"

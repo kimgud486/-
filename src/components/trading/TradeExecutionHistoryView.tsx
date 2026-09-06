@@ -263,7 +263,7 @@ export const TradeExecutionHistoryView: React.FC = () => {
             <div className="p-2.5 bg-slate-950/80 border border-slate-800 rounded-2xl text-center">
               <span className="text-[10px] text-slate-400 font-sans block">누적 순손익 (Net PnL)</span>
               <span className={`text-base font-black ${cumulativeNetPnL >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
-                {cumulativeNetPnL >= 0 ? "+" : ""}{cumulativeNetPnL.toLocaleString()}원
+                {cumulativeNetPnL >= 0 ? "+" : ""}{(cumulativeNetPnL ?? 0).toLocaleString()}원
               </span>
             </div>
           </div>
@@ -408,8 +408,8 @@ export const TradeExecutionHistoryView: React.FC = () => {
                     }`}>
                       <span>
                         {r.market === "US" 
-                          ? `${r.netPnL >= 0 ? "+" : ""}$${r.netPnL.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-                          : `${r.netPnL >= 0 ? "+" : ""}${r.netPnL.toLocaleString()}원`}
+                          ? `${r.netPnL >= 0 ? "+" : ""}$${(r.netPnL ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                          : `${r.netPnL >= 0 ? "+" : ""}${(r.netPnL ?? 0).toLocaleString()}원`}
                       </span>
                       <span className="text-xs">({r.netPnLPct >= 0 ? "+" : ""}{r.netPnLPct.toFixed(2)}%)</span>
                     </div>
@@ -434,16 +434,16 @@ export const TradeExecutionHistoryView: React.FC = () => {
                     <span className="text-[10px] text-slate-400 font-sans block">진입 체결가</span>
                     <span className="text-amber-300 font-bold">
                       {r.market === "US" 
-                        ? `$${r.entryPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-                        : `${r.entryPrice.toLocaleString()}원`}
+                        ? `$${(r.entryPrice ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                        : `${(r.entryPrice ?? 0).toLocaleString()}원`}
                     </span>
                   </div>
                   <div>
                     <span className="text-[10px] text-slate-400 font-sans block">청산 체결가</span>
                     <span className="text-emerald-400 font-bold">
                       {r.market === "US" 
-                        ? `$${r.exitPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-                        : `${r.exitPrice.toLocaleString()}원`}
+                        ? `$${(r.exitPrice ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                        : `${(r.exitPrice ?? 0).toLocaleString()}원`}
                     </span>
                   </div>
                 </div>

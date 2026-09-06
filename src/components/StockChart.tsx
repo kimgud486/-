@@ -208,7 +208,7 @@ export const StockChart: React.FC<StockChartProps> = ({
     if (market === "KOREA") {
       return tick >= 1000 ? `${Math.round(tick / 1000).toLocaleString()}k` : tick.toString();
     }
-    return `$${tick.toLocaleString()}`;
+    return `$${(tick ?? 0).toLocaleString()}`;
   };
 
   const isUp = changePct >= 0;
@@ -344,18 +344,18 @@ export const StockChart: React.FC<StockChartProps> = ({
                       </div>
                       <div className="flex justify-between gap-4">
                         <span className="text-zinc-500">종가 (Price):</span>
-                        <span className="text-white font-extrabold">{data.price.toLocaleString()}{market === "KOREA" ? "원" : " USD"}</span>
+                        <span className="text-white font-extrabold">{(data.price ?? 0).toLocaleString()}{market === "KOREA" ? "원" : " USD"}</span>
                       </div>
                       {data.sma5 && showSMA && (
                         <div className="flex justify-between gap-4 text-amber-400">
                           <span>5일 이평선:</span>
-                          <span>{data.sma5.toLocaleString()}{market === "KOREA" ? "원" : ""}</span>
+                          <span>{(data.sma5 ?? 0).toLocaleString()}{market === "KOREA" ? "원" : ""}</span>
                         </div>
                       )}
                       {data.sma10 && showSMA && (
                         <div className="flex justify-between gap-4 text-sky-400">
                           <span>10일 이평선:</span>
-                          <span>{data.sma10.toLocaleString()}{market === "KOREA" ? "원" : ""}</span>
+                          <span>{(data.sma10 ?? 0).toLocaleString()}{market === "KOREA" ? "원" : ""}</span>
                         </div>
                       )}
                       {data.isForecast && (
@@ -411,7 +411,7 @@ export const StockChart: React.FC<StockChartProps> = ({
                 y={resistance} 
                 stroke="#6366f1" // Indigo
                 strokeDasharray="4 4" 
-                label={{ value: `저항선(Resistance): ${resistance.toLocaleString()}`, fill: "#6366f1", fontSize: 8, position: "top" }} 
+                label={{ value: `저항선(Resistance): ${(resistance ?? 0).toLocaleString()}`, fill: "#6366f1", fontSize: 8, position: "top" }} 
               />
             )}
             {showSR && (
@@ -419,7 +419,7 @@ export const StockChart: React.FC<StockChartProps> = ({
                 y={support} 
                 stroke="#a855f7" // Purple
                 strokeDasharray="4 4" 
-                label={{ value: `지지선(Support): ${support.toLocaleString()}`, fill: "#a855f7", fontSize: 8, position: "bottom" }} 
+                label={{ value: `지지선(Support): ${(support ?? 0).toLocaleString()}`, fill: "#a855f7", fontSize: 8, position: "bottom" }} 
               />
             )}
 
@@ -429,7 +429,7 @@ export const StockChart: React.FC<StockChartProps> = ({
                 y={aiAnalysis.targetPrice} 
                 stroke="#10b981" 
                 strokeDasharray="3 3" 
-                label={{ value: `AI 목표(Target): ${aiAnalysis.targetPrice.toLocaleString()}`, fill: "#10b981", fontSize: 9, position: "insideTopLeft", fontWeight: "bold" }} 
+                label={{ value: `AI 목표(Target): ${(aiAnalysis.targetPrice ?? 0).toLocaleString()}`, fill: "#10b981", fontSize: 9, position: "insideTopLeft", fontWeight: "bold" }} 
               />
             )}
             {aiAnalysis && (
@@ -437,7 +437,7 @@ export const StockChart: React.FC<StockChartProps> = ({
                 y={aiAnalysis.stopLoss} 
                 stroke="#ef4444" 
                 strokeDasharray="3 3" 
-                label={{ value: `AI 손절(Stop): ${aiAnalysis.stopLoss.toLocaleString()}`, fill: "#ef4444", fontSize: 9, position: "insideBottomLeft", fontWeight: "bold" }} 
+                label={{ value: `AI 손절(Stop): ${(aiAnalysis.stopLoss ?? 0).toLocaleString()}`, fill: "#ef4444", fontSize: 9, position: "insideBottomLeft", fontWeight: "bold" }} 
               />
             )}
           </ComposedChart>
@@ -448,11 +448,11 @@ export const StockChart: React.FC<StockChartProps> = ({
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 bg-zinc-50 border border-zinc-150 p-3 rounded text-[11px] font-sans font-medium text-zinc-600">
         <div className="space-y-0.5">
           <span className="text-[10px] text-zinc-400 uppercase tracking-tight block">최고가 (High-30d)</span>
-          <span className="font-mono text-zinc-900 font-bold">{maxPrice.toLocaleString()}{market === "KOREA" ? "원" : " USD"}</span>
+          <span className="font-mono text-zinc-900 font-bold">{(maxPrice ?? 0).toLocaleString()}{market === "KOREA" ? "원" : " USD"}</span>
         </div>
         <div className="space-y-0.5">
           <span className="text-[10px] text-zinc-400 uppercase tracking-tight block">최저가 (Low-30d)</span>
-          <span className="font-mono text-zinc-900 font-bold">{minPrice.toLocaleString()}{market === "KOREA" ? "원" : " USD"}</span>
+          <span className="font-mono text-zinc-900 font-bold">{(minPrice ?? 0).toLocaleString()}{market === "KOREA" ? "원" : " USD"}</span>
         </div>
         <div className="space-y-0.5">
           <span className="text-[10px] text-zinc-400 uppercase tracking-tight block">평균 종가 (Avg-30d)</span>

@@ -163,7 +163,7 @@ export const StockCandleChartModal: React.FC<StockCandleChartModalProps> = ({
       : `₩${Math.round((price * 5960000000) / 1e12).toLocaleString()}조원`;
 
     return {
-      volume: baseVol.toLocaleString(),
+      volume: (baseVol ?? 0).toLocaleString(),
       tradeValueStr,
       marketCap,
       openPrice: Math.round(price * 0.985),
@@ -635,7 +635,7 @@ export const StockCandleChartModal: React.FC<StockCandleChartModalProps> = ({
         orderQty,
         orderPriceInput || livePrice,
         "J.A.R.V.I.S 캔들차트 모달 즉시 주문",
-        `AI 신호: ${aiPrediction.direction} (${aiPrediction.probabilityPct}%), 1차목표가: ₩${aiPrediction.target1.toLocaleString()}`,
+        `AI 신호: ${aiPrediction.direction} (${aiPrediction.probabilityPct}%), 1차목표가: ₩${(aiPrediction.target1 ?? 0).toLocaleString()}`,
         true
       );
       const isCryptoAsset = market === "BTC" || market === "CRYPTO" || symbol.startsWith("KRW-");
@@ -682,7 +682,7 @@ export const StockCandleChartModal: React.FC<StockCandleChartModalProps> = ({
             target2: aiPrediction.target2,
             stopLoss: aiPrediction.stopLoss,
             detectedPatterns: patternsStr,
-            prompt: `현재 ${name}(${symbol}, ${market}) 종목의 실시간 캔들차트 및 호가 수급 데이터 분석 요청입니다.\n- AI 신호: ${aiPrediction.direction} (${aiPrediction.probabilityPct}%)\n- 포착 캔들 패턴: ${patternsStr}\n- 1차 목표가: ₩${aiPrediction.target1.toLocaleString()}원, 2차: ₩${aiPrediction.target2.toLocaleString()}원, 손절가: ₩${aiPrediction.stopLoss.toLocaleString()}원\n\n이동평균선(MA5/20/60), 볼린저 밴드, 체결강도(${volumePower.toFixed(1)}%), 호가 수급 잔량을 종합하여 퀀트 분할 매수/매도 실행 타점을 정밀 리포트로 리턴해줘.`
+            prompt: `현재 ${name}(${symbol}, ${market}) 종목의 실시간 캔들차트 및 호가 수급 데이터 분석 요청입니다.\n- AI 신호: ${aiPrediction.direction} (${aiPrediction.probabilityPct}%)\n- 포착 캔들 패턴: ${patternsStr}\n- 1차 목표가: ₩${(aiPrediction.target1 ?? 0).toLocaleString()}원, 2차: ₩${(aiPrediction.target2 ?? 0).toLocaleString()}원, 손절가: ₩${(aiPrediction.stopLoss ?? 0).toLocaleString()}원\n\n이동평균선(MA5/20/60), 볼린저 밴드, 체결강도(${volumePower.toFixed(1)}%), 호가 수급 잔량을 종합하여 퀀트 분할 매수/매도 실행 타점을 정밀 리포트로 리턴해줘.`
           }
         })
       });
@@ -690,9 +690,9 @@ export const StockCandleChartModal: React.FC<StockCandleChartModalProps> = ({
       const data = await res.json();
       const reportText = data.analysis || data.rationale;
       if (reportText) {
-        setAiAnalysisReport(`[🤖 J.A.R.V.I.S. AI 캔들스틱 퀀트 정밀분석 리포트]\n\n${reportText}\n\n• AI 신호: ${aiPrediction.direction} (${aiPrediction.probabilityPct}% [${aiPrediction.aiGrade}])\n• 캔들 패턴: ${patternsStr}\n• 추천 최적 진입구간: ₩${aiPrediction.entryMin.toLocaleString()} ~ ₩${aiPrediction.entryMax.toLocaleString()}원\n• 1차 목표가: ₩${aiPrediction.target1.toLocaleString()}원 | 손절가: ₩${aiPrediction.stopLoss.toLocaleString()}원`);
+        setAiAnalysisReport(`[🤖 J.A.R.V.I.S. AI 캔들스틱 퀀트 정밀분석 리포트]\n\n${reportText}\n\n• AI 신호: ${aiPrediction.direction} (${aiPrediction.probabilityPct}% [${aiPrediction.aiGrade}])\n• 캔들 패턴: ${patternsStr}\n• 추천 최적 진입구간: ₩${(aiPrediction.entryMin ?? 0).toLocaleString()} ~ ₩${(aiPrediction.entryMax ?? 0).toLocaleString()}원\n• 1차 목표가: ₩${(aiPrediction.target1 ?? 0).toLocaleString()}원 | 손절가: ₩${(aiPrediction.stopLoss ?? 0).toLocaleString()}원`);
       } else {
-        setAiAnalysisReport(`[🤖 J.A.R.V.I.S. AI 캔들스틱 퀀트 정밀분석 리포트]\n\n1. AI 캔들 패턴 포착:\n- ${patternsStr}\n\n2. AI 신호 & 매매 타점:\n- AI 예측 신호: ${aiPrediction.direction} (${aiPrediction.probabilityPct}% [${aiPrediction.aiGrade}])\n- 추천 진입구간: ₩${aiPrediction.entryMin.toLocaleString()} ~ ₩${aiPrediction.entryMax.toLocaleString()}원\n- 1차 목표가: ₩${aiPrediction.target1.toLocaleString()}원 (+3.5%)\n- 1차 손절가: ₩${aiPrediction.stopLoss.toLocaleString()}원 (-6.0%)\n\n3. 피봇 & 이평선 퀀트 총평:\n현재 캔들이 주요 이동평균선(MA5/MA20) 지지 파동을 형성 중이며, 체결강도(${volumePower.toFixed(1)}%)가 뒷받침되고 있습니다. 피봇 지지선(₩${pivotData.s1.toLocaleString()}원) 근방 분할 매수 진입 시 승률을 극대화할 수 있습니다.`);
+        setAiAnalysisReport(`[🤖 J.A.R.V.I.S. AI 캔들스틱 퀀트 정밀분석 리포트]\n\n1. AI 캔들 패턴 포착:\n- ${patternsStr}\n\n2. AI 신호 & 매매 타점:\n- AI 예측 신호: ${aiPrediction.direction} (${aiPrediction.probabilityPct}% [${aiPrediction.aiGrade}])\n- 추천 진입구간: ₩${(aiPrediction.entryMin ?? 0).toLocaleString()} ~ ₩${(aiPrediction.entryMax ?? 0).toLocaleString()}원\n- 1차 목표가: ₩${(aiPrediction.target1 ?? 0).toLocaleString()}원 (+3.5%)\n- 1차 손절가: ₩${(aiPrediction.stopLoss ?? 0).toLocaleString()}원 (-6.0%)\n\n3. 피봇 & 이평선 퀀트 총평:\n현재 캔들이 주요 이동평균선(MA5/MA20) 지지 파동을 형성 중이며, 체결강도(${volumePower.toFixed(1)}%)가 뒷받침되고 있습니다. 피봇 지지선(₩${(pivotData.s1 ?? 0).toLocaleString()}원) 근방 분할 매수 진입 시 승률을 극대화할 수 있습니다.`);
       }
     } catch (e: any) {
       setAiAnalysisReport(`AI 분석 중 오류가 발생했습니다: ${e.message || '네트워크 연결 상태를 확인해주세요.'}`);
@@ -766,7 +766,7 @@ export const StockCandleChartModal: React.FC<StockCandleChartModalProps> = ({
                   lastTickDirection === "DOWN" ? "text-rose-400 animate-pulse" :
                   "text-white"
                 }`}>
-                  {market === "US" ? `$${livePrice.toLocaleString()}` : `₩${livePrice.toLocaleString()}`}
+                  {market === "US" ? `$${(livePrice ?? 0).toLocaleString()}` : `₩${(livePrice ?? 0).toLocaleString()}`}
                 </span>
 
                 <span className={`text-sm sm:text-base font-black font-mono px-2 py-0.5 rounded-lg border flex items-center gap-1 ${
@@ -906,12 +906,12 @@ export const StockCandleChartModal: React.FC<StockCandleChartModalProps> = ({
 
             <div className="grid grid-cols-2 gap-2 text-[11px] pt-0.5">
               <div>
-                <span className="text-emerald-400 font-bold block">1차목표가: ₩{aiPrediction.target1.toLocaleString()}</span>
-                <span className="text-emerald-300 block">2차목표가: ₩{aiPrediction.target2.toLocaleString()}</span>
+                <span className="text-emerald-400 font-bold block">1차목표가: ₩{(aiPrediction.target1 ?? 0).toLocaleString()}</span>
+                <span className="text-emerald-300 block">2차목표가: ₩{(aiPrediction.target2 ?? 0).toLocaleString()}</span>
               </div>
               <div>
-                <span className="text-rose-400 font-bold block">손절기준가: ₩{aiPrediction.stopLoss.toLocaleString()}</span>
-                <span className="text-cyan-300 block">진입구간: ₩{aiPrediction.entryMin.toLocaleString()}~</span>
+                <span className="text-rose-400 font-bold block">손절기준가: ₩{(aiPrediction.stopLoss ?? 0).toLocaleString()}</span>
+                <span className="text-cyan-300 block">진입구간: ₩{(aiPrediction.entryMin ?? 0).toLocaleString()}~</span>
               </div>
             </div>
           </div>
@@ -1124,15 +1124,15 @@ export const StockCandleChartModal: React.FC<StockCandleChartModalProps> = ({
                                 </span>
                               </p>
                               <div className="grid grid-cols-2 gap-x-5 gap-y-1 text-[11px]">
-                                <span className="text-slate-400">시가: <strong>₩{data.open.toLocaleString()}</strong></span>
-                                <span className="text-emerald-400">고가: <strong>₩{data.high.toLocaleString()}</strong></span>
-                                <span className="text-rose-400">저가: <strong>₩{data.low.toLocaleString()}</strong></span>
+                                <span className="text-slate-400">시가: <strong>₩{(data.open ?? 0).toLocaleString()}</strong></span>
+                                <span className="text-emerald-400">고가: <strong>₩{(data.high ?? 0).toLocaleString()}</strong></span>
+                                <span className="text-rose-400">저가: <strong>₩{(data.low ?? 0).toLocaleString()}</strong></span>
                                 <span className={isUp ? "text-emerald-400 font-black" : "text-rose-400 font-black"}>
-                                  종가: <strong>₩{data.close.toLocaleString()}</strong>
+                                  종가: <strong>₩{(data.close ?? 0).toLocaleString()}</strong>
                                 </span>
                               </div>
                               <div className="pt-1 border-t border-slate-800/80 flex items-center justify-between text-[11px]">
-                                <span className="text-slate-400">거래량: <strong className="text-cyan-300">{data.volume.toLocaleString()} 주</strong></span>
+                                <span className="text-slate-400">거래량: <strong className="text-cyan-300">{(data.volume ?? 0).toLocaleString()} 주</strong></span>
                                 {data.rsi && <span className="text-amber-300 font-bold">RSI: {data.rsi}</span>}
                               </div>
                             </div>
@@ -1365,7 +1365,7 @@ export const StockCandleChartModal: React.FC<StockCandleChartModalProps> = ({
                   <div className="bg-slate-900 p-2.5 rounded-xl border border-slate-800">
                     <span className="text-slate-400 block text-[10px]">실시간 현재가</span>
                     <span className={`text-base font-black ${isPositive ? "text-rose-400" : "text-blue-400"}`}>
-                      {market === "US" ? `$${livePrice.toLocaleString()}` : `₩${livePrice.toLocaleString()}원`}
+                      {market === "US" ? `$${(livePrice ?? 0).toLocaleString()}` : `₩${(livePrice ?? 0).toLocaleString()}원`}
                     </span>
                     <span className="text-[10px] block font-bold mt-0.5">
                       {isPositive ? `+${liveChangeRate}% ▲` : `${liveChangeRate}% ▼`}
@@ -1387,7 +1387,7 @@ export const StockCandleChartModal: React.FC<StockCandleChartModalProps> = ({
                   <div className="bg-slate-900 p-2.5 rounded-xl border border-slate-800">
                     <span className="text-slate-400 block text-[10px]">52주 최고 / 최저가</span>
                     <span className="text-xs font-bold text-slate-200">{corpInfo.high52w} / {corpInfo.low52w}</span>
-                    <span className="text-[10px] text-slate-400 block mt-0.5">시가: {corpInfo.openPrice.toLocaleString()}</span>
+                    <span className="text-[10px] text-slate-400 block mt-0.5">시가: {(corpInfo.openPrice ?? 0).toLocaleString()}</span>
                   </div>
                 </div>
 
@@ -1481,7 +1481,7 @@ export const StockCandleChartModal: React.FC<StockCandleChartModalProps> = ({
                   <Layers className="h-4 w-4 text-indigo-400" />
                   <span>실시간 10호가 수급 잔량 (Orderbook Depth)</span>
                 </span>
-                <span className="text-cyan-300 font-mono text-[11px]">현재가: ₩{livePrice.toLocaleString()}</span>
+                <span className="text-cyan-300 font-mono text-[11px]">현재가: ₩{(livePrice ?? 0).toLocaleString()}</span>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs font-mono">
@@ -1503,8 +1503,8 @@ export const StockCandleChartModal: React.FC<StockCandleChartModalProps> = ({
                           className="absolute right-0 top-0 bottom-0 bg-blue-900/25 rounded-r"
                           style={{ width: `${depthPct}%` }}
                         />
-                        <span className="text-blue-300 font-bold relative z-10">₩{a.price.toLocaleString()}</span>
-                        <span className="text-slate-300 text-[11px] relative z-10">{a.qty.toLocaleString()} 주</span>
+                        <span className="text-blue-300 font-bold relative z-10">₩{(a.price ?? 0).toLocaleString()}</span>
+                        <span className="text-slate-300 text-[11px] relative z-10">{(a.qty ?? 0).toLocaleString()} 주</span>
                       </div>
                     );
                   })}
@@ -1528,8 +1528,8 @@ export const StockCandleChartModal: React.FC<StockCandleChartModalProps> = ({
                           className="absolute right-0 top-0 bottom-0 bg-rose-900/25 rounded-r"
                           style={{ width: `${depthPct}%` }}
                         />
-                        <span className="text-rose-300 font-bold relative z-10">₩{b.price.toLocaleString()}</span>
-                        <span className="text-slate-300 text-[11px] relative z-10">{b.qty.toLocaleString()} 주</span>
+                        <span className="text-rose-300 font-bold relative z-10">₩{(b.price ?? 0).toLocaleString()}</span>
+                        <span className="text-slate-300 text-[11px] relative z-10">{(b.qty ?? 0).toLocaleString()} 주</span>
                       </div>
                     );
                   })}
@@ -1648,11 +1648,11 @@ export const StockCandleChartModal: React.FC<StockCandleChartModalProps> = ({
                   <div className="space-y-2 text-xs">
                     <div className="flex justify-between text-slate-400">
                       <span>현재 시장가</span>
-                      <span className="text-white font-bold">₩{livePrice.toLocaleString()}원</span>
+                      <span className="text-white font-bold">₩{(livePrice ?? 0).toLocaleString()}원</span>
                     </div>
                     <div className="flex justify-between text-slate-400">
                       <span>AI 권장 진입가</span>
-                      <span className="text-cyan-300 font-bold">₩{aiPrediction.entryMin.toLocaleString()}원</span>
+                      <span className="text-cyan-300 font-bold">₩{(aiPrediction.entryMin ?? 0).toLocaleString()}원</span>
                     </div>
                     <div className="flex justify-between text-slate-400 border-t border-slate-800 pt-2">
                       <span className="font-bold text-white">총 주문 예상금액</span>

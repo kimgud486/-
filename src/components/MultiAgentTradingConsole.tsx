@@ -196,10 +196,10 @@ AI SETUP SCORE : ${dec.setupQualityScore}/100 [${dec.grade}등급]
 
 ━━━━━━━━━━━━━━━━━━━━━━
 
-🟡 관심 진입구간 : ${dec.targetEntryRange[0].toLocaleString()} ~ ${dec.targetEntryRange[1].toLocaleString()}원
-🔵 돌파 확인     : ${dec.breakoutConfirmPrice.toLocaleString()}원
-🔴 구조 무효     : ${dec.invalidationPrice.toLocaleString()}원
-🎯 Resistance   : ${dec.targetResistance1.toLocaleString()}원 / ${dec.targetResistance2.toLocaleString()}원
+🟡 관심 진입구간 : ${(dec.targetEntryRange[0] ?? 0).toLocaleString()} ~ ${(dec.targetEntryRange[1] ?? 0).toLocaleString()}원
+🔵 돌파 확인     : ${(dec.breakoutConfirmPrice ?? 0).toLocaleString()}원
+🔴 구조 무효     : ${(dec.invalidationPrice ?? 0).toLocaleString()}원
+🎯 Resistance   : ${(dec.targetResistance1 ?? 0).toLocaleString()}원 / ${(dec.targetResistance2 ?? 0).toLocaleString()}원
 
 ━━━━━━━━━━━━━━━━━━━━━━
 
@@ -492,10 +492,10 @@ Market Risk    : ${dec.marketRisk}
 
               {/* Trading Zones */}
               <div className="space-y-1.5 text-xs bg-zinc-900/80 p-3 rounded-2xl border border-zinc-800">
-                <div className="flex justify-between"><span className="text-amber-300 font-bold">🟡 관심 진입구간</span> <span className="text-white font-bold">{analysis.decisionMaster.targetEntryRange[0].toLocaleString()} ~ {analysis.decisionMaster.targetEntryRange[1].toLocaleString()}원</span></div>
-                <div className="flex justify-between"><span className="text-cyan-300 font-bold">🔵 돌파 확인</span> <span className="text-white font-bold">{analysis.decisionMaster.breakoutConfirmPrice.toLocaleString()}원</span></div>
-                <div className="flex justify-between"><span className="text-rose-400 font-bold">🔴 구조 무효 (손절가)</span> <span className="text-white font-bold">{analysis.decisionMaster.invalidationPrice.toLocaleString()}원</span></div>
-                <div className="flex justify-between"><span className="text-emerald-400 font-bold">🎯 Resistance (목표가)</span> <span className="text-white font-bold">{analysis.decisionMaster.targetResistance1.toLocaleString()}원 / {analysis.decisionMaster.targetResistance2.toLocaleString()}원</span></div>
+                <div className="flex justify-between"><span className="text-amber-300 font-bold">🟡 관심 진입구간</span> <span className="text-white font-bold">{(analysis.decisionMaster.targetEntryRange[0] ?? 0).toLocaleString()} ~ {(analysis.decisionMaster.targetEntryRange[1] ?? 0).toLocaleString()}원</span></div>
+                <div className="flex justify-between"><span className="text-cyan-300 font-bold">🔵 돌파 확인</span> <span className="text-white font-bold">{(analysis.decisionMaster.breakoutConfirmPrice ?? 0).toLocaleString()}원</span></div>
+                <div className="flex justify-between"><span className="text-rose-400 font-bold">🔴 구조 무효 (손절가)</span> <span className="text-white font-bold">{(analysis.decisionMaster.invalidationPrice ?? 0).toLocaleString()}원</span></div>
+                <div className="flex justify-between"><span className="text-emerald-400 font-bold">🎯 Resistance (목표가)</span> <span className="text-white font-bold">{(analysis.decisionMaster.targetResistance1 ?? 0).toLocaleString()}원 / {(analysis.decisionMaster.targetResistance2 ?? 0).toLocaleString()}원</span></div>
               </div>
 
               <div className="text-indigo-400 font-bold">

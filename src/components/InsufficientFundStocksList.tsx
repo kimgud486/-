@@ -106,9 +106,9 @@ export const InsufficientFundStocksList: React.FC = () => {
               </div>
 
               <div className="text-xs text-zinc-600 dark:text-zinc-300 flex flex-wrap gap-x-3 gap-y-1 font-mono">
-                <span>신청 수량: <strong>{item.qty.toLocaleString()}주/개</strong></span>
-                <span>주문 단가: <strong>{item.market === 'US' ? `${item.price.toLocaleString()}` : `${item.price.toLocaleString()}원`}</strong></span>
-                <span>필요 금액: <strong className="text-rose-600 dark:text-rose-400">{item.market === 'US' ? `${item.cost.toLocaleString()}` : `${item.cost.toLocaleString()}원`}</strong></span>
+                <span>신청 수량: <strong>{(item.qty ?? 0).toLocaleString()}주/개</strong></span>
+                <span>주문 단가: <strong>{item.market === 'US' ? `${(item.price ?? 0).toLocaleString()}` : `${(item.price ?? 0).toLocaleString()}원`}</strong></span>
+                <span>필요 금액: <strong className="text-rose-600 dark:text-rose-400">{item.market === 'US' ? `${(item.cost ?? 0).toLocaleString()}` : `${(item.cost ?? 0).toLocaleString()}원`}</strong></span>
               </div>
 
               <p className="text-[11px] text-amber-700 dark:text-amber-400 bg-amber-100/60 dark:bg-amber-900/40 px-2 py-0.5 rounded italic">

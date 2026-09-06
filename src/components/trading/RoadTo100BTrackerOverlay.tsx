@@ -152,8 +152,8 @@ export const RoadTo100BTrackerOverlay: React.FC<RoadTo100BTrackerOverlayProps> =
             <span className="text-emerald-400 font-mono font-bold">+{totalPnLPct > 0 ? totalPnLPct.toFixed(2) : "22.2"}% PnL</span>
           </div>
           <div className="text-lg sm:text-xl font-black font-mono text-amber-300 flex items-baseline gap-2">
-            <span>₩{currentEquityKRW.toLocaleString()}원</span>
-            <span className="text-xs text-slate-400 font-normal">(${currentEquityUSD.toLocaleString()})</span>
+            <span>₩{(currentEquityKRW ?? 0).toLocaleString()}원</span>
+            <span className="text-xs text-slate-400 font-normal">(${(currentEquityUSD ?? 0).toLocaleString()})</span>
           </div>
         </div>
 

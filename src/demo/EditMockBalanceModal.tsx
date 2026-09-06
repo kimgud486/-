@@ -17,7 +17,7 @@ export const EditMockBalanceModal: React.FC<EditMockBalanceModalProps> = ({
   useEffect(() => {
     if (isOpen) {
       const currentBal = typeof profile?.balance === 'number' ? profile.balance : 1000000;
-      setBalanceInput(currentBal.toLocaleString());
+      setBalanceInput((currentBal ?? 0).toLocaleString());
     }
   }, [isOpen, profile?.balance]);
 
@@ -30,11 +30,11 @@ export const EditMockBalanceModal: React.FC<EditMockBalanceModalProps> = ({
       return;
     }
     const num = parseInt(rawVal, 10);
-    setBalanceInput(num.toLocaleString());
+    setBalanceInput((num ?? 0).toLocaleString());
   };
 
   const handleSelectPreset = (amount: number) => {
-    setBalanceInput(amount.toLocaleString());
+    setBalanceInput((amount ?? 0).toLocaleString());
   };
 
   const handleReset1Million = async () => {
@@ -72,7 +72,7 @@ export const EditMockBalanceModal: React.FC<EditMockBalanceModalProps> = ({
       addToast({
         type: "SUCCESS",
         title: "💰 모의자산 설정 완료",
-        message: `모의투자 예수금이 ${cleanNum.toLocaleString()}원으로 성공적으로 변경되었습니다.`,
+        message: `모의투자 예수금이 ${(cleanNum ?? 0).toLocaleString()}원으로 성공적으로 변경되었습니다.`,
       });
     }
     onClose();
@@ -177,7 +177,7 @@ export const EditMockBalanceModal: React.FC<EditMockBalanceModalProps> = ({
             </div>
             <p className="text-[11px] text-blue-300 mt-1.5 flex items-center gap-1 font-mono">
               <Sparkles className="h-3 w-3 text-amber-400 shrink-0" />
-              설정될 모의 예수금: <strong>{numericVal.toLocaleString()} 원</strong>
+              설정될 모의 예수금: <strong>{(numericVal ?? 0).toLocaleString()} 원</strong>
             </p>
           </div>
 

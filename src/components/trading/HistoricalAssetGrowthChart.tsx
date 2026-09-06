@@ -162,7 +162,7 @@ export const HistoricalAssetGrowthChart: React.FC<HistoricalAssetGrowthChartProp
       addToast({
         type: "SUCCESS",
         title: "⚡ 모의 예수금 100만 원 충전 완료",
-        message: `가상 예수금이 충전되었습니다 (현재 예수금: ${nextBal.toLocaleString()}원).`
+        message: `가상 예수금이 충전되었습니다 (현재 예수금: ${(nextBal ?? 0).toLocaleString()}원).`
       });
     } catch (e: any) {
       addToast({
@@ -191,7 +191,7 @@ export const HistoricalAssetGrowthChart: React.FC<HistoricalAssetGrowthChartProp
               </span>
             </div>
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-              초기 원금(₩{initialDeposit.toLocaleString()}) 대비 실시간 총 평가자산 및 누적 수익률 성장 곡선
+              초기 원금(₩{(initialDeposit ?? 0).toLocaleString()}) 대비 실시간 총 평가자산 및 누적 수익률 성장 곡선
             </p>
           </div>
         </div>
@@ -271,11 +271,11 @@ export const HistoricalAssetGrowthChart: React.FC<HistoricalAssetGrowthChartProp
           </span>
           <div className="mt-1">
             <span className="text-base sm:text-lg font-black font-mono text-slate-900 dark:text-slate-100">
-              ₩{currentTotalValuation.toLocaleString()}
+              ₩{(currentTotalValuation ?? 0).toLocaleString()}
             </span>
           </div>
           <span className="text-[10px] text-slate-400 dark:text-slate-500 font-mono mt-0.5">
-            예수금 ₩{currentCash.toLocaleString()}
+            예수금 ₩{(currentCash ?? 0).toLocaleString()}
           </span>
         </div>
 
@@ -291,7 +291,7 @@ export const HistoricalAssetGrowthChart: React.FC<HistoricalAssetGrowthChartProp
             </span>
           </div>
           <span className="text-[10px] font-mono text-slate-400 dark:text-slate-500 mt-0.5">
-            초기 ₩{initialDeposit.toLocaleString()}
+            초기 ₩{(initialDeposit ?? 0).toLocaleString()}
           </span>
         </div>
 
@@ -303,11 +303,11 @@ export const HistoricalAssetGrowthChart: React.FC<HistoricalAssetGrowthChartProp
           </span>
           <div className="mt-1">
             <span className={`text-base sm:text-lg font-black font-mono ${totalNetProfit >= 0 ? "text-rose-600 dark:text-rose-400" : "text-blue-600 dark:text-blue-400"}`}>
-              {totalNetProfit >= 0 ? `+₩${totalNetProfit.toLocaleString()}` : `-₩${Math.abs(totalNetProfit).toLocaleString()}`}
+              {totalNetProfit >= 0 ? `+₩${(totalNetProfit ?? 0).toLocaleString()}` : `-₩${Math.abs(totalNetProfit).toLocaleString()}`}
             </span>
           </div>
           <span className="text-[10px] text-slate-400 dark:text-slate-500 font-mono mt-0.5">
-            보유종목 평가 ₩{currentPositionsValue.toLocaleString()}
+            보유종목 평가 ₩{(currentPositionsValue ?? 0).toLocaleString()}
           </span>
         </div>
 
@@ -319,7 +319,7 @@ export const HistoricalAssetGrowthChart: React.FC<HistoricalAssetGrowthChartProp
           </span>
           <div className="mt-1">
             <span className="text-base sm:text-lg font-black font-mono text-amber-600 dark:text-amber-400">
-              ₩{peakAssetLevel.toLocaleString()}
+              ₩{(peakAssetLevel ?? 0).toLocaleString()}
             </span>
           </div>
           <span className="text-[10px] text-slate-400 dark:text-slate-500 font-mono mt-0.5">
@@ -430,7 +430,7 @@ export const HistoricalAssetGrowthChart: React.FC<HistoricalAssetGrowthChartProp
                       <div className="space-y-1">
                         <div className="flex justify-between items-center text-emerald-400 font-bold">
                           <span>총 평가자산:</span>
-                          <span>₩{d.balance.toLocaleString()}원</span>
+                          <span>₩{(d.balance ?? 0).toLocaleString()}원</span>
                         </div>
                         <div className="flex justify-between items-center text-cyan-400 font-bold">
                           <span>누적 ROI (%):</span>
@@ -438,11 +438,11 @@ export const HistoricalAssetGrowthChart: React.FC<HistoricalAssetGrowthChartProp
                         </div>
                         <div className="flex justify-between items-center text-slate-400">
                           <span>현금 예수금:</span>
-                          <span>₩{d.cashBalance.toLocaleString()}원</span>
+                          <span>₩{(d.cashBalance ?? 0).toLocaleString()}원</span>
                         </div>
                         <div className="flex justify-between items-center text-slate-400">
                           <span>보유주식 평가:</span>
-                          <span>₩{d.investedStockValue.toLocaleString()}원</span>
+                          <span>₩{(d.investedStockValue ?? 0).toLocaleString()}원</span>
                         </div>
                         <div className="flex justify-between items-center text-amber-400 text-[11px] pt-1 border-t border-slate-800">
                           <span>최고점 대비 낙폭:</span>
@@ -507,7 +507,7 @@ export const HistoricalAssetGrowthChart: React.FC<HistoricalAssetGrowthChartProp
         <div className="flex items-center gap-2 text-xs text-emerald-800 dark:text-emerald-300 font-medium">
           <Sparkles className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
           <span>
-            AI 퀀트 알고리즘이 1:2 R:R 손익비와 기계적 트레일링 스탑을 가동하여 원금(₩{initialDeposit.toLocaleString()}) 대비 <strong>+{currentCumulativeRoi}%</strong> 수익 곡선을 유지하고 있습니다.
+            AI 퀀트 알고리즘이 1:2 R:R 손익비와 기계적 트레일링 스탑을 가동하여 원금(₩{(initialDeposit ?? 0).toLocaleString()}) 대비 <strong>+{currentCumulativeRoi}%</strong> 수익 곡선을 유지하고 있습니다.
           </span>
         </div>
         {onOpenReport && (

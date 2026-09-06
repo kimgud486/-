@@ -495,13 +495,13 @@ export const BotStatusDashboard: React.FC = () => {
           <div>
             <span className="text-[11px] text-slate-400 font-bold block">실계좌 가용 예수금</span>
             <div className="text-base font-black text-white font-mono mt-0.5">
-              {availableCash.toLocaleString()} <span className="text-xs text-slate-400 font-normal">원</span>
+              {(availableCash ?? 0).toLocaleString()} <span className="text-xs text-slate-400 font-normal">원</span>
             </div>
             <div className="text-[10px] text-emerald-400 font-mono flex items-center gap-1.5 flex-wrap">
-              <span>총평가: {totalAccountValue.toLocaleString()}원</span>
+              <span>총평가: {(totalAccountValue ?? 0).toLocaleString()}원</span>
               {(koreaCash > 0 || upbitCash > 0) && (
                 <span className="text-slate-400 font-sans">
-                  (KIS: {koreaCash.toLocaleString()}원 | Upbit: {upbitCash.toLocaleString()}원)
+                  (KIS: {(koreaCash ?? 0).toLocaleString()}원 | Upbit: {(upbitCash ?? 0).toLocaleString()}원)
                 </span>
               )}
             </div>
@@ -515,7 +515,7 @@ export const BotStatusDashboard: React.FC = () => {
           <div>
             <span className="text-[11px] text-slate-400 font-bold block">실보유 종목 평가손익</span>
             <div className={`text-base font-black font-mono mt-0.5 ${totalUnrealizedPnl >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
-              {totalUnrealizedPnl >= 0 ? "+" : ""}{totalUnrealizedPnl.toLocaleString()} <span className="text-xs font-normal">원</span>
+              {totalUnrealizedPnl >= 0 ? "+" : ""}{(totalUnrealizedPnl ?? 0).toLocaleString()} <span className="text-xs font-normal">원</span>
             </div>
             <span className="text-[10px] text-slate-400">
               보유종목 {positions?.length || 0}개
@@ -533,7 +533,7 @@ export const BotStatusDashboard: React.FC = () => {
               {realTradesStats.totalTrades} <span className="text-xs text-slate-400 font-normal">건</span>
             </div>
             <span className="text-[10px] text-slate-400">
-              실현손익: {realTradesStats.totalRealizedPnl >= 0 ? "+" : ""}{realTradesStats.totalRealizedPnl.toLocaleString()}원
+              실현손익: {realTradesStats.totalRealizedPnl >= 0 ? "+" : ""}{(realTradesStats.totalRealizedPnl ?? 0).toLocaleString()}원
             </span>
           </div>
           <div className="p-2 rounded-xl bg-amber-500/10 text-amber-400 border border-amber-500/20">
@@ -752,7 +752,7 @@ export const BotStatusDashboard: React.FC = () => {
                         </span>
                       </div>
                       <p className="text-[11px] text-slate-400 mt-0.5">
-                        실시간 현재가: {currentPrice.toLocaleString()}원 · AI 실시간 트레일링 스탑 감시 가동 중
+                        실시간 현재가: {(currentPrice ?? 0).toLocaleString()}원 · AI 실시간 트레일링 스탑 감시 가동 중
                       </p>
                     </div>
                   </div>
@@ -760,10 +760,10 @@ export const BotStatusDashboard: React.FC = () => {
                   <div className="flex items-center justify-between md:justify-end gap-3 shrink-0 border-t md:border-t-0 pt-2 md:pt-0 border-slate-800 font-mono">
                     <div className="text-right">
                       <div className={`text-xs font-black ${pnlPct >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
-                        {pnlPct >= 0 ? "+" : ""}{pnlPct.toFixed(2)}% ({pnl >= 0 ? "+" : ""}{pnl.toLocaleString()}원)
+                        {pnlPct >= 0 ? "+" : ""}{pnlPct.toFixed(2)}% ({pnl >= 0 ? "+" : ""}{(pnl ?? 0).toLocaleString()}원)
                       </div>
                       <span className="text-[10px] text-slate-400">
-                        평가액: {valuation.toLocaleString()}원
+                        평가액: {(valuation ?? 0).toLocaleString()}원
                       </span>
                     </div>
                   </div>

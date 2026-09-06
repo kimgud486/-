@@ -1634,7 +1634,7 @@ ${analysisData.marketDemandReport?.aiStrategyTip || "선도 대장주 눌림목 
                       {/* Price & Change */}
                       <div className="text-right shrink-0">
                         <p className="text-sm font-mono font-black text-white">
-                          {stock.price ? stock.price.toLocaleString() : "-"}
+                          {stock.price ? (stock.price ?? 0).toLocaleString() : "-"}
                         </p>
                         <p className={`text-xs font-mono font-bold flex items-center justify-end ${isUp ? "text-emerald-400" : "text-rose-400"}`}>
                           {isUp ? <ArrowUpRight className="h-3 w-3 mr-0.5" /> : <ArrowDownRight className="h-3 w-3 mr-0.5" />}
@@ -1658,7 +1658,7 @@ ${analysisData.marketDemandReport?.aiStrategyTip || "선도 대장주 눌림목 
                     {/* AI TRADING TARGETS STRATEGY (1차/2차/손절선) */}
                     {(() => {
                       const targets = stock.trading_targets || {
-                        entryZone: stock.price ? `${Math.round(stock.price * 0.98).toLocaleString()} ~ ${stock.price.toLocaleString()}원` : "눌림목 분할매수",
+                        entryZone: stock.price ? `${Math.round(stock.price * 0.98).toLocaleString()} ~ ${(stock.price ?? 0).toLocaleString()}원` : "눌림목 분할매수",
                         target1: stock.price ? `${Math.round(stock.price * 1.08).toLocaleString()}원 (+8%)` : "1차 전고점 돌파",
                         target2: stock.price ? `${Math.round(stock.price * 1.18).toLocaleString()}원 (+18%)` : "2차 신고가 랠리",
                         stopLoss: stock.price ? `${Math.round(stock.price * 0.94).toLocaleString()}원 (-6%)` : "주요 지지선 이탈시",

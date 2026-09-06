@@ -181,7 +181,7 @@ export const UnifiedMasterQuantTerminal: React.FC = () => {
             {/* LED Seven Segment / High-Tech Giant Text */}
             <div className="flex items-baseline gap-3">
               <h1 className="text-5xl md:text-7xl font-mono font-black tracking-tight text-emerald-400 drop-shadow-[0_0_25px_rgba(16,185,129,0.35)]">
-                ${realizedPnlUsd.toLocaleString()}
+                ${(realizedPnlUsd ?? 0).toLocaleString()}
               </h1>
               <span className="text-lg md:text-2xl font-mono font-bold text-slate-400">
                 (₩{(realizedPnlKrw / 100000000).toFixed(2)}억원)
@@ -264,7 +264,7 @@ export const UnifiedMasterQuantTerminal: React.FC = () => {
               <div className={`p-2.5 rounded-xl border flex flex-col justify-between ${lock2CvdSurge ? "bg-emerald-950/20 border-emerald-500/30 text-emerald-300" : "bg-slate-900 border-slate-800 text-slate-500"}`}>
                 <span className="text-[10px] text-slate-400">02. CVD 체결폭발</span>
                 <span className="font-bold mt-1 flex items-center justify-between">
-                  <span>+{cvdDeltaValue.toLocaleString()}</span>
+                  <span>+{(cvdDeltaValue ?? 0).toLocaleString()}</span>
                   {lock2CvdSurge ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" /> : <Lock className="w-3.5 h-3.5" />}
                 </span>
               </div>
@@ -367,7 +367,7 @@ export const UnifiedMasterQuantTerminal: React.FC = () => {
                     STREAK +1
                   </span>
                   <span className="text-xs font-mono text-emerald-400 font-bold">
-                    WING IN A ROW · NEW ATH (+${lastBetPnl.toLocaleString()})
+                    WING IN A ROW · NEW ATH (+${(lastBetPnl ?? 0).toLocaleString()})
                   </span>
                 </div>
               )}
@@ -471,7 +471,7 @@ export const UnifiedMasterQuantTerminal: React.FC = () => {
           <div className="p-3 rounded-2xl border border-emerald-500/50 bg-emerald-950/30 text-emerald-300 flex flex-col justify-between shadow-lg">
             <div className="text-[10px] font-bold text-slate-400 uppercase">LAST BET</div>
             <div className="text-base font-black text-emerald-400 font-mono">
-              +${lastBetPnl.toLocaleString()}
+              +${(lastBetPnl ?? 0).toLocaleString()}
             </div>
             <div className="text-[9px] text-slate-400 font-mono">▲ 18,400 → +$2,370</div>
           </div>

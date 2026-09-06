@@ -250,7 +250,7 @@ export const AiLossCauseAnalysisModal: React.FC<AiLossCauseAnalysisModalProps> =
                     currentPosition.pnlRate < 0 ? "text-blue-400" : "text-rose-400"
                   }`}>
                     {currentPosition.pnlRate < 0 ? <ArrowDownRight className="w-3.5 h-3.5" /> : <ArrowUpRight className="w-3.5 h-3.5" />}
-                    <span>{currentPosition.pnlRate > 0 ? "+" : ""}{currentPosition.pnlRate}% ({currentPosition.pnlAmount.toLocaleString()}원)</span>
+                    <span>{currentPosition.pnlRate > 0 ? "+" : ""}{currentPosition.pnlRate}% ({(currentPosition.pnlAmount ?? 0).toLocaleString()}원)</span>
                   </div>
                 </div>
               </div>

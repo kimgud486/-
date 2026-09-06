@@ -209,7 +209,7 @@ export const KoreaStockMarketAsyncParallelScannerPanel: React.FC<
                 true
               );
 
-              const logText = `🚀 [BUY_APPROVE 체결] ${item.name}(${item.symbol}) ${buyQty}주 ₩${item.price.toLocaleString()}원 (SMC ${item.aiScore}점)`;
+              const logText = `🚀 [BUY_APPROVE 체결] ${item.name}(${item.symbol}) ${buyQty}주 ₩${(item.price ?? 0).toLocaleString()}원 (SMC ${item.aiScore}점)`;
               setExecutionLog((prev) => [
                 { id: `exec_${Date.now()}_${Math.random()}`, time: timeStr, text: logText, type: "BUY" },
                 ...prev.slice(0, 9)
@@ -628,7 +628,7 @@ export const KoreaStockMarketAsyncParallelScannerPanel: React.FC<
                   </span>
                 </div>
                 <div className="text-[11px] font-mono font-bold text-slate-200 mt-0.5">
-                  ₩{item.price.toLocaleString()}원
+                  ₩{(item.price ?? 0).toLocaleString()}원
                 </div>
               </div>
 

@@ -144,7 +144,7 @@ export class KISBrokerAdapter {
         status: "REJECTED",
         filledQty: 0,
         filledAvgPrice: 0,
-        message: `주문 거부: 예수금 부족 (필요: ${totalCost.toLocaleString()}원, 잔고: ${this.localCashBalance.toLocaleString()}원)`,
+        message: `주문 거부: 예수금 부족 (필요: ${(totalCost ?? 0).toLocaleString()}원, 잔고: ${(this.localCashBalance ?? 0).toLocaleString()}원)`,
         timestamp
       };
     }
@@ -194,7 +194,7 @@ export class KISBrokerAdapter {
       status: "FILLED",
       filledQty: req.qty,
       filledAvgPrice: req.price,
-      message: `[KIS ${req.market} ${req.side}] ${req.name} (${req.symbol}) ${req.qty}주 ${req.price.toLocaleString()}원 체결 완료`,
+      message: `[KIS ${req.market} ${req.side}] ${req.name} (${req.symbol}) ${req.qty}주 ${(req.price ?? 0).toLocaleString()}원 체결 완료`,
       timestamp
     };
   }

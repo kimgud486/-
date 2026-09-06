@@ -241,13 +241,13 @@ export const AiProfitImprovementSolutionSection: React.FC = () => {
                       <div className="text-[10px] text-slate-400 font-mono">{s.symbol}</div>
                     </td>
                     <td className="py-3 px-4 font-mono font-bold">
-                      <div>₩{s.price.toLocaleString()}</div>
+                      <div>₩{(s.price ?? 0).toLocaleString()}</div>
                       <div className={s.changeRate >= 0 ? "text-rose-400" : "text-blue-400"}>
                         {s.changeRate >= 0 ? "+" : ""}{s.changeRate}%
                       </div>
                     </td>
                     <td className="py-3 px-4 font-mono text-slate-300">
-                      ₩{breakoutPrice.toLocaleString()}
+                      ₩{(breakoutPrice ?? 0).toLocaleString()}
                     </td>
                     <td className="py-3 px-4 font-mono">
                       <span className={rvol >= 1.5 ? "text-emerald-400 font-bold" : "text-slate-400"}>

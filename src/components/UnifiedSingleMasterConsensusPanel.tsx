@@ -140,7 +140,7 @@ export const UnifiedSingleMasterConsensusPanel: React.FC = () => {
           addToast({
             type: "SUCCESS",
             title: "⚡ 실거래 실계좌 체결 완료",
-            message: `[단일 통합 AI 합의 주문] ${selectedStock.name} (${selectedStock.symbol}) ₩${decision.currentPrice.toLocaleString()} 실계좌 매수 접수 완료!`
+            message: `[단일 통합 AI 합의 주문] ${selectedStock.name} (${selectedStock.symbol}) ₩${(decision.currentPrice ?? 0).toLocaleString()} 실계좌 매수 접수 완료!`
           });
         }
       } else {
@@ -206,7 +206,7 @@ export const UnifiedSingleMasterConsensusPanel: React.FC = () => {
 
           <div className="px-3 py-1.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-mono font-bold flex items-center gap-1.5">
             <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
-            <span>실시간 시세: {unit === "$" ? `$${decision.currentPrice.toLocaleString()}` : `₩${decision.currentPrice.toLocaleString()}`}</span>
+            <span>실시간 시세: {unit === "$" ? `$${(decision.currentPrice ?? 0).toLocaleString()}` : `₩${(decision.currentPrice ?? 0).toLocaleString()}`}</span>
             <span className={decision.changeRate >= 0 ? "text-emerald-400" : "text-rose-400"}>
               ({decision.changeRate >= 0 ? `+${decision.changeRate.toFixed(2)}%` : `${decision.changeRate.toFixed(2)}%`})
             </span>
@@ -298,25 +298,25 @@ export const UnifiedSingleMasterConsensusPanel: React.FC = () => {
         <div className="text-center p-3 rounded-xl bg-slate-900 border border-slate-800/80">
           <div className="text-[10px] text-slate-400 font-medium">통합 진입 기준가</div>
           <div className="text-sm font-mono font-black text-white mt-0.5">
-            {unit === "$" ? `$${decision.entryPrice.toLocaleString()}` : `₩${decision.entryPrice.toLocaleString()}`}
+            {unit === "$" ? `$${(decision.entryPrice ?? 0).toLocaleString()}` : `₩${(decision.entryPrice ?? 0).toLocaleString()}`}
           </div>
         </div>
         <div className="text-center p-3 rounded-xl bg-slate-900 border border-emerald-500/30">
           <div className="text-[10px] text-emerald-400 font-medium">1차 목표가 (SMC 저항)</div>
           <div className="text-sm font-mono font-black text-emerald-400 mt-0.5">
-            {unit === "$" ? `$${decision.targetPrice1.toLocaleString()}` : `₩${decision.targetPrice1.toLocaleString()}`}
+            {unit === "$" ? `$${(decision.targetPrice1 ?? 0).toLocaleString()}` : `₩${(decision.targetPrice1 ?? 0).toLocaleString()}`}
           </div>
         </div>
         <div className="text-center p-3 rounded-xl bg-slate-900 border border-cyan-500/30">
           <div className="text-[10px] text-cyan-400 font-medium">2차 목표가 (추세 극대화)</div>
           <div className="text-sm font-mono font-black text-cyan-400 mt-0.5">
-            {unit === "$" ? `$${decision.targetPrice2.toLocaleString()}` : `₩${decision.targetPrice2.toLocaleString()}`}
+            {unit === "$" ? `$${(decision.targetPrice2 ?? 0).toLocaleString()}` : `₩${(decision.targetPrice2 ?? 0).toLocaleString()}`}
           </div>
         </div>
         <div className="text-center p-3 rounded-xl bg-slate-900 border border-rose-500/30">
           <div className="text-[10px] text-rose-400 font-medium">기계적 손절가 (리스크 컷)</div>
           <div className="text-sm font-mono font-black text-rose-400 mt-0.5">
-            {unit === "$" ? `$${decision.stopLossPrice.toLocaleString()}` : `₩${decision.stopLossPrice.toLocaleString()}`}
+            {unit === "$" ? `$${(decision.stopLossPrice ?? 0).toLocaleString()}` : `₩${(decision.stopLossPrice ?? 0).toLocaleString()}`}
           </div>
         </div>
       </div>

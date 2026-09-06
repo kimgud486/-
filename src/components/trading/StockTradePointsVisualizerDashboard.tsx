@@ -340,7 +340,7 @@ export const StockTradePointsVisualizerDashboard: React.FC = () => {
                     </div>
 
                     <div className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                      보유수량: <span className="font-bold text-slate-700 dark:text-slate-300">{qty.toLocaleString()} 주</span> | 
+                      보유수량: <span className="font-bold text-slate-700 dark:text-slate-300">{(qty ?? 0).toLocaleString()} 주</span> | 
                       평가금액: <span className="font-bold text-slate-700 dark:text-slate-300">{unit}{Math.round(evalAmount).toLocaleString()}</span>
                     </div>
                   </div>

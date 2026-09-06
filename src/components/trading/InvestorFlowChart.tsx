@@ -72,19 +72,19 @@ export const InvestorFlowChart: React.FC<InvestorFlowChartProps> = ({ symbol }) 
             <div className="bg-emerald-950/40 rounded-lg p-1.5 border border-emerald-500/30">
               <div className="text-[10px] text-slate-400 font-sans font-medium">외국인</div>
               <div className="text-xs font-black text-emerald-400">
-                {latestPoint?.foreignNet != null ? `${latestPoint.foreignNet > 0 ? "+" : ""}${latestPoint.foreignNet.toLocaleString()}억` : "--"}
+                {latestPoint?.foreignNet != null ? `${latestPoint.foreignNet > 0 ? "+" : ""}${(latestPoint.foreignNet ?? 0).toLocaleString()}억` : "--"}
               </div>
             </div>
             <div className="bg-sky-950/40 rounded-lg p-1.5 border border-sky-500/30">
               <div className="text-[10px] text-slate-400 font-sans font-medium">기관</div>
               <div className="text-xs font-black text-sky-400">
-                {latestPoint?.institutionNet != null ? `${latestPoint.institutionNet > 0 ? "+" : ""}${latestPoint.institutionNet.toLocaleString()}억` : "--"}
+                {latestPoint?.institutionNet != null ? `${latestPoint.institutionNet > 0 ? "+" : ""}${(latestPoint.institutionNet ?? 0).toLocaleString()}억` : "--"}
               </div>
             </div>
             <div className="bg-rose-950/40 rounded-lg p-1.5 border border-rose-500/30">
               <div className="text-[10px] text-slate-400 font-sans font-medium">개인</div>
               <div className="text-xs font-black text-rose-400">
-                {latestPoint?.retailNet != null ? `${latestPoint.retailNet > 0 ? "+" : ""}${latestPoint.retailNet.toLocaleString()}억` : "--"}
+                {latestPoint?.retailNet != null ? `${latestPoint.retailNet > 0 ? "+" : ""}${(latestPoint.retailNet ?? 0).toLocaleString()}억` : "--"}
               </div>
             </div>
           </div>

@@ -81,7 +81,7 @@ export const AIChat: React.FC = () => {
     const stratSummary = strategies.map(s => `${s.name}(${s.isActive ? '가동' : '중지'})`).join(", ") || "없음";
     const portfolioCtx = {
       totalAsset: profile ? (profile.balance + positions.reduce((s, p) => s + (p.quantity * p.currentPrice), 0)).toLocaleString() : "0",
-      cash: profile ? profile.balance.toLocaleString() : "0",
+      cash: profile ? (profile.balance ?? 0).toLocaleString() : "0",
       stockValue: profile ? positions.reduce((s, p) => s + (p.quantity * p.currentPrice), 0).toLocaleString() : "0",
       tradingMode: profile ? profile.tradingMode : "approval",
       activeStrategy: stratSummary

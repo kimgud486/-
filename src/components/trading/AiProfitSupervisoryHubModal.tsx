@@ -216,7 +216,7 @@ export const AiProfitSupervisoryHubModal: React.FC<AiProfitSupervisoryHubModalPr
                 <ShieldCheck className="w-4 h-4 text-teal-400" />
               </div>
               <div className="text-2xl font-black text-teal-400">
-                ₩{engineState.metrics.protectedProfitsKrw.toLocaleString()}
+                ₩{(engineState.metrics.protectedProfitsKrw ?? 0).toLocaleString()}
               </div>
               <div className="text-[11px] text-slate-400 mt-1">
                 트레일링 쉴드 누적 방어액
@@ -447,9 +447,9 @@ export const AiProfitSupervisoryHubModal: React.FC<AiProfitSupervisoryHubModalPr
                           </span>
                         </div>
                         <div className="text-xs text-slate-400 mt-1">
-                          수량: {pos.quantity.toLocaleString()}주 • 평단가: ₩
-                          {pos.avgPrice.toLocaleString()} • 현재가: ₩
-                          {pos.currentPrice.toLocaleString()}
+                          수량: {(pos.quantity ?? 0).toLocaleString()}주 • 평단가: ₩
+                          {(pos.avgPrice ?? 0).toLocaleString()} • 현재가: ₩
+                          {(pos.currentPrice ?? 0).toLocaleString()}
                         </div>
                       </div>
 

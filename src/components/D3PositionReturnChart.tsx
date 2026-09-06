@@ -363,21 +363,21 @@ export const D3PositionReturnChart: React.FC = () => {
 
             <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-[11px] font-mono">
               <span className="text-zinc-400">보유 수량:</span>
-              <span className="font-bold text-right text-zinc-100">{hoveredInfo.quantity.toLocaleString()}주</span>
+              <span className="font-bold text-right text-zinc-100">{(hoveredInfo.quantity ?? 0).toLocaleString()}주</span>
 
               <span className="text-zinc-400">평균 매수가:</span>
               <span className="font-bold text-right text-zinc-100">
-                {hoveredInfo.market === "US" ? `$${hoveredInfo.avgPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : `${hoveredInfo.avgPrice.toLocaleString()}원`}
+                {hoveredInfo.market === "US" ? `$${(hoveredInfo.avgPrice ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : `${(hoveredInfo.avgPrice ?? 0).toLocaleString()}원`}
               </span>
 
               <span className="text-zinc-400">현재가:</span>
               <span className="font-bold text-right text-emerald-400">
-                {hoveredInfo.market === "US" ? `$${hoveredInfo.currentPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : `${hoveredInfo.currentPrice.toLocaleString()}원`}
+                {hoveredInfo.market === "US" ? `$${(hoveredInfo.currentPrice ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : `${(hoveredInfo.currentPrice ?? 0).toLocaleString()}원`}
               </span>
 
               <span className="text-zinc-400">평가손익:</span>
               <span className={`font-bold text-right ${hoveredInfo.pnl >= 0 ? "text-rose-400" : "text-blue-400"}`}>
-                {hoveredInfo.pnl >= 0 ? "+" : ""}{hoveredInfo.market === "US" ? `$${hoveredInfo.pnl.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : `${Math.round(hoveredInfo.pnl).toLocaleString()}원`}
+                {hoveredInfo.pnl >= 0 ? "+" : ""}{hoveredInfo.market === "US" ? `$${(hoveredInfo.pnl ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : `${Math.round(hoveredInfo.pnl).toLocaleString()}원`}
               </span>
 
               <span className="text-zinc-400">수익률:</span>

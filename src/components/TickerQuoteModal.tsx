@@ -331,7 +331,7 @@ export const TickerQuoteModal: React.FC<TickerQuoteModalProps> = ({
             aiConfidencePct: 91.5,
             targetPrice: Math.round(p * 1.12),
             stopLossPrice: Math.round(p * 0.94),
-            aiAnalysisReason: `${nameVal} 실시간 네이버/업비트 API 파이프라인 연동 종가 (${p.toLocaleString()}원) 수집 완료. 퀀트 모멘텀 수급 정상.`,
+            aiAnalysisReason: `${nameVal} 실시간 네이버/업비트 API 파이프라인 연동 종가 (${(p ?? 0).toLocaleString()}원) 수집 완료. 퀀트 모멘텀 수급 정상.`,
             bids: [
               { price: p, volume: 15000, pct: 60 },
               { price: p - 100, volume: 22000, pct: 80 },
@@ -541,7 +541,7 @@ export const TickerQuoteModal: React.FC<TickerQuoteModalProps> = ({
               <div className="flex items-baseline space-x-3 mt-2">
                 <span className="text-2xl font-mono font-black text-white">
                   {activeQuote.currency === "USD" ? "$" : ""}
-                  {activeQuote.currentPrice.toLocaleString()}
+                  {(activeQuote.currentPrice ?? 0).toLocaleString()}
                   {activeQuote.currency === "KRW" ? "원" : ""}
                 </span>
 
@@ -551,7 +551,7 @@ export const TickerQuoteModal: React.FC<TickerQuoteModalProps> = ({
                   {isPositive ? <ArrowUpRight className="h-4 w-4" /> : <ArrowDownRight className="h-4 w-4" />}
                   <span>
                     {isPositive ? "+" : ""}
-                    {activeQuote.changeAmount.toLocaleString()} ({isPositive ? "+" : ""}{activeQuote.changePct}%)
+                    {(activeQuote.changeAmount ?? 0).toLocaleString()} ({isPositive ? "+" : ""}{activeQuote.changePct}%)
                   </span>
                 </span>
               </div>
@@ -618,7 +618,7 @@ export const TickerQuoteModal: React.FC<TickerQuoteModalProps> = ({
                   <span className="text-[10px] text-zinc-400 block font-sans">고가 (Day High)</span>
                   <span className="font-bold text-emerald-600 dark:text-emerald-400">
                     {activeQuote.currency === "USD" ? "$" : ""}
-                    {activeQuote.highPrice.toLocaleString()}
+                    {(activeQuote.highPrice ?? 0).toLocaleString()}
                   </span>
                 </div>
 
@@ -626,7 +626,7 @@ export const TickerQuoteModal: React.FC<TickerQuoteModalProps> = ({
                   <span className="text-[10px] text-zinc-400 block font-sans">저가 (Day Low)</span>
                   <span className="font-bold text-rose-600 dark:text-rose-400">
                     {activeQuote.currency === "USD" ? "$" : ""}
-                    {activeQuote.lowPrice.toLocaleString()}
+                    {(activeQuote.lowPrice ?? 0).toLocaleString()}
                   </span>
                 </div>
 
@@ -634,7 +634,7 @@ export const TickerQuoteModal: React.FC<TickerQuoteModalProps> = ({
                   <span className="text-[10px] text-zinc-400 block font-sans">시가 (Open)</span>
                   <span className="font-bold text-zinc-900 dark:text-white">
                     {activeQuote.currency === "USD" ? "$" : ""}
-                    {activeQuote.openPrice.toLocaleString()}
+                    {(activeQuote.openPrice ?? 0).toLocaleString()}
                   </span>
                 </div>
 
@@ -642,7 +642,7 @@ export const TickerQuoteModal: React.FC<TickerQuoteModalProps> = ({
                   <span className="text-[10px] text-zinc-400 block font-sans">전일종가 (Prev Close)</span>
                   <span className="font-bold text-zinc-900 dark:text-white">
                     {activeQuote.currency === "USD" ? "$" : ""}
-                    {activeQuote.prevClose.toLocaleString()}
+                    {(activeQuote.prevClose ?? 0).toLocaleString()}
                   </span>
                 </div>
               </div>
@@ -652,14 +652,14 @@ export const TickerQuoteModal: React.FC<TickerQuoteModalProps> = ({
                 <div className="bg-zinc-50 dark:bg-zinc-900 p-3 rounded-xl border border-zinc-200 dark:border-zinc-800">
                   <span className="text-[10px] text-zinc-400 block font-sans">거래량 (Volume)</span>
                   <span className="font-bold text-zinc-900 dark:text-white">
-                    {activeQuote.volume.toLocaleString()} 주
+                    {(activeQuote.volume ?? 0).toLocaleString()} 주
                   </span>
                 </div>
 
                 <div className="bg-zinc-50 dark:bg-zinc-900 p-3 rounded-xl border border-zinc-200 dark:border-zinc-800">
                   <span className="text-[10px] text-zinc-400 block font-sans">시가총액</span>
                   <span className="font-bold text-zinc-900 dark:text-white">
-                    {activeQuote.marketCap.toLocaleString()}{activeQuote.currency === "USD" ? "억달러" : "억원"}
+                    {(activeQuote.marketCap ?? 0).toLocaleString()}{activeQuote.currency === "USD" ? "억달러" : "억원"}
                   </span>
                 </div>
 
@@ -675,7 +675,7 @@ export const TickerQuoteModal: React.FC<TickerQuoteModalProps> = ({
                 <div className="bg-zinc-50 dark:bg-zinc-900 p-3 rounded-xl border border-zinc-200 dark:border-zinc-800">
                   <span className="text-[10px] text-zinc-400 block font-sans">52주 최고/최저</span>
                   <span className="font-bold text-zinc-900 dark:text-white text-[11px]">
-                    {activeQuote.high52w.toLocaleString()} / {activeQuote.low52w.toLocaleString()}
+                    {(activeQuote.high52w ?? 0).toLocaleString()} / {(activeQuote.low52w ?? 0).toLocaleString()}
                   </span>
                 </div>
               </div>
@@ -705,7 +705,7 @@ export const TickerQuoteModal: React.FC<TickerQuoteModalProps> = ({
                         <span className="text-[9px] font-mono text-zinc-500">{h.time}</span>
                         {/* Hover Tooltip */}
                         <div className="absolute -top-7 opacity-0 group-hover:opacity-100 transition bg-zinc-800 text-[9px] font-mono font-bold px-1.5 py-0.5 rounded border border-zinc-700 whitespace-nowrap z-10">
-                          {h.price.toLocaleString()}원
+                          {(h.price ?? 0).toLocaleString()}원
                         </div>
                       </div>
                     );
@@ -728,8 +728,8 @@ export const TickerQuoteModal: React.FC<TickerQuoteModalProps> = ({
               <div className="space-y-1">
                 {activeQuote.asks.slice().reverse().map((ask, idx) => (
                   <div key={idx} className="grid grid-cols-3 items-center py-1.5 px-2 bg-rose-950/20 border border-rose-900/30 rounded text-center">
-                    <span className="text-right text-rose-300 text-[11px] font-bold">{ask.volume.toLocaleString()}</span>
-                    <span className="font-extrabold text-rose-400">{ask.price.toLocaleString()}</span>
+                    <span className="text-right text-rose-300 text-[11px] font-bold">{(ask.volume ?? 0).toLocaleString()}</span>
+                    <span className="font-extrabold text-rose-400">{(ask.price ?? 0).toLocaleString()}</span>
                     <span className="text-zinc-600 text-[10px]">-</span>
                   </div>
                 ))}
@@ -738,7 +738,7 @@ export const TickerQuoteModal: React.FC<TickerQuoteModalProps> = ({
               {/* CURRENT PRICE MIDBAR */}
               <div className="py-2 px-3 bg-cyan-950 border border-cyan-500/50 rounded-lg text-center font-black text-sm text-cyan-200 flex justify-between items-center">
                 <span className="text-[10px] font-mono text-cyan-400">현재 체결가</span>
-                <span>{activeQuote.currentPrice.toLocaleString()}</span>
+                <span>{(activeQuote.currentPrice ?? 0).toLocaleString()}</span>
                 <span className={`text-xs font-bold ${isPositive ? "text-emerald-400" : "text-rose-400"}`}>
                   {isPositive ? "+" : ""}{activeQuote.changePct}%
                 </span>
@@ -749,8 +749,8 @@ export const TickerQuoteModal: React.FC<TickerQuoteModalProps> = ({
                 {activeQuote.bids.map((bid, idx) => (
                   <div key={idx} className="grid grid-cols-3 items-center py-1.5 px-2 bg-blue-950/20 border border-blue-900/30 rounded text-center">
                     <span className="text-zinc-600 text-[10px]">-</span>
-                    <span className="font-extrabold text-blue-400">{bid.price.toLocaleString()}</span>
-                    <span className="text-left text-blue-300 text-[11px] font-bold">{bid.volume.toLocaleString()}</span>
+                    <span className="font-extrabold text-blue-400">{(bid.price ?? 0).toLocaleString()}</span>
+                    <span className="text-left text-blue-300 text-[11px] font-bold">{(bid.volume ?? 0).toLocaleString()}</span>
                   </div>
                 ))}
               </div>
@@ -770,7 +770,7 @@ export const TickerQuoteModal: React.FC<TickerQuoteModalProps> = ({
                   <span className="text-[10px] text-slate-400 block">AI 목표 타겟가 (Target)</span>
                   <span className="font-extrabold text-emerald-400 text-sm">
                     {activeQuote.currency === "USD" ? "$" : ""}
-                    {activeQuote.targetPrice.toLocaleString()}
+                    {(activeQuote.targetPrice ?? 0).toLocaleString()}
                   </span>
                 </div>
 
@@ -778,7 +778,7 @@ export const TickerQuoteModal: React.FC<TickerQuoteModalProps> = ({
                   <span className="text-[10px] text-slate-400 block">AI 안전 손절가 (Stop)</span>
                   <span className="font-extrabold text-rose-400 text-sm">
                     {activeQuote.currency === "USD" ? "$" : ""}
-                    {activeQuote.stopLossPrice.toLocaleString()}
+                    {(activeQuote.stopLossPrice ?? 0).toLocaleString()}
                   </span>
                 </div>
               </div>

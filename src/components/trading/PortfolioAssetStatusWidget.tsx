@@ -398,7 +398,7 @@ export const PortfolioAssetStatusWidget: React.FC<PortfolioAssetStatusWidgetProp
             <DollarSign className="w-3.5 h-3.5 text-blue-500" />
           </div>
           <div className="text-base sm:text-lg font-black text-slate-900 dark:text-white font-mono tracking-tight">
-            ₩{displayTotalAssets.toLocaleString()}
+            ₩{(displayTotalAssets ?? 0).toLocaleString()}
           </div>
           <div className="text-[10px] text-slate-500 dark:text-slate-400 flex items-center gap-1">
             <span>예수금 + 보유자산 평가금</span>
@@ -418,7 +418,7 @@ export const PortfolioAssetStatusWidget: React.FC<PortfolioAssetStatusWidgetProp
           <div className={`text-base sm:text-lg font-black font-mono tracking-tight ${
             displayPnl >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"
           }`}>
-            {displayPnl >= 0 ? "+" : ""}₩{displayPnl.toLocaleString()}
+            {displayPnl >= 0 ? "+" : ""}₩{(displayPnl ?? 0).toLocaleString()}
           </div>
           <div className={`text-[11px] font-bold font-mono ${
             displayPnl >= 0 ? "text-emerald-700 dark:text-emerald-300" : "text-rose-700 dark:text-rose-300"
@@ -434,7 +434,7 @@ export const PortfolioAssetStatusWidget: React.FC<PortfolioAssetStatusWidgetProp
             <Building2 className="w-3.5 h-3.5 text-indigo-500" />
           </div>
           <div className="text-base sm:text-lg font-black text-slate-900 dark:text-white font-mono tracking-tight">
-            ₩{displayInvested.toLocaleString()}
+            ₩{(displayInvested ?? 0).toLocaleString()}
           </div>
           <div className="text-[10px] text-slate-500 dark:text-slate-400">
             투자비중: <strong className="text-indigo-600 dark:text-indigo-400">{stockWeight.toFixed(1)}%</strong>
@@ -448,7 +448,7 @@ export const PortfolioAssetStatusWidget: React.FC<PortfolioAssetStatusWidgetProp
             <Coins className="w-3.5 h-3.5 text-amber-500" />
           </div>
           <div className="text-base sm:text-lg font-black text-slate-900 dark:text-white font-mono tracking-tight">
-            ₩{displayCash.toLocaleString()}
+            ₩{(displayCash ?? 0).toLocaleString()}
           </div>
           <div className="text-[10px] text-slate-500 dark:text-slate-400">
             현금비중: <strong className="text-amber-600 dark:text-amber-400">{cashWeight.toFixed(1)}%</strong>
@@ -500,20 +500,20 @@ export const PortfolioAssetStatusWidget: React.FC<PortfolioAssetStatusWidgetProp
             <div className="font-mono">
               <div className="text-[10px] text-slate-400">계좌 총자산</div>
               <div className="text-sm font-black text-slate-900 dark:text-white">
-                {activeAssetView === "REAL" ? kisRealTotal.toLocaleString() : (mockKoreaHoldings + mockCash).toLocaleString()}원
+                {activeAssetView === "REAL" ? (kisRealTotal ?? 0).toLocaleString() : (mockKoreaHoldings + mockCash).toLocaleString()}원
               </div>
             </div>
             <div className="grid grid-cols-2 gap-1 text-[11px] font-mono pt-1 border-t border-slate-200/60 dark:border-slate-700">
               <div>
                 <span className="text-[10px] text-slate-400 block font-sans">예수금</span>
                 <span className="font-bold text-slate-700 dark:text-slate-300">
-                  {activeAssetView === "REAL" ? koreaRealCash.toLocaleString() : mockCash.toLocaleString()}원
+                  {activeAssetView === "REAL" ? (koreaRealCash ?? 0).toLocaleString() : (mockCash ?? 0).toLocaleString()}원
                 </span>
               </div>
               <div className="text-right">
                 <span className="text-[10px] text-slate-400 block font-sans">보유주식</span>
                 <span className="font-bold text-slate-700 dark:text-slate-300">
-                  {activeAssetView === "REAL" ? koreaRealInvested.toLocaleString() : mockKoreaHoldings.toLocaleString()}원
+                  {activeAssetView === "REAL" ? (koreaRealInvested ?? 0).toLocaleString() : (mockKoreaHoldings ?? 0).toLocaleString()}원
                 </span>
               </div>
             </div>
@@ -535,7 +535,7 @@ export const PortfolioAssetStatusWidget: React.FC<PortfolioAssetStatusWidgetProp
               <div className="text-sm font-black text-slate-900 dark:text-white">
                 ${activeAssetView === "REAL" ? (usRealTotalKrw / fxRate).toFixed(1) : (mockUsHoldings / fxRate).toFixed(1)}
                 <span className="text-[11px] font-normal text-slate-500 ml-1">
-                  (₩{activeAssetView === "REAL" ? Math.round(usRealTotalKrw).toLocaleString() : mockUsHoldings.toLocaleString()})
+                  (₩{activeAssetView === "REAL" ? Math.round(usRealTotalKrw).toLocaleString() : (mockUsHoldings ?? 0).toLocaleString()})
                 </span>
               </div>
             </div>
@@ -543,13 +543,13 @@ export const PortfolioAssetStatusWidget: React.FC<PortfolioAssetStatusWidgetProp
               <div>
                 <span className="text-[10px] text-slate-400 block font-sans">달러 예수금</span>
                 <span className="font-bold text-slate-700 dark:text-slate-300">
-                  ${activeAssetView === "REAL" ? usRealCash.toLocaleString() : "0"}
+                  ${activeAssetView === "REAL" ? (usRealCash ?? 0).toLocaleString() : "0"}
                 </span>
               </div>
               <div className="text-right">
                 <span className="text-[10px] text-slate-400 block font-sans">해외주식</span>
                 <span className="font-bold text-slate-700 dark:text-slate-300">
-                  ₩{activeAssetView === "REAL" ? usRealInvested.toLocaleString() : mockUsHoldings.toLocaleString()}
+                  ₩{activeAssetView === "REAL" ? (usRealInvested ?? 0).toLocaleString() : (mockUsHoldings ?? 0).toLocaleString()}
                 </span>
               </div>
             </div>
@@ -584,20 +584,20 @@ export const PortfolioAssetStatusWidget: React.FC<PortfolioAssetStatusWidgetProp
             <div className="font-mono">
               <div className="text-[10px] text-slate-400">계좌 총자산</div>
               <div className="text-sm font-black text-slate-900 dark:text-white">
-                {activeAssetView === "REAL" ? tossRealTotal.toLocaleString() : mockTossHoldings.toLocaleString()}원
+                {activeAssetView === "REAL" ? (tossRealTotal ?? 0).toLocaleString() : (mockTossHoldings ?? 0).toLocaleString()}원
               </div>
             </div>
             <div className="grid grid-cols-2 gap-1 text-[11px] font-mono pt-1 border-t border-slate-200/60 dark:border-slate-700">
               <div>
                 <span className="text-[10px] text-slate-400 block font-sans">예수금</span>
                 <span className="font-bold text-slate-700 dark:text-slate-300">
-                  {activeAssetView === "REAL" ? tossRealCash.toLocaleString() : "0"}원
+                  {activeAssetView === "REAL" ? (tossRealCash ?? 0).toLocaleString() : "0"}원
                 </span>
               </div>
               <div className="text-right">
                 <span className="text-[10px] text-slate-400 block font-sans">보유주식</span>
                 <span className="font-bold text-slate-700 dark:text-slate-300">
-                  {activeAssetView === "REAL" ? tossRealInvested.toLocaleString() : mockTossHoldings.toLocaleString()}원
+                  {activeAssetView === "REAL" ? (tossRealInvested ?? 0).toLocaleString() : (mockTossHoldings ?? 0).toLocaleString()}원
                 </span>
               </div>
             </div>
@@ -632,20 +632,20 @@ export const PortfolioAssetStatusWidget: React.FC<PortfolioAssetStatusWidgetProp
             <div className="font-mono">
               <div className="text-[10px] text-slate-400">계좌 총자산</div>
               <div className="text-sm font-black text-slate-900 dark:text-white">
-                {activeAssetView === "REAL" ? upbitRealTotal.toLocaleString() : mockUpbitHoldings.toLocaleString()}원
+                {activeAssetView === "REAL" ? (upbitRealTotal ?? 0).toLocaleString() : (mockUpbitHoldings ?? 0).toLocaleString()}원
               </div>
             </div>
             <div className="grid grid-cols-2 gap-1 text-[11px] font-mono pt-1 border-t border-slate-200/60 dark:border-slate-700">
               <div>
                 <span className="text-[10px] text-slate-400 block font-sans">원화 잔고</span>
                 <span className="font-bold text-slate-700 dark:text-slate-300">
-                  {activeAssetView === "REAL" ? upbitRealCash.toLocaleString() : "0"}원
+                  {activeAssetView === "REAL" ? (upbitRealCash ?? 0).toLocaleString() : "0"}원
                 </span>
               </div>
               <div className="text-right">
                 <span className="text-[10px] text-slate-400 block font-sans">가상자산</span>
                 <span className="font-bold text-slate-700 dark:text-slate-300">
-                  {activeAssetView === "REAL" ? upbitRealInvested.toLocaleString() : mockUpbitHoldings.toLocaleString()}원
+                  {activeAssetView === "REAL" ? (upbitRealInvested ?? 0).toLocaleString() : (mockUpbitHoldings ?? 0).toLocaleString()}원
                 </span>
               </div>
             </div>
@@ -775,10 +775,10 @@ export const PortfolioAssetStatusWidget: React.FC<PortfolioAssetStatusWidgetProp
                         <div>
                           <span className="text-[10px] text-slate-400 block font-sans">현재가 / 매수가</span>
                           <span className="font-bold text-slate-900 dark:text-white">
-                            ₩{item.currentPrice.toLocaleString()}
+                            ₩{(item.currentPrice ?? 0).toLocaleString()}
                           </span>
                           <span className="text-[10px] text-slate-400 block">
-                            매수: ₩{item.buyPrice.toLocaleString()}
+                            매수: ₩{(item.buyPrice ?? 0).toLocaleString()}
                           </span>
                         </div>
 
@@ -787,7 +787,7 @@ export const PortfolioAssetStatusWidget: React.FC<PortfolioAssetStatusWidgetProp
                           <span className={`font-black text-sm ${
                             itemPnl >= 0 ? "text-rose-600 dark:text-rose-400" : "text-blue-600 dark:text-blue-400"
                           }`}>
-                            {itemPnl >= 0 ? "+" : ""}₩{itemPnl.toLocaleString()}
+                            {itemPnl >= 0 ? "+" : ""}₩{(itemPnl ?? 0).toLocaleString()}
                           </span>
                           <span className={`text-[11px] font-black block ${
                             itemPnlRate >= 0 ? "text-rose-600 dark:text-rose-400" : "text-blue-600 dark:text-blue-400"
@@ -800,7 +800,7 @@ export const PortfolioAssetStatusWidget: React.FC<PortfolioAssetStatusWidgetProp
                       {/* Card Footer: Quantity, AI Rationale & Quick Trade */}
                       <div className="flex items-center justify-between gap-2 pt-1 border-t border-slate-200/60 dark:border-slate-700/60">
                         <div className="text-[11px] font-mono text-slate-400">
-                          수량: <strong className="text-slate-800 dark:text-slate-200">{item.qty.toLocaleString()}</strong>
+                          수량: <strong className="text-slate-800 dark:text-slate-200">{(item.qty ?? 0).toLocaleString()}</strong>
                         </div>
 
                         <div className="flex items-center gap-1.5">
@@ -864,16 +864,16 @@ export const PortfolioAssetStatusWidget: React.FC<PortfolioAssetStatusWidgetProp
                             </div>
                           </td>
                           <td className="p-2.5 text-right font-mono text-slate-700 dark:text-slate-300">
-                            {item.qty.toLocaleString()}주
+                            {(item.qty ?? 0).toLocaleString()}주
                           </td>
                           <td className="p-2.5 text-right font-mono text-slate-700 dark:text-slate-300">
-                            <div>₩{item.currentPrice.toLocaleString()}</div>
-                            <div className="text-[10px] text-slate-400">매수: ₩{item.buyPrice.toLocaleString()}</div>
+                            <div>₩{(item.currentPrice ?? 0).toLocaleString()}</div>
+                            <div className="text-[10px] text-slate-400">매수: ₩{(item.buyPrice ?? 0).toLocaleString()}</div>
                           </td>
                           <td className={`p-2.5 text-right font-mono font-bold ${
                             itemPnl >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"
                           }`}>
-                            <div>{itemPnl >= 0 ? "+" : ""}₩{itemPnl.toLocaleString()}</div>
+                            <div>{itemPnl >= 0 ? "+" : ""}₩{(itemPnl ?? 0).toLocaleString()}</div>
                             <div className="text-[10px]">{itemPnlRate >= 0 ? "+" : ""}{itemPnlRate.toFixed(2)}%</div>
                           </td>
                           <td className="p-2.5 text-right font-mono font-bold text-slate-900 dark:text-white">

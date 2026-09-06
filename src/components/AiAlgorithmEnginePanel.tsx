@@ -286,7 +286,7 @@ export const AiAlgorithmEnginePanel: React.FC = () => {
             </div>
             <div className="my-2">
               <div className="text-xl font-black font-mono text-emerald-400">
-                {data.algorithms.kellySizer.recommendedAllocationKrw.toLocaleString()}원
+                {(data.algorithms.kellySizer.recommendedAllocationKrw ?? 0).toLocaleString()}원
               </div>
               <span className="text-xs text-slate-400 font-mono">
                 (총 자산 대비 {data.algorithms.kellySizer.halfKellyPct}%)
@@ -305,10 +305,10 @@ export const AiAlgorithmEnginePanel: React.FC = () => {
             </div>
             <div className="my-2">
               <div className="text-xl font-black font-mono text-purple-300">
-                {data.algorithms.chandelierExit.chandelierStopPrice.toLocaleString()}원
+                {(data.algorithms.chandelierExit.chandelierStopPrice ?? 0).toLocaleString()}원
               </div>
               <span className="text-xs text-slate-400 font-mono">
-                (ATR {data.algorithms.chandelierExit.atrValue.toLocaleString()}원 x {data.algorithms.chandelierExit.atrMultiplier}배)
+                (ATR {(data.algorithms.chandelierExit.atrValue ?? 0).toLocaleString()}원 x {data.algorithms.chandelierExit.atrMultiplier}배)
               </span>
             </div>
             <p className="text-[11px] text-slate-400">
@@ -402,7 +402,7 @@ export const AiAlgorithmEnginePanel: React.FC = () => {
                 <div className="flex justify-between text-zinc-600">
                   <span>추천 배정 자금:</span>
                   <span className="font-mono font-bold text-zinc-900">
-                    {data.algorithms.kellySizer.recommendedAllocationKrw.toLocaleString()}원
+                    {(data.algorithms.kellySizer.recommendedAllocationKrw ?? 0).toLocaleString()}원
                   </span>
                 </div>
               </div>
@@ -469,13 +469,13 @@ export const AiAlgorithmEnginePanel: React.FC = () => {
                 <div className="flex justify-between text-zinc-600">
                   <span>ATR 변동폭:</span>
                   <span className="font-mono font-bold text-zinc-900">
-                    {data.algorithms.chandelierExit.atrValue.toLocaleString()}원
+                    {(data.algorithms.chandelierExit.atrValue ?? 0).toLocaleString()}원
                   </span>
                 </div>
                 <div className="flex justify-between text-zinc-600">
                   <span>트레일링 익절 가격:</span>
                   <span className="font-mono font-bold text-amber-600">
-                    {data.algorithms.chandelierExit.chandelierStopPrice.toLocaleString()}원
+                    {(data.algorithms.chandelierExit.chandelierStopPrice ?? 0).toLocaleString()}원
                   </span>
                 </div>
                 <div className="flex justify-between text-zinc-600">

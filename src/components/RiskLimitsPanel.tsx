@@ -397,7 +397,7 @@ export const RiskLimitsPanel: React.FC = () => {
                 <div className="bg-zinc-950/80 p-3 rounded-lg border border-zinc-800 space-y-1">
                   <span className="text-[11px] text-zinc-400 font-bold block">💰 1개 종목 당 최대 매수 가능 금액</span>
                   <div className="text-base font-black font-mono text-emerald-400">
-                    ₩{maxBuyForCurrentWeight.toLocaleString()}원
+                    ₩{(maxBuyForCurrentWeight ?? 0).toLocaleString()}원
                   </div>
                   <span className="text-[10.5px] text-zinc-400 block font-mono">
                     (현재 가용 자산 ₩{Math.round(userCash).toLocaleString()}원 × {maxPositionWeight}%)
@@ -416,7 +416,7 @@ export const RiskLimitsPanel: React.FC = () => {
                     ) : (
                       <span className="text-amber-300 flex items-center gap-1">
                         <AlertTriangle className="h-4 w-4 text-amber-400 inline shrink-0" />
-                        1종목당 ₩{maxBuyForCurrentWeight.toLocaleString()}원 초과 주문 시 'Holdings Limit' 차단
+                        1종목당 ₩{(maxBuyForCurrentWeight ?? 0).toLocaleString()}원 초과 주문 시 'Holdings Limit' 차단
                       </span>
                     )}
                   </div>

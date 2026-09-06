@@ -299,8 +299,8 @@ export class StructureBrain {
           brokenSwingPrice: lastSwingHigh.price,
           triggerPrice: c.close,
           description: isBOS
-            ? `Bullish BOS: Previous Swing High (₩${lastSwingHigh.price.toLocaleString()}) broken to continuation`
-            : `Bullish CHoCH: Character changed upward breaking Swing High (₩${lastSwingHigh.price.toLocaleString()})`
+            ? `Bullish BOS: Previous Swing High (₩${(lastSwingHigh.price ?? 0).toLocaleString()}) broken to continuation`
+            : `Bullish CHoCH: Character changed upward breaking Swing High (₩${(lastSwingHigh.price ?? 0).toLocaleString()})`
         });
 
         currentTrend = "BULLISH";
@@ -319,8 +319,8 @@ export class StructureBrain {
           brokenSwingPrice: lastSwingLow.price,
           triggerPrice: c.close,
           description: isBOS
-            ? `Bearish BOS: Previous Swing Low (₩${lastSwingLow.price.toLocaleString()}) broken to continuation`
-            : `Bearish CHoCH: Character changed downward breaking Swing Low (₩${lastSwingLow.price.toLocaleString()})`
+            ? `Bearish BOS: Previous Swing Low (₩${(lastSwingLow.price ?? 0).toLocaleString()}) broken to continuation`
+            : `Bearish CHoCH: Character changed downward breaking Swing Low (₩${(lastSwingLow.price ?? 0).toLocaleString()})`
         });
 
         currentTrend = "BEARISH";
@@ -437,7 +437,7 @@ export class StructureBrain {
             mitigatedIndex,
             strength,
             associatedBOSIndex: breakIdx,
-            description: `Bullish Order Block (₩${bottom.toLocaleString()} ~ ₩${top.toLocaleString()}) [${mitigationStatus}]`
+            description: `Bullish Order Block (₩${(bottom ?? 0).toLocaleString()} ~ ₩${(top ?? 0).toLocaleString()}) [${mitigationStatus}]`
           });
         }
       } else {
@@ -521,7 +521,7 @@ export class StructureBrain {
             mitigatedIndex,
             strength,
             associatedBOSIndex: breakIdx,
-            description: `Bearish Order Block (₩${bottom.toLocaleString()} ~ ₩${top.toLocaleString()}) [${mitigationStatus}]`
+            description: `Bearish Order Block (₩${(bottom ?? 0).toLocaleString()} ~ ₩${(top ?? 0).toLocaleString()}) [${mitigationStatus}]`
           });
         }
       }
@@ -579,7 +579,7 @@ export class StructureBrain {
             fillPercentage,
             isFilled,
             filledIndex,
-            description: `Bullish FVG (₩${bottom.toLocaleString()} ~ ₩${top.toLocaleString()}) - ${fillPercentage}% Filled`
+            description: `Bullish FVG (₩${(bottom ?? 0).toLocaleString()} ~ ₩${(top ?? 0).toLocaleString()}) - ${fillPercentage}% Filled`
           });
         }
       }
@@ -621,7 +621,7 @@ export class StructureBrain {
             fillPercentage,
             isFilled,
             filledIndex,
-            description: `Bearish FVG (₩${bottom.toLocaleString()} ~ ₩${top.toLocaleString()}) - ${fillPercentage}% Filled`
+            description: `Bearish FVG (₩${(bottom ?? 0).toLocaleString()} ~ ₩${(top ?? 0).toLocaleString()}) - ${fillPercentage}% Filled`
           });
         }
       }
@@ -654,7 +654,7 @@ export class StructureBrain {
             wickPrice: c.high,
             reclaimedClose: c.close,
             volume: c.volume,
-            description: `Buy-Side Liquidity (BSL) Sweep at ₩${sh.price.toLocaleString()} (Wick high ₩${c.high.toLocaleString()} → Reclaimed close ₩${c.close.toLocaleString()})`
+            description: `Buy-Side Liquidity (BSL) Sweep at ₩${(sh.price ?? 0).toLocaleString()} (Wick high ₩${(c.high ?? 0).toLocaleString()} → Reclaimed close ₩${(c.close ?? 0).toLocaleString()})`
           });
         }
       }
@@ -670,7 +670,7 @@ export class StructureBrain {
             wickPrice: c.low,
             reclaimedClose: c.close,
             volume: c.volume,
-            description: `Sell-Side Liquidity (SSL) Sweep at ₩${sl.price.toLocaleString()} (Wick low ₩${c.low.toLocaleString()} → Reclaimed close ₩${c.close.toLocaleString()})`
+            description: `Sell-Side Liquidity (SSL) Sweep at ₩${(sl.price ?? 0).toLocaleString()} (Wick low ₩${(c.low ?? 0).toLocaleString()} → Reclaimed close ₩${(c.close ?? 0).toLocaleString()})`
           });
         }
       }
@@ -749,7 +749,7 @@ export class StructureBrain {
     else if (score <= 45) bias = "SELL";
 
     const summary = `[StructureBrain 분석 결론] 현재 시장 구조는 ${structureTrend} 상태입니다. 미체결 Bullish Order Block (${
-      nearestBullishOB ? `₩${nearestBullishOB.priceBottom.toLocaleString()}~₩${nearestBullishOB.priceTop.toLocaleString()}` : "없음"
+      nearestBullishOB ? `₩${(nearestBullishOB.priceBottom ?? 0).toLocaleString()}~₩${(nearestBullishOB.priceTop ?? 0).toLocaleString()}` : "없음"
     })과 SSL Liquidity Sweep (${
       lastSweep ? `최근 ${lastSweep.type}` : "없음"
     })을 종합 검증한 기관 수급 점수는 ${score}점 (${bias})입니다.`;

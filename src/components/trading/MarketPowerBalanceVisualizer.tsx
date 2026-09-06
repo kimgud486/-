@@ -66,7 +66,7 @@ export interface MarketPowerBalanceProps {
 const formatCurrencyPrice = (price: number, market?: string) => {
   if (!price) return "0";
   if (market === "US" || market === "NYSE" || market === "NASDAQ") {
-    return `$${price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    return `$${(price ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   }
   return `₩${Math.round(price).toLocaleString()}`;
 };

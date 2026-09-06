@@ -168,7 +168,7 @@ export const PriceTargetAlertModal: React.FC<{
       createdAt: new Date().toLocaleString("ko-KR", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" }),
       isActive: true,
       isTriggered: false,
-      note: noteInput || `${nameResolved} 목표가 ${targetPriceInput.toLocaleString()}${isUS ? "$" : "원"} 설정`
+      note: noteInput || `${nameResolved} 목표가 ${(targetPriceInput ?? 0).toLocaleString()}${isUS ? "$" : "원"} 설정`
     };
 
     setAlerts(prev => [newAlert, ...prev]);
@@ -178,7 +178,7 @@ export const PriceTargetAlertModal: React.FC<{
     addToast({
       type: "SUCCESS",
       title: `🔔 ${nameResolved} 매매 알람 등록 완료`,
-      message: `목표가 ${targetPriceInput.toLocaleString()}${isUS ? "$" : "원"} (${conditionInput === "ABOVE_BREAKOUT" ? "상승 돌파 시" : "하향 이탈 시"}) 푸시 알림 감시 시작`
+      message: `목표가 ${(targetPriceInput ?? 0).toLocaleString()}${isUS ? "$" : "원"} (${conditionInput === "ABOVE_BREAKOUT" ? "상승 돌파 시" : "하향 이탈 시"}) 푸시 알림 감시 시작`
     });
   };
 
@@ -195,7 +195,7 @@ export const PriceTargetAlertModal: React.FC<{
     thresholdAlertEngine.playAlertSound("PROFIT");
     if (desktopPermission === "granted" && "Notification" in window) {
       new Notification(`[AISTOCK 24] 🎯 ${alertItem.name} 목표가 도달!`, {
-        body: `목표가 ${alertItem.targetPrice.toLocaleString()}원 도달. 실시간 모의자산 매매 및 알림 트리거 완료!`,
+        body: `목표가 ${(alertItem.targetPrice ?? 0).toLocaleString()}원 도달. 실시간 모의자산 매매 및 알림 트리거 완료!`,
         icon: "/icon.png"
       });
     }
@@ -209,7 +209,7 @@ export const PriceTargetAlertModal: React.FC<{
 
     addToast({
       type: "SUCCESS",
-      title: `🎯 [푸시 알림 감지] ${alertItem.name} ${alertItem.targetPrice.toLocaleString()}원 도달`,
+      title: `🎯 [푸시 알림 감지] ${alertItem.name} ${(alertItem.targetPrice ?? 0).toLocaleString()}원 도달`,
       message: alertItem.note || "목표 조건이 충족되어 매매 알람 및 시뮬레이션 푸시가 전송되었습니다."
     });
   };
@@ -360,10 +360,10 @@ export const PriceTargetAlertModal: React.FC<{
                           </div>
 
                           <div className="flex items-center gap-3 text-xs text-slate-600 font-mono pt-1">
-                            <span>등록가: {item.initialPrice.toLocaleString()}{unit}</span>
+                            <span>등록가: {(item.initialPrice ?? 0).toLocaleString()}{unit}</span>
                             <span>→</span>
                             <span className="text-blue-600 font-black text-sm">
-                              목표가: {item.targetPrice.toLocaleString()}{unit}
+                              목표가: {(item.targetPrice ?? 0).toLocaleString()}{unit}
                             </span>
                           </div>
 
@@ -523,7 +523,7 @@ export const PriceTargetAlertModal: React.FC<{
                         </span>
                       </div>
                       <p className="text-[11px] text-emerald-800">
-                        목표가 {item.targetPrice.toLocaleString()}원 도달 알림 발송 완료
+                        목표가 {(item.targetPrice ?? 0).toLocaleString()}원 도달 알림 발송 완료
                       </p>
                     </div>
 

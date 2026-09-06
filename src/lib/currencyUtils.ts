@@ -78,8 +78,8 @@ export function formatCurrencyPrice(
   if (isUs) {
     const krw = Math.round(safeVal * rate);
     return {
-      primary: `$${safeVal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
-      secondary: `≈ ₩${krw.toLocaleString()}원`,
+      primary: `$${(safeVal ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+      secondary: `≈ ₩${(krw ?? 0).toLocaleString()}원`,
       isUs: true,
       rawKrw: krw
     };
@@ -113,13 +113,13 @@ export function formatTradingValue(
     // $1M = $1,000,000 * rate = ~13.85억원
     const krwHundredMillion = Math.round((safeVal * 1000000 * rate) / 100000000);
     return {
-      primary: `$${safeVal.toLocaleString()}M`,
-      secondary: `≈ ${krwHundredMillion.toLocaleString()}억원`
+      primary: `$${(safeVal ?? 0).toLocaleString()}M`,
+      secondary: `≈ ${(krwHundredMillion ?? 0).toLocaleString()}억원`
     };
   }
 
   return {
-    primary: `${safeVal.toLocaleString()}억원`,
+    primary: `${(safeVal ?? 0).toLocaleString()}억원`,
     secondary: null
   };
 }

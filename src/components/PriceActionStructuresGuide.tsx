@@ -773,7 +773,7 @@ export const PriceActionStructuresGuide: React.FC<Props> = ({
                   <Zap className="h-4 w-4 text-cyan-400" />
                   <span>현재 종목({currentStockSymbol}) 적용 시 타겟 / 손절 자동 계산</span>
                 </span>
-                <span className="font-mono text-white">기준가: {currentStockPrice.toLocaleString()} KRW</span>
+                <span className="font-mono text-white">기준가: {(currentStockPrice ?? 0).toLocaleString()} KRW</span>
               </div>
 
               <div className="grid grid-cols-3 gap-2 font-mono text-xs pt-1">

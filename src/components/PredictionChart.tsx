@@ -218,7 +218,7 @@ export const PredictionChart: React.FC<PredictionChartProps> = ({
             AI 목표가 ({forecastDays}일후)
           </span>
           <div className="text-base font-black text-emerald-400 font-mono mt-0.5">
-            ₩{quantMetrics.targetPrice.toLocaleString()}원
+            ₩{(quantMetrics.targetPrice ?? 0).toLocaleString()}원
           </div>
           <span className="text-[10px] font-bold text-emerald-400 font-mono">
             +{quantMetrics.expectedReturnPct}% 상방 여력
@@ -231,7 +231,7 @@ export const PredictionChart: React.FC<PredictionChartProps> = ({
             AI 권장 손절가
           </span>
           <div className="text-base font-black text-rose-400 font-mono mt-0.5">
-            ₩{quantMetrics.stopLossPrice.toLocaleString()}원
+            ₩{(quantMetrics.stopLossPrice ?? 0).toLocaleString()}원
           </div>
           <span className="text-[10px] font-bold text-slate-400 font-mono">
             -5.00% Risk Stop
@@ -303,12 +303,12 @@ export const PredictionChart: React.FC<PredictionChartProps> = ({
                       </p>
                       {data.actual && (
                         <p className="text-cyan-400 font-bold">
-                          실제 주가: ₩{data.actual.toLocaleString()}원
+                          실제 주가: ₩{(data.actual ?? 0).toLocaleString()}원
                         </p>
                       )}
                       {data.predicted && (
                         <p className="text-emerald-400 font-bold">
-                          AI 예측 주가: ₩{data.predicted.toLocaleString()}원
+                          AI 예측 주가: ₩{(data.predicted ?? 0).toLocaleString()}원
                         </p>
                       )}
                       {data.upperBand && (
@@ -374,7 +374,7 @@ export const PredictionChart: React.FC<PredictionChartProps> = ({
         <div className="flex items-center gap-2">
           <Layers className="w-4 h-4 text-cyan-400" />
           <span>
-            상방 AI 예측 타겟: <strong className="text-emerald-400">₩{quantMetrics.targetPrice.toLocaleString()}원</strong> (+{quantMetrics.expectedReturnPct}%)
+            상방 AI 예측 타겟: <strong className="text-emerald-400">₩{(quantMetrics.targetPrice ?? 0).toLocaleString()}원</strong> (+{quantMetrics.expectedReturnPct}%)
           </span>
         </div>
         <span className="text-[10px] text-slate-500 font-mono hidden sm:inline">

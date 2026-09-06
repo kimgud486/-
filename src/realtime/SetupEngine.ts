@@ -33,7 +33,7 @@ export class SetupEngine {
         entryZone: { min: indicators.vwap, max: current.close },
         invalidationPrice: Math.min(prev.low, current.low),
         evidence: [
-          `Crossed above Session VWAP (${indicators.vwap.toLocaleString()})`,
+          `Crossed above Session VWAP (${(indicators.vwap ?? 0).toLocaleString()})`,
           `RVOL: ${indicators.rvol}x`
         ],
         warnings: indicators.rvol < 1.0 ? ["Low RVOL on VWAP reclaim"] : []
@@ -51,7 +51,7 @@ export class SetupEngine {
         invalidationPrice: current.low,
         evidence: [
           `Volume expansion detected (RVOL: ${indicators.rvol}x)`,
-          `Broke previous candle high (${prev.high.toLocaleString()})`
+          `Broke previous candle high (${(prev.high ?? 0).toLocaleString()})`
         ],
         warnings: []
       });
@@ -67,7 +67,7 @@ export class SetupEngine {
           score: 85,
           entryZone: { min: openingRangeHigh, max: current.close },
           invalidationPrice: openingRangeHigh * 0.995,
-          evidence: [`Breakout above Opening Range High (${openingRangeHigh.toLocaleString()})`],
+          evidence: [`Breakout above Opening Range High (${(openingRangeHigh ?? 0).toLocaleString()})`],
           warnings: []
         });
       }

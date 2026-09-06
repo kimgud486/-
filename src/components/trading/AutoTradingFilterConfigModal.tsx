@@ -162,7 +162,7 @@ export const AutoTradingFilterConfigModal: React.FC<AutoTradingFilterConfigModal
       addToast({
         type: "SUCCESS",
         title: `🔄 모의투자 ${(targetBalance / 10000).toLocaleString()}만원 초기화 완료`,
-        message: `모든 가상 보유종목을 비우고 예수금을 ${targetBalance.toLocaleString()}원으로 초기화했습니다.`
+        message: `모든 가상 보유종목을 비우고 예수금을 ${(targetBalance ?? 0).toLocaleString()}원으로 초기화했습니다.`
       });
       onClose();
     } catch (err: any) {

@@ -272,7 +272,7 @@ export const QuickOrderModal: React.FC<QuickOrderModalProps> = ({
                 )}
               </div>
               <h3 className="text-base font-bold tracking-tight text-white mt-0.5">
-                {name} <span className="font-mono text-zinc-300 text-sm">₩{basePrice.toLocaleString()}</span>
+                {name} <span className="font-mono text-zinc-300 text-sm">₩{(basePrice ?? 0).toLocaleString()}</span>
               </h3>
             </div>
           </div>
@@ -513,7 +513,7 @@ export const QuickOrderModal: React.FC<QuickOrderModalProps> = ({
                       }}
                       className="py-1 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 border border-zinc-200 dark:border-zinc-700 rounded text-[11px] font-bold text-zinc-700 dark:text-zinc-200 transition cursor-pointer text-center font-mono"
                     >
-                      {initialMarket === 'US' ? `$${amt}` : (amt >= 10000 ? `${amt / 10000}만` : `${amt.toLocaleString()}원`)}
+                      {initialMarket === 'US' ? `$${amt}` : (amt >= 10000 ? `${amt / 10000}만` : `${(amt ?? 0).toLocaleString()}원`)}
                     </button>
                   ))}
                 </div>

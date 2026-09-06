@@ -850,7 +850,7 @@ export function runJarvisQuantEngineV3(
         recommendedSellPct: 100,
         targetExitPrice: target1,
         stopLossExitPrice: stopLoss,
-        sellRationale: `목표 수익률 달성 (+${unrealizedPnlPct}%). 상단 ATR 장벽(₩${target1.toLocaleString()}) 도달에 따라 익절 매도 추천`
+        sellRationale: `목표 수익률 달성 (+${unrealizedPnlPct}%). 상단 ATR 장벽(₩${(target1 ?? 0).toLocaleString()}) 도달에 따라 익절 매도 추천`
       };
       finalSignalState = 'EXIT_READY';
     } else if (unrealizedPnlPct >= 5) {
@@ -874,7 +874,7 @@ export function runJarvisQuantEngineV3(
         recommendedSellPct: 100,
         targetExitPrice: target1,
         stopLossExitPrice: stopLoss,
-        sellRationale: `하단 ATR 손절 장벽(₩${stopLoss.toLocaleString()}) 이탈 (${unrealizedPnlPct}%). 추가 하락 방지를 위해 손절매 실행 필요`
+        sellRationale: `하단 ATR 손절 장벽(₩${(stopLoss ?? 0).toLocaleString()}) 이탈 (${unrealizedPnlPct}%). 추가 하락 방지를 위해 손절매 실행 필요`
       };
       finalSignalState = 'EXIT_READY';
     } else {

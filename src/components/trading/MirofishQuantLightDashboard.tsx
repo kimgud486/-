@@ -605,7 +605,7 @@ export const MirofishQuantLightDashboard: React.FC = () => {
           <div className="space-y-2.5 font-mono text-xs">
             <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-2xs">
               <div className="text-slate-400 text-[10px]">투입 시뮬레이션 구슬 (BALLS DROPPED)</div>
-              <div className="text-xl font-black text-slate-900 font-mono mt-0.5">{droppedBalls.toLocaleString()} 개</div>
+              <div className="text-xl font-black text-slate-900 font-mono mt-0.5">{(droppedBalls ?? 0).toLocaleString()} 개</div>
             </div>
 
             <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-2xs">

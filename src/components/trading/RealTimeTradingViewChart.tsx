@@ -139,7 +139,7 @@ export const RealTimeTradingViewChart: React.FC<RealTimeTradingViewChartProps> =
 
   // Format price helper based on market
   const formatDisplayPrice = useCallback((p: number) => {
-    if (market === "US") return `$${p.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    if (market === "US") return `$${(p ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
     return `₩${Math.round(p).toLocaleString()}`;
   }, [market]);
 

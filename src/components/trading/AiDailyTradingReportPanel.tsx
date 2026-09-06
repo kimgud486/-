@@ -272,7 +272,7 @@ export const AiDailyTradingReportPanel: React.FC<AiDailyTradingReportPanelProps>
             </span>
           </div>
           <span className="text-[10px] text-slate-400 font-mono mt-0.5">
-            손익 +₩{stats.totalProfitAmount.toLocaleString()}
+            손익 +₩{(stats.totalProfitAmount ?? 0).toLocaleString()}
           </span>
         </div>
 
@@ -284,7 +284,7 @@ export const AiDailyTradingReportPanel: React.FC<AiDailyTradingReportPanelProps>
           </span>
           <div className="mt-1">
             <span className="text-base sm:text-lg font-black font-mono text-emerald-600 dark:text-emerald-400">
-              +₩{stats.realizedPnL.toLocaleString()}
+              +₩{(stats.realizedPnL ?? 0).toLocaleString()}
             </span>
           </div>
           <span className="text-[10px] text-slate-400 font-mono mt-0.5">
@@ -375,7 +375,7 @@ export const AiDailyTradingReportPanel: React.FC<AiDailyTradingReportPanelProps>
           </div>
           <div className="mt-3 pt-2.5 border-t border-slate-200/80 dark:border-slate-700/80 flex items-center justify-between text-xs font-mono text-slate-600 dark:text-slate-300">
             <span>보유 {marketBreakdown.korea.count}종목</span>
-            <span>평가액 ₩{marketBreakdown.korea.val.toLocaleString()}원</span>
+            <span>평가액 ₩{(marketBreakdown.korea.val ?? 0).toLocaleString()}원</span>
           </div>
         </div>
 
@@ -395,7 +395,7 @@ export const AiDailyTradingReportPanel: React.FC<AiDailyTradingReportPanelProps>
           </div>
           <div className="mt-3 pt-2.5 border-t border-slate-200/80 dark:border-slate-700/80 flex items-center justify-between text-xs font-mono text-slate-600 dark:text-slate-300">
             <span>보유 {marketBreakdown.us.count}종목</span>
-            <span>평가액 ₩{marketBreakdown.us.val.toLocaleString()}원</span>
+            <span>평가액 ₩{(marketBreakdown.us.val ?? 0).toLocaleString()}원</span>
           </div>
         </div>
 
@@ -533,7 +533,7 @@ export const AiDailyTradingReportPanel: React.FC<AiDailyTradingReportPanelProps>
                   {t.side === "BUY" ? "매수" : "매도"}
                 </span>
                 <span className="font-bold text-slate-200">{t.name} ({t.symbol})</span>
-                <span className="text-slate-400 text-[11px]">{t.quantity}주 @ ₩{t.price.toLocaleString()}</span>
+                <span className="text-slate-400 text-[11px]">{t.quantity}주 @ ₩{(t.price ?? 0).toLocaleString()}</span>
               </div>
               <div className="flex items-center gap-2 text-[11px] text-slate-400">
                 <span className="truncate max-w-[140px] sm:max-w-xs">{t.strategyName || "AI 오토파일럿"}</span>

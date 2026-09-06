@@ -231,7 +231,7 @@ export const GlobalTradeGuardModal: React.FC<GlobalTradeGuardModalProps> = ({ pe
             <div className="bg-slate-950 border border-slate-800 p-3.5 rounded-xl space-y-2">
               <div className="flex justify-between items-center text-xs">
                 <span className="text-zinc-400 font-bold">주문 단가 ({currencyUnit})</span>
-                <span className="text-[10px] text-zinc-500 font-mono">현재 시장가: {pendingTrade.price.toLocaleString()}{currencyUnit}</span>
+                <span className="text-[10px] text-zinc-500 font-mono">현재 시장가: {(pendingTrade.price ?? 0).toLocaleString()}{currencyUnit}</span>
               </div>
               <div className="flex items-center gap-2">
                 <button
@@ -268,7 +268,7 @@ export const GlobalTradeGuardModal: React.FC<GlobalTradeGuardModalProps> = ({ pe
               </span>
               <span className="text-[11px] text-emerald-400 font-mono font-bold flex items-center gap-1">
                 <Wallet className="h-3 w-3" />
-                <span>가용 예수금: {currentCash.toLocaleString()}{currencyUnit}</span>
+                <span>가용 예수금: {(currentCash ?? 0).toLocaleString()}{currencyUnit}</span>
               </span>
             </div>
 
@@ -383,7 +383,7 @@ export const GlobalTradeGuardModal: React.FC<GlobalTradeGuardModalProps> = ({ pe
             <div className="grid grid-cols-2 gap-2 text-[11px] pt-1">
               <div>
                 <span className="text-zinc-500 font-sans block">적용 단가</span>
-                <span className="font-bold text-white">{effectivePrice.toLocaleString()}{currencyUnit}</span>
+                <span className="font-bold text-white">{(effectivePrice ?? 0).toLocaleString()}{currencyUnit}</span>
               </div>
               <div>
                 <span className="text-zinc-500 font-sans block">최종 주문 수량</span>
@@ -413,7 +413,7 @@ export const GlobalTradeGuardModal: React.FC<GlobalTradeGuardModalProps> = ({ pe
             <div className="bg-amber-950/80 border border-amber-500/50 rounded-xl p-3 text-xs text-amber-200 flex items-center gap-2">
               <AlertTriangle className="h-4 w-4 text-amber-400 shrink-0" />
               <span>
-                주의: 가용 실예수금({currentCash.toLocaleString()}{currencyUnit})보다 총 주문 금액이 큽니다.
+                주의: 가용 실예수금({(currentCash ?? 0).toLocaleString()}{currencyUnit})보다 총 주문 금액이 큽니다.
               </span>
             </div>
           )}

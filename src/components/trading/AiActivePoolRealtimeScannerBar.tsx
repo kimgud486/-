@@ -381,7 +381,7 @@ export const AiActivePoolRealtimeScannerBar: React.FC = () => {
                           </span>
                         </div>
                         <div className="text-[11px] text-slate-400 mt-1 flex items-center gap-2 font-mono">
-                          <span>현재가: {stk.price.toLocaleString()}원</span>
+                          <span>현재가: {(stk.price ?? 0).toLocaleString()}원</span>
                           <span className={stk.changePct >= 0 ? "text-red-400 font-bold" : "text-blue-400 font-bold"}>
                             {stk.changePct >= 0 ? "+" : ""}{stk.changePct}%
                           </span>

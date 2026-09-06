@@ -441,7 +441,7 @@ export const GlobalStockSearchAndAdd: React.FC = () => {
         qty,
         stock.price,
         "AI 검색창 초고속 매수",
-        `[AI 통합검색 빠른주문] 실시간 호가 ${stock.price.toLocaleString()}원 즉시 체결 주문.`
+        `[AI 통합검색 빠른주문] 실시간 호가 ${(stock.price ?? 0).toLocaleString()}원 즉시 체결 주문.`
       );
     } catch (err: any) {
       addToast({
@@ -740,8 +740,8 @@ export const GlobalStockSearchAndAdd: React.FC = () => {
                           <div className="text-right">
                             <div className="font-mono text-xs font-black text-white">
                               {stock.market === "US" 
-                                ? `$${stock.price.toLocaleString()}` 
-                                : `₩${stock.price.toLocaleString()}원`}
+                                ? `$${(stock.price ?? 0).toLocaleString()}` 
+                                : `₩${(stock.price ?? 0).toLocaleString()}원`}
                             </div>
                             <div className={`text-[10px] font-mono font-bold flex items-center justify-end gap-0.5 ${
                               isUp ? "text-rose-400" : "text-blue-400"

@@ -21,7 +21,7 @@ export const MiniVolumeBar: React.FC<MiniVolumeBarProps> = ({
     ? `${(numVol / 1000000).toFixed(1)}M`
     : numVol > 1000
     ? `${(numVol / 1000).toFixed(1)}K`
-    : numVol.toLocaleString();
+    : (numVol ?? 0).toLocaleString();
 
   // Volume power intensity (e.g., >100% buy power, <100% sell power)
   const isBuyDominant = volumePower >= 100;

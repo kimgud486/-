@@ -344,7 +344,7 @@ export const LightCandlestickChart: React.FC<LightCandlestickChartProps> = ({
 
       ctx.fillStyle = "#A855F7";
       ctx.font = "bold 9px 'JetBrains Mono', sans-serif";
-      ctx.fillText(`🚀 TP3 (+12.0% | 30% 잔량) ₩${tp3Price.toLocaleString()}`, margin.left + 8, tp3Y - 3);
+      ctx.fillText(`🚀 TP3 (+12.0% | 30% 잔량) ₩${(tp3Price ?? 0).toLocaleString()}`, margin.left + 8, tp3Y - 3);
 
       // TP2 Line (+7.0%, 30% Trailing Stop)
       ctx.strokeStyle = "rgba(14, 165, 233, 0.85)"; // Sky Blue
@@ -357,7 +357,7 @@ export const LightCandlestickChart: React.FC<LightCandlestickChartProps> = ({
 
       ctx.fillStyle = "#0284C7";
       ctx.font = "bold 9px 'JetBrains Mono', sans-serif";
-      ctx.fillText(`🎯 TP2 (+7.0% | 30% 트레일링) ₩${tp2Price.toLocaleString()}`, margin.left + 8, tp2Y - 3);
+      ctx.fillText(`🎯 TP2 (+7.0% | 30% 트레일링) ₩${(tp2Price ?? 0).toLocaleString()}`, margin.left + 8, tp2Y - 3);
 
       // TP1 Line (+3.5%, 40% Breakeven Lock)
       ctx.strokeStyle = "rgba(16, 185, 129, 0.85)"; // Emerald
@@ -370,7 +370,7 @@ export const LightCandlestickChart: React.FC<LightCandlestickChartProps> = ({
 
       ctx.fillStyle = "#059669";
       ctx.font = "bold 9px 'JetBrains Mono', sans-serif";
-      ctx.fillText(`🎯 TP1 (+3.5% | 40% 본절가스탑) ₩${tp1Price.toLocaleString()}`, margin.left + 8, tp1Y - 3);
+      ctx.fillText(`🎯 TP1 (+3.5% | 40% 본절가스탑) ₩${(tp1Price ?? 0).toLocaleString()}`, margin.left + 8, tp1Y - 3);
 
       // Stop Loss Line (-2.5%)
       ctx.strokeStyle = "rgba(239, 68, 68, 0.75)"; // Red
@@ -383,7 +383,7 @@ export const LightCandlestickChart: React.FC<LightCandlestickChartProps> = ({
 
       ctx.fillStyle = "#DC2626";
       ctx.font = "bold 9px 'JetBrains Mono', sans-serif";
-      ctx.fillText(`🛑 SL (-2.5% 손절선) ₩${slPrice.toLocaleString()}`, margin.left + 8, slY - 3);
+      ctx.fillText(`🛑 SL (-2.5% 손절선) ₩${(slPrice ?? 0).toLocaleString()}`, margin.left + 8, slY - 3);
 
       ctx.setLineDash([]);
     }
@@ -506,7 +506,7 @@ export const LightCandlestickChart: React.FC<LightCandlestickChartProps> = ({
     ctx.fillStyle = "#FFFFFF";
     ctx.font = "bold 9px 'JetBrains Mono', sans-serif";
     ctx.textAlign = "center";
-    ctx.fillText(`${livePrice.toLocaleString()}`, w - margin.right + 31, lastY + 3);
+    ctx.fillText(`${(livePrice ?? 0).toLocaleString()}`, w - margin.right + 31, lastY + 3);
 
   }, [candles, livePrice, toggles, safeStock.price]);
 
@@ -539,10 +539,10 @@ export const LightCandlestickChart: React.FC<LightCandlestickChartProps> = ({
                     : "text-slate-900"
                 }`}
               >
-                {livePrice.toLocaleString()}
+                {(livePrice ?? 0).toLocaleString()}
               </span>
               <span className={`text-xs font-bold ${safeStock.changeRate >= 0 ? "text-rose-600" : "text-blue-600"}`}>
-                ▲ {safeStock.changeAmount > 0 ? safeStock.changeAmount.toLocaleString() : "2,000"} ({safeStock.changeRate >= 0 ? "+" : ""}{safeStock.changeRate}%)
+                ▲ {safeStock.changeAmount > 0 ? (safeStock.changeAmount ?? 0).toLocaleString() : "2,000"} ({safeStock.changeRate >= 0 ? "+" : ""}{safeStock.changeRate}%)
               </span>
             </div>
           </div>
@@ -702,7 +702,7 @@ export const LightCandlestickChart: React.FC<LightCandlestickChartProps> = ({
             <div className="text-right font-mono">
               <span className="text-[10px] text-slate-400">현재 가격 위치: </span>
               <span className="text-xs font-bold text-emerald-400">
-                ₩{livePrice.toLocaleString()} ({safeStock.changeRate >= 0 ? "+" : ""}{safeStock.changeRate}%)
+                ₩{(livePrice ?? 0).toLocaleString()} ({safeStock.changeRate >= 0 ? "+" : ""}{safeStock.changeRate}%)
               </span>
             </div>
           </div>

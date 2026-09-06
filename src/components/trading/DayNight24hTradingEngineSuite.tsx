@@ -503,7 +503,7 @@ export const DayNight24hTradingEngineSuite: React.FC<DayNight24hTradingEngineSui
                     </div>
 
                     <span className="font-mono font-bold text-rose-400">
-                      {log.lossRatePct}% (₩{log.lossAmountKRW.toLocaleString()}원)
+                      {log.lossRatePct}% (₩{(log.lossAmountKRW ?? 0).toLocaleString()}원)
                     </span>
                   </div>
 

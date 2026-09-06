@@ -179,21 +179,21 @@ export const Navbar: React.FC<NavbarProps> = ({ onLock }) => {
             <div className="hidden xl:flex items-center gap-6 text-xs font-mono">
               <div className="flex items-center gap-2 border-r border-zinc-100 pr-4">
                 <span className="text-zinc-500">KOSPI</span>
-                <span className="font-semibold text-zinc-950">{marketStatus.kospi.value.toLocaleString()}</span>
+                <span className="font-semibold text-zinc-950">{(marketStatus.kospi.value ?? 0).toLocaleString()}</span>
                 <span className={marketStatus.kospi.pct >= 0 ? "text-emerald-600 font-medium" : "text-rose-600 font-medium"}>
                   {marketStatus.kospi.pct >= 0 ? "+" : ""}{marketStatus.kospi.pct}%
                 </span>
               </div>
               <div className="flex items-center gap-2 border-r border-zinc-100 pr-4">
                 <span className="text-zinc-500">NASDAQ</span>
-                <span className="font-semibold text-zinc-950">{marketStatus.nasdaq.value.toLocaleString()}</span>
+                <span className="font-semibold text-zinc-950">{(marketStatus.nasdaq.value ?? 0).toLocaleString()}</span>
                 <span className={marketStatus.nasdaq.pct >= 0 ? "text-emerald-600 font-medium" : "text-rose-600 font-medium"}>
                   {marketStatus.nasdaq.pct >= 0 ? "+" : ""}{marketStatus.nasdaq.pct}%
                 </span>
               </div>
               <div className="flex items-center gap-2 border-r border-zinc-100 pr-4">
                 <span className="text-zinc-500">USD/KRW</span>
-                <span className="font-semibold text-zinc-950">{marketStatus.exchangeRate.value.toLocaleString()}원</span>
+                <span className="font-semibold text-zinc-950">{(marketStatus.exchangeRate.value ?? 0).toLocaleString()}원</span>
                 <span className={marketStatus.exchangeRate.pct >= 0 ? "text-rose-600 font-medium" : "text-emerald-600 font-medium"}>
                   {marketStatus.exchangeRate.pct >= 0 ? "+" : ""}{marketStatus.exchangeRate.pct}%
                 </span>

@@ -328,7 +328,7 @@ export const UnifiedMasterOmniBrainSuite: React.FC<UnifiedMasterOmniBrainSuitePr
             현재 분석 종목: <span className="text-amber-300 font-black">{effectiveStock?.name || "종목"} ({effectiveStock?.symbol || ""})</span>
           </span>
           <span className="text-slate-400 text-xs">
-            현재가: <strong className="text-white">{currentPrice.toLocaleString()}원</strong> ({currentChangePct >= 0 ? "+" : ""}{currentChangePct}%)
+            현재가: <strong className="text-white">{(currentPrice ?? 0).toLocaleString()}원</strong> ({currentChangePct >= 0 ? "+" : ""}{currentChangePct}%)
           </span>
           <span className="text-slate-500">|</span>
           <span className="text-cyan-400 font-bold">AI 패턴: {effectiveStock?.patternName || "모멘텀 수렴"}</span>
@@ -381,11 +381,11 @@ export const UnifiedMasterOmniBrainSuite: React.FC<UnifiedMasterOmniBrainSuitePr
           <div className="flex items-center gap-4 text-xs font-mono shrink-0">
             <div className="text-right">
               <span className="text-[10px] text-slate-400 block">1차 목표가</span>
-              <span className="text-emerald-400 font-bold">₩{masterDecision.targetPrice1.toLocaleString()}</span>
+              <span className="text-emerald-400 font-bold">₩{(masterDecision.targetPrice1 ?? 0).toLocaleString()}</span>
             </div>
             <div className="text-right">
               <span className="text-[10px] text-slate-400 block">손절 기준가</span>
-              <span className="text-rose-400 font-bold">₩{masterDecision.stopLossPrice.toLocaleString()}</span>
+              <span className="text-rose-400 font-bold">₩{(masterDecision.stopLossPrice ?? 0).toLocaleString()}</span>
             </div>
             <div className="text-right">
               <span className="text-[10px] text-slate-400 block">손익비 (RR Ratio)</span>

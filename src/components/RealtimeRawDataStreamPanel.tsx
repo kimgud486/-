@@ -216,7 +216,7 @@ export const RealtimeRawDataStreamPanel: React.FC<RealtimeRawDataStreamPanelProp
         <div className="bg-zinc-900/80 p-3 rounded-xl border border-zinc-800">
           <span className="text-zinc-400 text-[10px] block">🟢 누적 매수 체결량</span>
           <span className="text-base font-black text-emerald-400">
-            {totalBuyVolume.toLocaleString()}
+            {(totalBuyVolume ?? 0).toLocaleString()}
           </span>
           <span className="text-[10px] text-emerald-500 block">매수 수급 가중</span>
         </div>
@@ -224,7 +224,7 @@ export const RealtimeRawDataStreamPanel: React.FC<RealtimeRawDataStreamPanelProp
         <div className="bg-zinc-900/80 p-3 rounded-xl border border-zinc-800">
           <span className="text-zinc-400 text-[10px] block">🔴 누적 매도 체결량</span>
           <span className="text-base font-black text-rose-400">
-            {totalSellVolume.toLocaleString()}
+            {(totalSellVolume ?? 0).toLocaleString()}
           </span>
           <span className="text-[10px] text-rose-500 block">매도 차익 물량</span>
         </div>
@@ -278,11 +278,11 @@ export const RealtimeRawDataStreamPanel: React.FC<RealtimeRawDataStreamPanelProp
 
                 <div className="flex items-center gap-6">
                   <span className={`font-bold ${t.side === 'BUY' ? 'text-emerald-400' : 'text-rose-400'}`}>
-                    {currencySymbol}{t.price.toLocaleString()}
+                    {currencySymbol}{(t.price ?? 0).toLocaleString()}
                   </span>
 
                   <span className="text-zinc-300 w-16 text-right">
-                    {t.volume.toLocaleString()}
+                    {(t.volume ?? 0).toLocaleString()}
                   </span>
 
                   <span className={`px-2 py-0.5 rounded text-[10px] font-black w-12 text-center ${

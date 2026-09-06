@@ -89,7 +89,7 @@ export const TransactionHistory: React.FC = () => {
       addToast({
         type: "SUCCESS",
         title: "실시간 API 잔고 동기화 완료",
-        message: `한국투자증권(KIS) 실잔고: ${res.balance.toLocaleString()} KRW (통합 대시보드 즉시 반영 완료)`
+        message: `한국투자증권(KIS) 실잔고: ${(res.balance ?? 0).toLocaleString()} KRW (통합 대시보드 즉시 반영 완료)`
       });
     } catch (e: any) {
       console.error(e);
@@ -457,11 +457,11 @@ export const TransactionHistory: React.FC = () => {
                   const totalAmt = t.quantity * t.price;
                   const isReal = t.isRealTrade === true || t.executionType === "REAL_BROKER";
                   const formattedPrice = t.market === "US" 
-                    ? `$${t.price.toLocaleString(undefined, { minimumFractionDigits: 2 })}`
-                    : `${t.price.toLocaleString()}원`;
+                    ? `$${(t.price ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}`
+                    : `${(t.price ?? 0).toLocaleString()}원`;
 
                   const formattedTotal = t.market === "US"
-                    ? `$${totalAmt.toLocaleString(undefined, { minimumFractionDigits: 2 })}`
+                    ? `$${(totalAmt ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}`
                     : `${Math.round(totalAmt).toLocaleString()}원`;
 
                   return (
@@ -488,7 +488,7 @@ export const TransactionHistory: React.FC = () => {
                       </td>
                       <td className="p-3.5 font-bold font-mono text-zinc-800">{formattedPrice}</td>
                       <td className="p-3.5 font-bold font-mono text-zinc-800">
-                        <span>{t.quantity.toLocaleString(undefined, { maximumFractionDigits: 4 })}</span>
+                        <span>{(t.quantity ?? 0).toLocaleString(undefined, { maximumFractionDigits: 4 })}</span>
                         {t.market === "US" && (t.quantity < 1 || t.quantity % 1 !== 0) && (
                           <span className="ml-1.5 text-[9px] px-1.5 py-0.5 rounded bg-cyan-100 text-cyan-800 border border-cyan-200 font-sans font-bold">
                             소수점
@@ -545,8 +545,8 @@ export const TransactionHistory: React.FC = () => {
               ) : (
                 filteredOrders.map((o, idx) => {
                   const formattedPrice = o.market === "US"
-                    ? `$${o.price.toLocaleString(undefined, { minimumFractionDigits: 2 })}`
-                    : `${o.price.toLocaleString()}원`;
+                    ? `$${(o.price ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}`
+                    : `${(o.price ?? 0).toLocaleString()}원`;
 
                   return (
                     <tr key={`${o.id}_${idx}`} className="hover:bg-zinc-50/50 transition">
@@ -567,7 +567,7 @@ export const TransactionHistory: React.FC = () => {
                       </td>
                       <td className="p-3.5 font-bold font-mono text-zinc-800">{formattedPrice}</td>
                       <td className="p-3.5 font-bold font-mono text-zinc-800">
-                        {o.quantity.toLocaleString(undefined, { maximumFractionDigits: 4 })}
+                        {(o.quantity ?? 0).toLocaleString(undefined, { maximumFractionDigits: 4 })}
                       </td>
                       <td className="p-3.5 font-bold">
                         {o.status === "FILLED" ? (

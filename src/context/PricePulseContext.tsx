@@ -309,7 +309,7 @@ export const PricePulseBadge: React.FC<{
 
   const formatPrice = (val: number) => {
     if (market === "US" || (/^[A-Z]{1,5}$/.test(symbol) && symbol !== "BTC" && symbol !== "ETH")) {
-      return `$${val.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+      return `$${(val ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
     }
     return `${Math.round(val).toLocaleString()}원`;
   };

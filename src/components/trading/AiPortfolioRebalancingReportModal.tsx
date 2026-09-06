@@ -211,7 +211,7 @@ export const AiPortfolioRebalancingReportModal: React.FC<AiPortfolioRebalancingR
                 <div className="flex items-center justify-between text-xs font-bold">
                   <span className="flex items-center gap-1.5 text-slate-300">
                     <Activity className="w-4 h-4 text-cyan-400" />
-                    총 평가 자산: <strong className="text-white font-mono text-sm">₩{grandTotal.toLocaleString()}</strong>
+                    총 평가 자산: <strong className="text-white font-mono text-sm">₩{(grandTotal ?? 0).toLocaleString()}</strong>
                   </span>
                   <span className="text-slate-400 text-[11px]">권장 목표 비중: 국내 35% | 미국 30% | 가상자산 20% | 현금 15%</span>
                 </div>
@@ -325,7 +325,7 @@ export const AiPortfolioRebalancingReportModal: React.FC<AiPortfolioRebalancingR
                             <div>
                               <span>{item.rationale}</span>
                               <div className="mt-1 font-mono text-[11px] text-cyan-400 font-bold">
-                                💡 권장 조절 금액: 약 {item.amount.toLocaleString()}원
+                                💡 권장 조절 금액: 약 {(item.amount ?? 0).toLocaleString()}원
                               </div>
                             </div>
                           </div>
