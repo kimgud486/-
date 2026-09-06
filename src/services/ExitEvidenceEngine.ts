@@ -53,7 +53,13 @@ export interface ExitEvidence {
   relativeStrengthLoss: boolean;
   marketWeakness: boolean;
 
+  hardExit: boolean;
+  structuralCount: number;
+  warningCount: number;
+
   exitRiskScore: number; // 0 ~ 100
+  confidence: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
+  recommendedAction: "HOLD" | "PROFIT_HOLD" | "SELL_WATCH" | "SELL";
   reasons: string[];
 }
 
@@ -160,7 +166,50 @@ export class ExitEvidenceEngine {
       reasons.push("🌐 [시장 약세] 지수 전체 급락 변동성");
     }
 
+    const hardExit = hardStopHit || trailingStopHit;
+
+    // Count Structural evidence
+    let structuralCount = 0;
+    if (structureBreak) structuralCount++;
+    if (bearishChoch) structuralCount++;
+    if (swingLowBreak) structuralCount++;
+
+    // Count Warning (Momentum/Flow/Market) evidence
+    let warningCount = 0;
+    if (vwapLost) warningCount++;
+    if (ema20Lost) warningCount++;
+    if (macdWeakening) warningCount++;
+    if (rsiWeakening) warningCount++;
+    if (hasBearishCandlePattern) warningCount++;
+    if (orderFlowReversal) warningCount++;
+    if (cvdDivergence) warningCount++;
+    if (relativeStrengthLoss) warningCount++;
+    if (marketWeakness) warningCount++;
+
     const exitRiskScore = Math.min(100, score);
+
+    // V18.2 Decision Matrix
+    let confidence: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL" = "LOW";
+    let recommendedAction: "HOLD" | "PROFIT_HOLD" | "SELL_WATCH" | "SELL" = "HOLD";
+
+    const pnlPct = input.entryPrice > 0 ? ((input.currentPrice - input.entryPrice) / input.entryPrice) * 100 : 0;
+
+    if (hardExit) {
+      confidence = "CRITICAL";
+      recommendedAction = "SELL";
+    } else if (structuralCount >= 2 && warningCount >= 1) {
+      confidence = "HIGH";
+      recommendedAction = "SELL";
+    } else if (structuralCount >= 1 || warningCount >= 3) {
+      confidence = "MEDIUM";
+      recommendedAction = "SELL_WATCH";
+    } else if (warningCount >= 1) {
+      confidence = "LOW";
+      recommendedAction = pnlPct > 0 ? "PROFIT_HOLD" : "HOLD";
+    } else {
+      confidence = "LOW";
+      recommendedAction = pnlPct > 0 ? "PROFIT_HOLD" : "HOLD";
+    }
 
     return {
       hardStopHit,
@@ -177,7 +226,12 @@ export class ExitEvidenceEngine {
       cvdDivergence,
       relativeStrengthLoss,
       marketWeakness,
+      hardExit,
+      structuralCount,
+      warningCount,
       exitRiskScore,
+      confidence,
+      recommendedAction,
       reasons
     };
   }

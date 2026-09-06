@@ -72,6 +72,11 @@ export class DefaultMarketDiscoveryProvider implements MarketDiscoveryProvider {
   }
 }
 
+/**
+ * @deprecated ANALYSIS_ONLY
+ * Legacy scanner engine V12.
+ * Production runtime usage prohibited in favor of GlobalStockDiscoveryScannerV17 / V18.
+ */
 export class GlobalStockDiscoveryScannerV12 {
   private provider: MarketDiscoveryProvider;
 

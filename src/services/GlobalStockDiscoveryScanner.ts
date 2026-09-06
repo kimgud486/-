@@ -70,6 +70,11 @@ export interface PipelineFilterOptions {
   searchQuery: string;
 }
 
+/**
+ * @deprecated ANALYSIS_ONLY
+ * Legacy GlobalStockDiscoveryScannerService V10.
+ * Recommended production scanner is GlobalStockDiscoveryScannerV17 / V18.
+ */
 export class GlobalStockDiscoveryScannerService {
   /**
    * Dynamically build candidates from stockUniverse real data

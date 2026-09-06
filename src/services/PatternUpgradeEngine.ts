@@ -81,6 +81,11 @@ export interface PatternUpgradeEvaluation {
   };
 }
 
+/**
+ * @deprecated ANALYSIS_ONLY
+ * Legacy PatternUpgradeEngine.
+ * Recommended replacement is ContextPatternEngine / ExitEvidenceEngine / RealScannerCoreEngine.
+ */
 export class PatternUpgradeEngine {
   /**
    * Evaluate real candle, order flow, and quote data for pattern integrity
