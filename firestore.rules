@@ -25,5 +25,8 @@ service cloud.firestore {
     match /ai_model_upgrades/{upgradeId} {
       allow read, write: if true;
     }
+    match /positions_trailing_v138/{docId} {
+      allow read, write: if true;
+    }
   }
 }

@@ -35,6 +35,8 @@ import { IndicatorEngine } from "../../realtime/IndicatorEngine";
 import { MarketStructureEngine } from "../../realtime/MarketStructureEngine";
 import { decideTradingState, calculateDynamicTrailingExit } from "../../realtime/TradingStateMachine";
 import { AdaptiveTrailingExitEngineV137 } from "../../services/v13_7/AdaptiveTrailingExitEngineV137";
+import { ExitDecisionBridgeV138 } from "../../services/v13_8/ExitDecisionBridgeV138";
+import { PositionTrailingStateStoreV138 } from "../../services/v13_8/PositionTrailingStateStoreV138";
 import { generateForecastPath } from "../../realtime/ForecastPathEngine";
 import { realTimeMarketFeedManager } from "../../realtime/RealTimeMarketFeedService";
 
@@ -111,6 +113,29 @@ export const RealTimeTradingViewChart: React.FC<RealTimeTradingViewChartProps> =
   const previousTrailingFloorRef = useRef<number>(0);
   const trailingExitRef = useRef<number>(0);
   const tradingStateRef = useRef<TradingState>("NO_TRADE");
+
+  // Restore persisted position trailing state on mount
+  useEffect(() => {
+    let active = true;
+    PositionTrailingStateStoreV138.getState(symbol).then((persisted) => {
+      if (active && persisted && persisted.highestPriceSinceBuy > 0) {
+        entryPriceRef.current = persisted.entryPrice;
+        highestPriceRef.current = persisted.highestPriceSinceBuy;
+        previousTrailingFloorRef.current = persisted.trailingFloor;
+        trailingExitRef.current = persisted.trailingFloor;
+        setTrailingExitPrice(persisted.trailingFloor);
+
+        if (persisted.lastState && persisted.lastState !== "HOLD") {
+          const mapped = persisted.lastState as TradingState;
+          tradingStateRef.current = mapped;
+          setTradingState(mapped);
+        }
+      }
+    });
+    return () => {
+      active = false;
+    };
+  }, [symbol]);
 
   // Format price helper based on market
   const formatDisplayPrice = useCallback((p: number) => {
@@ -257,7 +282,7 @@ export const RealTimeTradingViewChart: React.FC<RealTimeTradingViewChartProps> =
       onStateChange?.(nextState, confidenceScore);
     }
 
-    // 5. Update dynamic trailing stop via AdaptiveTrailingExitEngineV137
+    // 5. Update dynamic trailing stop via AdaptiveTrailingExitEngineV137 & ExitDecisionBridgeV138
     if (["BUY", "HOLD", "PROFIT_HOLD", "SELL_WATCH"].includes(tradingStateRef.current) && entryPriceRef.current > 0) {
       highestPriceRef.current = Math.max(highestPriceRef.current, closedCandle.close);
 
@@ -271,8 +296,9 @@ export const RealTimeTradingViewChart: React.FC<RealTimeTradingViewChartProps> =
         atr14: indicators.atr14,
         sessionVwap: indicators.vwap,
         ema20: indicators.ema20,
-        recentSwingLow: structure.hhhlValid ? closedCandle.low : undefined,
-        structure: structure.hhhlValid ? "HH_HL" : "SIDEWAYS",
+        recentSwingLow: structure.lastConfirmedSwingLow,
+        confirmedSupport: structure.confirmedSupport,
+        structure: structure.structure,
         rsi14: indicators.rsi14,
         macdHist: indicators.macdHistogram
       });
@@ -280,6 +306,43 @@ export const RealTimeTradingViewChart: React.FC<RealTimeTradingViewChartProps> =
       previousTrailingFloorRef.current = res.trailingFloor;
       trailingExitRef.current = res.trailingFloor;
       setTrailingExitPrice(res.trailingFloor);
+
+      const bridge = ExitDecisionBridgeV138.resolve({
+        adaptive: res,
+        feedVerified: executionFeedValid,
+        indicatorsReady: indicators.indicatorsReady === true,
+        completedBar: closedCandle.isClosed === true,
+        currentPositionQty: 10,
+        brokerHealthy: true,
+        heartbeatHealthy: true
+      });
+
+      if (bridge.action === "SELL" || bridge.action === "EMERGENCY_EXIT") {
+        tradingStateRef.current = "SELL";
+        setTradingState("SELL");
+        onStateChange?.("SELL", confidenceScore);
+      } else if (bridge.action === "SELL_WATCH") {
+        tradingStateRef.current = "SELL_WATCH";
+        setTradingState("SELL_WATCH");
+        onStateChange?.("SELL_WATCH", confidenceScore);
+      } else if (bridge.action === "PROFIT_HOLD") {
+        tradingStateRef.current = "PROFIT_HOLD";
+        setTradingState("PROFIT_HOLD");
+        onStateChange?.("PROFIT_HOLD", confidenceScore);
+      }
+
+      // Persist active position trailing state to store
+      PositionTrailingStateStoreV138.saveState({
+        positionId: `${symbol}_active`,
+        symbol,
+        market: market === "US" ? "US" : "KOREA",
+        entryPrice: entryPriceRef.current,
+        qty: 10,
+        highestPriceSinceBuy: highestPriceRef.current,
+        trailingFloor: res.trailingFloor,
+        lastState: bridge.action,
+        updatedAt: Date.now()
+      });
 
       if (trailingExitSeriesRef.current) {
         trailingExitSeriesRef.current.update({

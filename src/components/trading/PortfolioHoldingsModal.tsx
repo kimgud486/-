@@ -154,7 +154,8 @@ export const PortfolioHoldingsModal: React.FC<PortfolioHoldingsModalProps> = ({
   const [isFilterConfigModalOpen, setIsFilterConfigModalOpen] = useState(false);
   const [selectedHoldingForRationale, setSelectedHoldingForRationale] = useState<HoldingDetailData | null>(null);
 
-  const fxRate = marketStatus?.exchangeRate?.value || 1384.5;
+  const fxRate = marketStatus?.exchangeRate?.value;
+  const safeFxRate = fxRate || 1;
 
   const handleOpenRationale = (holdingItem: HoldingItem) => {
     setSelectedHoldingForRationale({

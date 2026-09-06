@@ -68,7 +68,8 @@ export const MockPortfolioDetailModal: React.FC<MockPortfolioDetailModalProps> =
   const [selectedSymbolForLoss, setSelectedSymbolForLoss] = useState<string | null>(null);
   const [isPerformanceReportOpen, setIsPerformanceReportOpen] = useState(false);
 
-  const fxRate = marketStatus?.exchangeRate?.value || 1384.5;
+  const fxRate = marketStatus?.exchangeRate?.value;
+  const safeFxRate = fxRate || 1;
 
   // Stats Calculations
   const mockCash = profile?.balance || 0;

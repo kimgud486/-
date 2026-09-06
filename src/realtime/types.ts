@@ -130,10 +130,24 @@ export interface TradingMarker {
 export interface MarketStructureSnapshot {
   trend: "BULLISH" | "BEARISH" | "SIDEWAYS";
   hhhlValid: boolean;
+  lhllValid: boolean;
+
+  higherHigh: boolean;
+  higherLow: boolean;
+  lowerHigh: boolean;
+  lowerLow: boolean;
+
   lastHigherHigh?: number;
   lastHigherLow?: number;
   lastLowerHigh?: number;
   lastLowerLow?: number;
+
+  lastConfirmedSwingHigh?: number;
+  lastConfirmedSwingLow?: number;
+  confirmedSupport?: number;
+
+  structure: "HH_HL" | "LH_LL" | "SIDEWAYS";
+
   breakoutValid: boolean;
   pullbackValid: boolean;
   vwapReclaim: boolean;

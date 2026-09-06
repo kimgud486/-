@@ -63,10 +63,12 @@ export const HomeRealtimeProfitBoard: React.FC<HomeRealtimeProfitBoardProps> = (
   const [isLossModalOpen, setIsLossModalOpen] = useState<boolean>(false);
   const [isFeedbackAnalyzerOpen, setIsFeedbackAnalyzerOpen] = useState<boolean>(false);
 
-  // Real-time Exchange Rate (USD/KRW)
-  const fxRate = marketStatus?.exchangeRate?.value || 1384.5;
-  const fxChange = marketStatus?.exchangeRate?.change || -4.5;
-  const fxPct = marketStatus?.exchangeRate?.pct || -0.32;
+  // Real-time Exchange Rate (USD/KRW) - No hardcoded fallbacks
+  const hasFxRateData = Boolean(marketStatus?.exchangeRate && typeof marketStatus.exchangeRate.value === 'number' && marketStatus.exchangeRate.value > 0);
+  const fxRate = hasFxRateData ? (marketStatus?.exchangeRate?.value as number) : undefined;
+  const safeFxRate = fxRate || 1;
+  const fxChange = marketStatus?.exchangeRate?.change ?? 0;
+  const fxPct = marketStatus?.exchangeRate?.pct ?? 0;
 
   useEffect(() => {
     const handleOpenMockModal = () => setIsMockBalanceModalOpen(true);
@@ -450,10 +452,16 @@ export const HomeRealtimeProfitBoard: React.FC<HomeRealtimeProfitBoardProps> = (
             id="btn-open-fx-rate-modal"
           >
             <Globe2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-            <span>USD/KRW ₩{fxRate.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}</span>
-            <span className={fxChange < 0 ? "text-blue-600 dark:text-blue-400 font-bold" : "text-rose-600 dark:text-rose-400 font-bold"}>
-              ({fxChange < 0 ? "" : "+"}{fxChange.toFixed(1)}원)
-            </span>
+            {hasFxRateData && fxRate ? (
+              <>
+                <span>USD/KRW ₩{fxRate.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}</span>
+                <span className={fxChange < 0 ? "text-blue-600 dark:text-blue-400 font-bold" : "text-rose-600 dark:text-rose-400 font-bold"}>
+                  ({fxChange < 0 ? "" : "+"}{fxChange.toFixed(1)}원)
+                </span>
+              </>
+            ) : (
+              <span className="text-amber-700 dark:text-amber-400 font-bold">USD/KRW DATA UNAVAILABLE</span>
+            )}
           </button>
         </div>
 
@@ -626,12 +634,18 @@ export const HomeRealtimeProfitBoard: React.FC<HomeRealtimeProfitBoardProps> = (
                   </button>
                 </>
               )}
-              <span className={`text-[11px] font-mono px-2 py-0.5 rounded font-bold ${
+              <span className={`text-[11px] font-mono px-2 py-0.5 rounded font-extrabold uppercase tracking-wider ${
                 isRealTrade
-                  ? "bg-rose-500/30 text-rose-200 border border-rose-400/40"
-                  : "bg-blue-500/20 text-blue-200 border border-blue-400/30"
+                  ? (hasKoreaKey || hasUpbitKey || hasTossKey)
+                    ? "bg-emerald-500/30 text-emerald-200 border border-emerald-400/50"
+                    : "bg-rose-500/30 text-rose-200 border border-rose-400/40"
+                  : "bg-amber-500/30 text-amber-200 border border-amber-400/40"
               }`}>
-                {isRealTrade ? "실시간 증권사 API 동기화" : "가상 시뮬레이션"}
+                {isRealTrade
+                  ? (hasKoreaKey || hasUpbitKey || hasTossKey)
+                    ? "LIVE VERIFIED (BROKER VERIFIED)"
+                    : "LIVE (NOT CONNECTED - DATA UNAVAILABLE)"
+                  : "PAPER NOT VERIFIED"}
               </span>
             </div>
           </div>

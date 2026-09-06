@@ -87,7 +87,8 @@ export const AiDepositStockRecommender: React.FC = () => {
   const [lastScanTime, setLastScanTime] = useState<string>("방금 전 (KIS 실시간 연동)");
 
   // Live Exchange rate from marketStatus
-  const USD_KRW_RATE = marketStatus?.exchangeRate?.value || 1384.5;
+  const USD_KRW_RATE = marketStatus?.exchangeRate?.value;
+  const safeUsdKrwRate = USD_KRW_RATE || 1;
 
   // Real Master Recommendations Database with Real Technical & Fundamental Indicators
   const allRecommendations: RecommendedStock[] = [

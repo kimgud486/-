@@ -52,7 +52,8 @@ export const FractionalStockOrderModal: React.FC<FractionalStockOrderModalProps>
   const currentPrice = activeStock.price > 0 ? activeStock.price : 200;
 
   // Real-time Exchange Rate (KRW/USD)
-  const fxRate = marketStatus?.exchangeRate?.value || 1385;
+  const fxRate = marketStatus?.exchangeRate?.value;
+  const safeFxRate = fxRate || 1;
 
   // Order Modes: By Currency Amount ($ or ₩) vs By Fractional Share Quantity
   const [orderSide, setOrderSide] = useState<'BUY' | 'SELL'>('BUY');

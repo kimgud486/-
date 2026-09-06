@@ -65,9 +65,7 @@ export class RealBarBuilder {
         source: "KIS_REALTIME_WS",
         receivedAt: Date.now(),
 
-        verified: true,
-        feedQuality: "BROKER_REALTIME",
-        integrityValid: true
+        verified: true
       };
 
       this.bars.set(key, {

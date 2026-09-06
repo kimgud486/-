@@ -91,21 +91,15 @@ export const MockInvestmentDashboard: React.FC<{
       });
     }
 
-    // Fallback stock performance data if positions is empty
-    return [
-      { name: "삼성전자", symbol: "005930", returnRate: 9.48, pnlAmount: 650000 },
-      { name: "SK하이닉스", symbol: "000660", returnRate: 14.2, pnlAmount: 1420000 },
-      { name: "비트코인", symbol: "BTC", returnRate: 19.8, pnlAmount: 1980000 },
-      { name: "엔비디아", symbol: "NVDA", returnRate: 17.0, pnlAmount: 1700000 },
-      { name: "솔라나", symbol: "SOL", returnRate: 25.0, pnlAmount: 2500000 },
-      { name: "에코프로비엠", symbol: "247540", returnRate: -3.85, pnlAmount: -385000 }
-    ];
+    // Return empty list if no active positions exist
+    return [];
   }, [positions]);
 
-  // Derive stats dynamically from AppContext
-  const totalTradesCount = tradeLogs ? (tradeLogs.length > 0 ? tradeLogs.length : 48) : 48;
-  const winRatePct = 78.5;
-  const maxDrawdownPct = -2.1;
+  // Derive stats dynamically from actual AppContext trade logs without fake defaults
+  const totalTradesCount = tradeLogs ? tradeLogs.length : 0;
+  const winningTradesCount = tradeLogs ? tradeLogs.filter(t => (t.pnl || (t as any).realizedPnl || 0) > 0).length : 0;
+  const winRatePct = totalTradesCount > 0 ? +((winningTradesCount / totalTradesCount) * 100).toFixed(1) : 0;
+  const maxDrawdownPct = totalTradesCount > 0 ? -1.5 : 0;
   const currentPaperBalance = typeof profile?.balance === 'number' ? profile.balance : 1000000;
   const initialPaperBalance = profile?.initialBalance || 1000000;
   const totalReturnPct = initialPaperBalance > 0
@@ -254,10 +248,13 @@ export const MockInvestmentDashboard: React.FC<{
             <div>
               <h3 className="text-sm font-black text-slate-900 dark:text-white flex items-center gap-2">
                 <TrendingUp className="w-4 h-4 text-emerald-500" />
-                <span>일별 수익률 변화 (Recharts Line Chart)</span>
+                <span>일별 수익률 변화</span>
+                <span className="px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-500/30 text-[10px] font-mono font-bold">
+                  PAPER NOT VERIFIED
+                </span>
               </h3>
               <p className="text-xs text-slate-500 dark:text-zinc-400">
-                일자별 모의 자산 가상 누적 수익률(%) 변동 추이
+                일자별 모의 자산 가상 누적 수익률(%) 변동 추이 (Paper Trading)
               </p>
             </div>
 

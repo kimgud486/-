@@ -30,10 +30,12 @@ export const ExchangeRateInfoModal: React.FC<ExchangeRateInfoModalProps> = ({
 }) => {
   const { marketStatus, positions } = useApp();
 
-  // Exchange rate data
-  const fxRate = marketStatus?.exchangeRate?.value || 1384.5;
-  const fxChange = marketStatus?.exchangeRate?.change || -4.5;
-  const fxPct = marketStatus?.exchangeRate?.pct || -0.32;
+  // Exchange rate data - No fake fallbacks
+  const hasFxRate = Boolean(marketStatus?.exchangeRate && typeof marketStatus.exchangeRate.value === 'number' && marketStatus.exchangeRate.value > 0);
+  const fxRate = hasFxRate ? (marketStatus?.exchangeRate?.value as number) : undefined;
+  const safeFxRate = fxRate || 1;
+  const fxChange = marketStatus?.exchangeRate?.change ?? 0;
+  const fxPct = marketStatus?.exchangeRate?.pct ?? 0;
   const isDown = fxChange < 0;
 
   // Currency Converter State
