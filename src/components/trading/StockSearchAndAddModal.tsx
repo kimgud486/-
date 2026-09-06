@@ -8,7 +8,7 @@ import {
   Activity,
   Globe
 } from "lucide-react";
-import { StockItem, getAllStocks, saveCustomStock } from "../../data/stockUniverse";
+import { StockItem, getAllStocks, saveCustomStock, buildLiveStockItem } from "../../data/stockUniverse";
 import { realtimeMarketFeedService, LiveMarketQuote } from "../../services/realtimeMarketFeedService";
 import { matchesChosungOrKeyword } from "../../lib/stockDictionary";
 import { getMarketStatus } from "../../lib/marketStatus";
@@ -97,27 +97,18 @@ export const StockSearchAndAddModal: React.FC<StockSearchAndAddModalProps> = ({
       return;
     }
 
-    const priceNum = parseInt(regPrice.replace(/[^0-9]/g, ""), 10) || 10000;
-    const newStock: StockItem = {
-      symbol: regSymbol.trim().toUpperCase(),
-      name: regName.trim(),
-      market: regMarket,
-      category: regCategory,
-      categoryLabel: regCategory === "SMALL" ? "소형주" : regCategory === "MID" ? "중형주" : regCategory === "LARGE" ? "대형주" : "가상자산",
-      price: priceNum,
-      changeRate: 3.45,
-      changeAmount: Math.round(priceNum * 0.0345),
-      tradeValue: "450억",
-      volume: "82만",
-      rvol: 2.8,
-      score: 91,
-      grade: "S",
-      theme: regTheme || "신규 등록 사용자 종목",
-      signal: "LONG",
-      strategy: "신규 발굴 세력 매집 돌파",
-      marketCap: "3,200억",
-      isCustom: true
-    };
+    const newStock: StockItem = buildLiveStockItem(
+      regSymbol.trim().toUpperCase(),
+      regName.trim(),
+      regMarket,
+      {
+        category: regCategory,
+        categoryLabel: regCategory === "SMALL" ? "소형주" : regCategory === "MID" ? "중형주" : regCategory === "LARGE" ? "대형주" : "가상자산",
+        theme: regTheme || "신규 등록 사용자 종목",
+        strategy: "신규 발굴 세력 매집 돌파",
+        isCustom: true
+      }
+    );
 
     saveCustomStock(newStock);
     alert(`[${newStock.name}(${newStock.symbol})] 신규 종목이 등록되어 관제 파이프라인에 연결되었습니다.`);

@@ -50,7 +50,7 @@ import {
   Legend
 } from "recharts";
 import { useApp } from "../context/AppContext";
-import { StockItem, getAllStocks } from "../data/stockUniverse";
+import { StockItem, getAllStocks, buildLiveStockItem } from "../data/stockUniverse";
 import { searchStocksFromIndex, SearchableStockItem } from "../lib/stockDictionary";
 
 export interface PredictivePoint {
@@ -279,25 +279,17 @@ export const AiPredictiveTrendRechartsWidget: React.FC<AiPredictiveTrendRecharts
       if (onSelectStock) onSelectStock(existing);
     } else {
       const marketType = item.market === "US" ? "US" : item.market === "BTC" ? "UPBIT" : "KOSPI";
-      const customStock: StockItem = {
-        symbol: item.symbol,
-        name: item.name,
-        market: marketType as any,
-        category: marketType === "US" ? "LARGE" : marketType === "UPBIT" ? "CRYPTO" : "MID",
-        categoryLabel: marketType === "US" ? "미국주식" : marketType === "UPBIT" ? "업비트 가상자산" : "국내주식",
-        price: item.price || (marketType === "US" ? 150 : marketType === "UPBIT" ? 95000000 : 65000),
-        changeRate: typeof item.changePct === "number" ? item.changePct : 1.25,
-        changeAmount: Math.round((item.price || 50000) * 0.0125),
-        tradeValue: marketType === "UPBIT" ? "1조 2,000억" : "5,200억",
-        volume: "850만",
-        rvol: 1.8,
-        score: 88,
-        grade: "A+",
-        theme: item.sectorTag || item.themeTags?.[0] || (marketType === "UPBIT" ? "업비트 가상자산" : "AI 상관관계 분석"),
-        signal: "LONG",
-        strategy: "AI 딥러닝 다중 시나리오 예측",
-        marketCap: marketType === "UPBIT" ? "가상자산 메이저" : "주요 종목"
-      };
+      const customStock: StockItem = buildLiveStockItem(
+        item.symbol,
+        item.name,
+        marketType as any,
+        {
+          category: marketType === "US" ? "LARGE" : marketType === "UPBIT" ? "CRYPTO" : "MID",
+          categoryLabel: marketType === "US" ? "미국주식" : marketType === "UPBIT" ? "업비트 가상자산" : "국내주식",
+          theme: item.sectorTag || item.themeTags?.[0] || (marketType === "UPBIT" ? "업비트 가상자산" : "AI 상관관계 분석"),
+          strategy: "AI 딥러닝 다중 시나리오 예측"
+        }
+      );
       setSelectedStock(customStock);
       if (onSelectStock) onSelectStock(customStock);
     }

@@ -82,10 +82,11 @@ export class GlobalStockDiscoveryScannerService {
       const marketType: MarketType = isUs ? "US" : isBtc ? "BTC" : "KOREA";
       const marketLabel = isUs ? "NASDAQ/NYSE" : isBtc ? "UPBIT KRW" : "KOSPI/KOSDAQ";
 
+      const price = s.price || 0;
       const rvol = s.rvol || 1.2;
       const changePct = s.changeRate || 0;
-      const parsedVol = parseInt((s.volume || "").replace(/[^0-9]/g, ""), 10) || 100000;
-      const high52wPrice = s.price * 1.08;
+      const parsedVol = typeof s.volume === "number" ? s.volume : parseInt(String(s.volume || "").replace(/[^0-9]/g, ""), 10) || 0;
+      const high52wPrice = price > 0 ? price * 1.08 : 100;
 
       // Calculate dynamic score components based on actual data
       const rvolScore = Math.min(12, Math.round(rvol * 3));

@@ -48,22 +48,23 @@ export class DefaultMarketDiscoveryProvider implements MarketDiscoveryProvider {
     return allStocks.map(stock => {
       const isUs = stock.market === "US";
       const isBtc = stock.market === "UPBIT";
-      const parsedVol = parseInt((stock.volume || "").replace(/[^0-9]/g, ""), 10) || 100000;
+      const parsedVol = typeof stock.volume === "number" ? stock.volume : parseInt(String(stock.volume || "").replace(/[^0-9]/g, ""), 10) || 0;
+      const price = stock.price || 0;
 
       return {
         symbol: stock.symbol,
         name: stock.name,
         market: isUs ? "US" : isBtc ? "BTC" : "KOREA",
-        price: stock.price,
+        price: price,
         changeRate: stock.changeRate || 0,
         volume: parsedVol,
         rvol: stock.rvol || 1.2,
-        sma5: stock.price * 0.99,
-        sma20: stock.price * 0.97,
-        sma60: stock.price * 0.93,
-        high52w: stock.price * 1.08,
-        low52w: stock.price * 0.75,
-        vwap: stock.price * 0.995,
+        sma5: price * 0.99,
+        sma20: price * 0.97,
+        sma60: price * 0.93,
+        high52w: price * 1.08,
+        low52w: price * 0.75,
+        vwap: price * 0.995,
         adx: 28,
         category: stock.category
       };

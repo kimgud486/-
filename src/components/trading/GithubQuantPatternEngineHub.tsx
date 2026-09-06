@@ -128,8 +128,9 @@ export interface ScannedPatternItem {
   symbol: string;
   name: string;
   market: string;
-  price: number;
-  changeRate: number;
+  price: number | null;
+  changeRate: number | null;
+  dataStatus?: "LIVE" | "STALE" | "DISCONNECTED";
   mainPattern: string;
   matchedBots: string[];
   denoiseMethod: "Savitzky-Golay" | "Kalman Filter" | "Wavelet Denoising";
@@ -223,86 +224,124 @@ export const GithubQuantPatternEngineHub: React.FC = () => {
   const [newDslCondition, setNewDslCondition] = useState("");
   const [dslResultOutput, setDslResultOutput] = useState<string | null>(null);
 
-  // Generate synthetic rich scanned pattern list matching V8.1 engine
-  const scannedItems: ScannedPatternItem[] = stocks.slice(0, 10).map((s, idx) => {
-    const isHigh = idx < 4;
-    const isMedium = idx >= 4 && idx < 8;
+  // Scanned pattern list derived strictly from verified real market data / fail-closed states
+  const scannedItems: ScannedPatternItem[] = stocks.map((s) => {
+    // Fail-Closed Check: Disconnected / Missing Price
+    if (!s.price || s.price <= 0 || s.dataStatus === "DISCONNECTED") {
+      return {
+        symbol: s.symbol,
+        name: s.name,
+        market: s.market || "KOREA",
+        price: null,
+        changeRate: null,
+        dataStatus: "DISCONNECTED",
+        mainPattern: "실시간 시세 미수신 (NO_DATA)",
+        matchedBots: ["Live Market Integrity Gate"],
+        denoiseMethod: "Kalman Filter",
+        smcInfo: {
+          structure: "Ranging",
+          orderBlock: "NO_DATA",
+          obVolume: "LOW",
+          isMitigated: true,
+          fvgFillRate: 0
+        },
+        orderFlow: {
+          deltaStatus: "Neutral",
+          cumulativeDelta: 0,
+          imbalanceType: "Balanced",
+          pocStatus: "Inside Value Area"
+        },
+        timeframeConcordance: {
+          m1: false,
+          m3: false,
+          m5: false,
+          m15: false,
+          m30: false,
+          h1: false,
+          d1: false
+        },
+        metrics: {
+          geometry: 0,
+          trendQuality: 0,
+          volumeConf: 0,
+          rvol: 0,
+          breakoutQuality: 0,
+          srAlignment: 0,
+          vwapPos: 0,
+          smcScore: 0,
+          orderFlowScore: 0,
+          falseBreakoutRisk: 100,
+          chaseRisk: 100
+        },
+        patternScore: 0,
+        grade: "C",
+        setupStatus: "REJECT"
+      };
+    }
 
-    const baseScore = isHigh ? 89 + (idx % 8) : isMedium ? 78 + (idx % 9) : 62 + (idx % 12);
-    const score = Math.min(Math.max(baseScore, 50), 99);
-    const grade: "S" | "A" | "B" | "C" = score >= 88 ? "S" : score >= 78 ? "A" : score >= 65 ? "B" : "C";
+    // Live Market Verified State
+    const changeRate = s.changeRate ?? 0;
+    const isBullish = changeRate > 0;
+
+    const baseScore = isBullish ? Math.min(Math.round(72 + Math.abs(changeRate) * 2), 96) : Math.max(Math.round(50 - Math.abs(changeRate) * 2), 20);
+    const patternScore = Math.min(Math.max(baseScore, 10), 99);
+    const grade: "S" | "A" | "B" | "C" = patternScore >= 88 ? "S" : patternScore >= 78 ? "A" : patternScore >= 65 ? "B" : "C";
 
     const setupStatus: "BUY CANDIDATE" | "BREAKOUT WATCH" | "WAIT RE-TEST" | "REJECT" =
-      score >= 90 ? "BUY CANDIDATE" : score >= 80 ? "BREAKOUT WATCH" : score >= 65 ? "WAIT RE-TEST" : "REJECT";
-
-    const patternsList = [
-      "Bull Flag 깃대 상단 수렴 돌파 (SMC BOS)",
-      "Ascending Triangle 상단 수급 돌파",
-      "Wyckoff Spring Phase C 매집 반등",
-      "Double Bottom 이중 바닥 & FVG 메꿈",
-      "Bullish Engulfing + Ask Imbalance",
-      "Cup & Handle 컵앤핸들 POC 상단 돌파",
-      "Volume Climax + Stacked Ask Delta",
-      "Liquidity Sweep 개미 털기 후 수급 Reclaim"
-    ];
-
-    const mainPattern = patternsList[idx % patternsList.length];
-    const denoiseMethods: ("Savitzky-Golay" | "Kalman Filter" | "Wavelet Denoising")[] = [
-      "Wavelet Denoising",
-      "Kalman Filter",
-      "Savitzky-Golay"
-    ];
+      patternScore >= 88 ? "BUY CANDIDATE" : patternScore >= 75 ? "BREAKOUT WATCH" : patternScore >= 55 ? "WAIT RE-TEST" : "REJECT";
 
     return {
       symbol: s.symbol,
       name: s.name,
-      market: s.market || (s.symbol.startsWith("KRW-") ? "BTC" : "KOREA"),
+      market: s.market || "KOREA",
       price: s.price,
       changeRate: s.changeRate,
-      mainPattern,
+      dataStatus: s.dataStatus || "LIVE",
+      mainPattern: isBullish
+        ? `실시간 수급 상승 추세 (${changeRate > 0 ? "+" : ""}${changeRate.toFixed(2)}%)`
+        : `실시간 시세 감시 중 (${changeRate.toFixed(2)}%)`,
       matchedBots: [
-        "Noise Filter Bot",
-        "SMC / ICT Structure Bot",
-        "Order Flow & Delta Bot",
-        idx % 2 === 0 ? "Wyckoff Sweep Bot" : "Volume Profile Bot"
+        "Realtime Data Feed",
+        "SMC / ICT Structure Engine",
+        "Order Flow Delta Gate"
       ],
-      denoiseMethod: denoiseMethods[idx % denoiseMethods.length],
+      denoiseMethod: "Kalman Filter",
       smcInfo: {
-        structure: idx % 3 === 0 ? "Bullish BOS" : idx % 3 === 1 ? "CHoCH" : "Ranging",
-        orderBlock: `Bullish OB (₩${(s.price * 0.97).toFixed(0)})`,
-        obVolume: idx % 2 === 0 ? "HIGH" : "MEDIUM",
+        structure: isBullish ? "Bullish BOS" : "Ranging",
+        orderBlock: `Live Price ₩${s.price.toLocaleString()}`,
+        obVolume: (s.volume || 0) > 1000000 ? "HIGH" : "MEDIUM",
         isMitigated: false,
-        fvgFillRate: 85 + (idx % 12)
+        fvgFillRate: 50
       },
       orderFlow: {
-        deltaStatus: idx % 4 !== 3 ? "Positive Delta" : "Neutral",
-        cumulativeDelta: 14500 + idx * 2300,
-        imbalanceType: idx % 2 === 0 ? "Ask Imbalance" : "Balanced",
-        pocStatus: idx < 6 ? "Above POC & VAH" : "Inside Value Area"
+        deltaStatus: changeRate > 0 ? "Positive Delta" : changeRate < 0 ? "Negative Delta" : "Neutral",
+        cumulativeDelta: Math.round((s.tradeValue || 0) * 0.1),
+        imbalanceType: changeRate > 0 ? "Ask Imbalance" : changeRate < 0 ? "Bid Imbalance" : "Balanced",
+        pocStatus: changeRate > 0 ? "Above POC & VAH" : "Inside Value Area"
       },
       timeframeConcordance: {
         m1: true,
         m3: true,
         m5: true,
-        m15: isHigh || isMedium,
-        m30: isHigh,
-        h1: isHigh,
+        m15: isBullish,
+        m30: isBullish,
+        h1: isBullish,
         d1: true
       },
       metrics: {
-        geometry: 92 - idx,
-        trendQuality: 90 - idx * 2,
-        volumeConf: 88 + (idx % 5),
-        rvol: 2.4 - idx * 0.1,
-        breakoutQuality: 89 + (idx % 4),
-        srAlignment: 94 - idx,
-        vwapPos: 91 - idx,
-        smcScore: 93 - idx,
-        orderFlowScore: 89 + (idx % 6),
-        falseBreakoutRisk: 12 + idx * 2,
-        chaseRisk: 18 + idx * 3
+        geometry: patternScore,
+        trendQuality: patternScore,
+        volumeConf: Math.min(Math.round((s.volume || 0) / 10000), 99),
+        rvol: s.rvol || 1.0,
+        breakoutQuality: patternScore,
+        srAlignment: patternScore,
+        vwapPos: patternScore,
+        smcScore: patternScore,
+        orderFlowScore: patternScore,
+        falseBreakoutRisk: Math.max(10, 100 - patternScore),
+        chaseRisk: Math.max(10, 100 - patternScore)
       },
-      patternScore: score,
+      patternScore,
       grade,
       setupStatus
     };
@@ -322,6 +361,15 @@ export const GithubQuantPatternEngineHub: React.FC = () => {
   });
 
   const handleDispatchTrade = async (item: ScannedPatternItem) => {
+    if (!item.price || item.price <= 0 || item.setupStatus === "REJECT" || item.dataStatus === "DISCONNECTED") {
+      addToast({
+        type: "ERROR",
+        title: "주문 수급 차단 (NO_DATA)",
+        message: `${item.name} (${item.symbol}) - 실시간 시세 미수신 또는 NO_DATA 상태로 주문 생성이 차단되었습니다.`
+      });
+      return;
+    }
+
     try {
       const mkt =
         item.market === "BTC" || item.symbol.startsWith("KRW-") ? "BTC" : item.market === "US" ? "US" : "KOREA";
