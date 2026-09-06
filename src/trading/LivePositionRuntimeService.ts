@@ -10,6 +10,7 @@ import { IndicatorTruthEngine } from "../services/IndicatorTruthEngine";
 import { StructureBrain, Candle } from "../services/StructureBrain";
 import { CandlePatternEngine } from "../services/CandlePatternEngine";
 import { ExitEvidence } from "../services/ExitEvidenceEngine";
+import { IndicatorHistoryEngine } from "../services/IndicatorHistoryEngine";
 
 export interface VerifiedMarketSnapshot {
   symbol: string;
@@ -132,8 +133,17 @@ export class LivePositionRuntimeService {
     // Update highest price since buy
     position.highestPriceSinceBuy = Math.max(position.highestPriceSinceBuy || currentPrice, currentPrice);
 
-    // 1. Compute Indicators
+    // 1. Compute Indicators & Record History Point
     const indicators = IndicatorTruthEngine.computeSnapshot(snapshot.candles, snapshot.sessionOpen);
+    const rawTimestamp = snapshot.candles[snapshot.candles.length - 1].timestamp;
+    const lastCandleTime = typeof rawTimestamp === "number" ? rawTimestamp : Date.now();
+
+    IndicatorHistoryEngine.addPoint(
+      snapshot.symbol,
+      lastCandleTime,
+      currentPrice,
+      indicators
+    );
 
     // 2. Compute Market Structure
     const structure = StructureBrain.analyze(snapshot.candles, {}, snapshot.symbol);
@@ -154,38 +164,12 @@ export class LivePositionRuntimeService {
     const lastSwingLow = swingLows.length > 0 ? swingLows[swingLows.length - 1].price : null;
     const swingLowBreak = lastSwingLow != null && recentLow < lastSwingLow;
 
-    // 5. Momentum Deterioration Detection (Multi-Bar Slope & Divergence)
-    let macdWeakening = false;
-    if (indicators.macd?.histogram != null) {
-      const hist = indicators.macd.histogram;
-      const macdVal = indicators.macd.line ?? 0;
-      const signalVal = indicators.macd.signal ?? 0;
+    // 5. Momentum Deterioration Detection via Indicator History Engine
+    const macdCheck = IndicatorHistoryEngine.checkMacdDeterioration(snapshot.symbol);
+    const macdWeakening = macdCheck.isDeteriorating;
 
-      if (snapshot.candles.length >= 3) {
-        const c1 = snapshot.candles[snapshot.candles.length - 1];
-        const c2 = snapshot.candles[snapshot.candles.length - 2];
-        const c3 = snapshot.candles[snapshot.candles.length - 3];
-        // Histogram decreasing for 2 consecutive bars or macd crossed below signal line
-        const histDecreasing = c1.close < c2.close && c2.close < c3.close && hist < 0;
-        macdWeakening = histDecreasing || macdVal < signalVal;
-      } else {
-        macdWeakening = hist < 0;
-      }
-    }
-
-    let rsiWeakening = false;
-    if (indicators.rsi14 != null) {
-      if (snapshot.candles.length >= 3) {
-        const c1 = snapshot.candles[snapshot.candles.length - 1];
-        const c2 = snapshot.candles[snapshot.candles.length - 2];
-        const c3 = snapshot.candles[snapshot.candles.length - 3];
-        // Price or RSI peak dropping
-        const rsiSlopeDown = c1.close < c2.close && c2.close < c3.close;
-        rsiWeakening = (rsiSlopeDown && indicators.rsi14 < 55) || indicators.rsi14 < 45;
-      } else {
-        rsiWeakening = indicators.rsi14 < 45;
-      }
-    }
+    const rsiCheck = IndicatorHistoryEngine.checkRsiDeterioration(snapshot.symbol);
+    const rsiWeakening = rsiCheck.isDeteriorating;
 
     // 6. Run Position Lifecycle Orchestrator
     const lifecycleInput: LifecycleInput = {

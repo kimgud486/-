@@ -41,7 +41,12 @@ const forbidden = [
   /PRDY_SIGN\s*===.*"BUY"/,
   /fakeAggressor\b/,
   /fakeExecutionNotice\b/,
-  /estimatedInstitutionalFlow\b/
+  /estimatedInstitutionalFlow\b/,
+  /syntheticLiveCandle\b/,
+  /syntheticOrb\b/,
+  /hardcodedBenchmark\b/,
+  /fakeDelta\b/,
+  /fakeRvol\b/
 ];
 
 const allowedFolders = [

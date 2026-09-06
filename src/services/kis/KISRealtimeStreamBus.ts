@@ -1,6 +1,6 @@
 // ----------------------------------------------------------------------
-// KIS REALTIME STREAM BUS V18.4
-// Official KIS WebSocket Protocol Normalizer & Order Flow Engine
+// KIS REALTIME STREAM BUS V18.5
+// Official KIS WebSocket Protocol Normalizer & Order Flow Window Engine
 // ----------------------------------------------------------------------
 
 import { H0STCNT0, H0STASP0, H0STCNI0, classifyAggressor } from "../KISRealtimeFieldSchema";
@@ -51,6 +51,11 @@ export interface OrderFlowTracker {
   sellVolume: number;
   delta: number;
   cvd: number;
+  sessionDelta: number;
+  sessionCvd: number;
+  delta1m: number;
+  delta5m: number;
+  lastResetTimestamp: number;
 }
 
 export class KISRealtimeStreamBus {
@@ -58,6 +63,27 @@ export class KISRealtimeStreamBus {
   private static bestAsks: Map<string, number> = new Map();
   private static bestBids: Map<string, number> = new Map();
   private static cvdTrackers: Map<string, OrderFlowTracker> = new Map();
+
+  /**
+   * Reset session CVD / Delta tracking for a symbol or all
+   */
+  public static resetSessionFlow(symbol?: string): void {
+    if (symbol) {
+      this.cvdTrackers.set(symbol, {
+        buyVolume: 0,
+        sellVolume: 0,
+        delta: 0,
+        cvd: 0,
+        sessionDelta: 0,
+        sessionCvd: 0,
+        delta1m: 0,
+        delta5m: 0,
+        lastResetTimestamp: Date.now()
+      });
+    } else {
+      this.cvdTrackers.clear();
+    }
+  }
 
   /**
    * Parse raw H0STCNT0 trade tick frame using official field mapping
@@ -80,16 +106,36 @@ export class KISRealtimeStreamBus {
     this.lastTradePrices.set(symbol, price);
 
     // Update CVD tracker
-    const tracker = this.cvdTrackers.get(symbol) || { buyVolume: 0, sellVolume: 0, delta: 0, cvd: 0 };
+    const tracker = this.cvdTrackers.get(symbol) || {
+      buyVolume: 0,
+      sellVolume: 0,
+      delta: 0,
+      cvd: 0,
+      sessionDelta: 0,
+      sessionCvd: 0,
+      delta1m: 0,
+      delta5m: 0,
+      lastResetTimestamp: Date.now()
+    };
+
     if (aggressor === "BUY") {
       tracker.buyVolume += size;
       tracker.delta += size;
       tracker.cvd += size;
+      tracker.sessionDelta += size;
+      tracker.sessionCvd += size;
+      tracker.delta1m += size;
+      tracker.delta5m += size;
     } else if (aggressor === "SELL") {
       tracker.sellVolume += size;
       tracker.delta -= size;
       tracker.cvd -= size;
+      tracker.sessionDelta -= size;
+      tracker.sessionCvd -= size;
+      tracker.delta1m -= size;
+      tracker.delta5m -= size;
     }
+
     this.cvdTrackers.set(symbol, tracker);
 
     return {
@@ -178,6 +224,16 @@ export class KISRealtimeStreamBus {
    * Get verified Order Flow / Cumulative Volume Delta (CVD) stats
    */
   public static getOrderFlow(symbol: string): OrderFlowTracker {
-    return this.cvdTrackers.get(symbol) || { buyVolume: 0, sellVolume: 0, delta: 0, cvd: 0 };
+    return this.cvdTrackers.get(symbol) || {
+      buyVolume: 0,
+      sellVolume: 0,
+      delta: 0,
+      cvd: 0,
+      sessionDelta: 0,
+      sessionCvd: 0,
+      delta1m: 0,
+      delta5m: 0,
+      lastResetTimestamp: Date.now()
+    };
   }
 }

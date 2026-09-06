@@ -1,6 +1,6 @@
 // ----------------------------------------------------------------------
-// EXIT EVIDENCE ENGINE V18 (AISTOCK V18 MULTI-FACTOR EXIT INTELLIGENCE)
-// Quantitative Evidence-Based Exit Scoring for Position Lifecycle
+// EXIT EVIDENCE ENGINE V18.5 (AISTOCK V18 MULTI-FACTOR EXIT INTELLIGENCE)
+// Quantitative Evidence-Based Exit Scoring & Peak Giveback Tracking
 // ----------------------------------------------------------------------
 
 import { CandlePatternSignal } from "./CandlePatternEngine";
@@ -31,6 +31,14 @@ export interface ExitEvidenceInput {
   marketWeakness: boolean;
 }
 
+export interface PeakMetrics {
+  mfePct: number;
+  maePct: number;
+  peakProfitPct: number;
+  currentProfitPct: number;
+  givebackPct: number;
+}
+
 export interface ExitEvidence {
   hardStopHit: boolean;
   trailingStopHit: boolean;
@@ -57,10 +65,13 @@ export interface ExitEvidence {
   structuralCount: number;
   warningCount: number;
 
+  peakMetrics: PeakMetrics;
+
   exitRiskScore: number; // 0 ~ 100
   confidence: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
   recommendedAction: "HOLD" | "PROFIT_HOLD" | "SELL_WATCH" | "SELL";
   profitHoldStrength?: "STRONG" | "NORMAL" | "WEAK";
+  sellWatchLevel?: "LOW" | "MEDIUM" | "HIGH";
   reasons: string[];
 }
 
@@ -71,6 +82,8 @@ export class ExitEvidenceEngine {
   public static evaluate(input: ExitEvidenceInput): ExitEvidence {
     const {
       currentPrice,
+      entryPrice,
+      highestPriceSinceBuy,
       initialStopPrice,
       trailingFloorPrice,
       structureValid,
@@ -86,6 +99,22 @@ export class ExitEvidenceEngine {
       relativeStrengthLoss,
       marketWeakness
     } = input;
+
+    // Peak Metrics Calculation
+    const currentProfitPct = entryPrice > 0 ? ((currentPrice - entryPrice) / entryPrice) * 100 : 0;
+    const peakPrice = Math.max(highestPriceSinceBuy || currentPrice, currentPrice);
+    const peakProfitPct = entryPrice > 0 ? Math.max(0, ((peakPrice - entryPrice) / entryPrice) * 100) : 0;
+    const givebackPct = Math.max(0, peakProfitPct - currentProfitPct);
+    const mfePct = peakProfitPct;
+    const maePct = 0; // MAE tracked dynamically during position lifecycle
+
+    const peakMetrics: PeakMetrics = {
+      mfePct: +mfePct.toFixed(2),
+      maePct: +maePct.toFixed(2),
+      peakProfitPct: +peakProfitPct.toFixed(2),
+      currentProfitPct: +currentProfitPct.toFixed(2),
+      givebackPct: +givebackPct.toFixed(2)
+    };
 
     const hardStopHit = initialStopPrice != null && currentPrice <= initialStopPrice;
     const trailingStopHit = trailingFloorPrice != null && currentPrice <= trailingFloorPrice;
@@ -157,6 +186,12 @@ export class ExitEvidenceEngine {
       reasons.push("📊 [CVD Divergence] 고점 형성 대비 순매수 수급 이탈");
     }
 
+    // Giveback Evidence
+    if (givebackPct >= 3) {
+      score += 15;
+      reasons.push(`📉 [Peak Giveback] 최고점 대비 ${givebackPct.toFixed(1)}%p 수익 반납`);
+    }
+
     // Market & Sector
     if (relativeStrengthLoss) {
       score += 10;
@@ -175,7 +210,7 @@ export class ExitEvidenceEngine {
     if (bearishChoch) structuralCount++;
     if (swingLowBreak) structuralCount++;
 
-    // Count Warning (Momentum/Flow/Market) evidence
+    // Count Warning (Momentum/Flow/Market/Giveback) evidence
     let warningCount = 0;
     if (vwapLost) warningCount++;
     if (ema20Lost) warningCount++;
@@ -184,22 +219,23 @@ export class ExitEvidenceEngine {
     if (hasBearishCandlePattern) warningCount++;
     if (orderFlowReversal) warningCount++;
     if (cvdDivergence) warningCount++;
+    if (givebackPct >= 3) warningCount++;
     if (relativeStrengthLoss) warningCount++;
     if (marketWeakness) warningCount++;
 
     const exitRiskScore = Math.min(100, score);
 
-    // V18.2 Decision Matrix
+    // V18.5 Decision Matrix & PROFIT_HOLD / SELL_WATCH Granular Classification
     let confidence: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL" = "LOW";
     let recommendedAction: "HOLD" | "PROFIT_HOLD" | "SELL_WATCH" | "SELL" = "HOLD";
 
-    const pnlPct = input.entryPrice > 0 ? ((input.currentPrice - input.entryPrice) / input.entryPrice) * 100 : 0;
-
     let profitHoldStrength: "STRONG" | "NORMAL" | "WEAK" | undefined;
-    if (pnlPct > 0) {
-      if (structuralCount === 0 && warningCount === 0 && aboveVWAP && aboveEMA20 && !relativeStrengthLoss) {
+    let sellWatchLevel: "LOW" | "MEDIUM" | "HIGH" | undefined;
+
+    if (currentProfitPct > 0) {
+      if (structuralCount === 0 && warningCount === 0 && aboveVWAP && aboveEMA20 && !relativeStrengthLoss && givebackPct < 1.5) {
         profitHoldStrength = "STRONG";
-      } else if (warningCount >= 2 || relativeStrengthLoss || cvdDivergence) {
+      } else if (warningCount >= 2 || relativeStrengthLoss || cvdDivergence || givebackPct >= 3.0) {
         profitHoldStrength = "WEAK";
       } else {
         profitHoldStrength = "NORMAL";
@@ -212,15 +248,28 @@ export class ExitEvidenceEngine {
     } else if (structuralCount >= 2 && warningCount >= 1) {
       confidence = "HIGH";
       recommendedAction = "SELL";
-    } else if (structuralCount >= 1 || warningCount >= 3) {
+    } else if (structuralCount >= 1 || warningCount >= 2) {
       confidence = "MEDIUM";
       recommendedAction = "SELL_WATCH";
-    } else if (warningCount >= 1) {
+
+      if (structuralCount >= 1 && warningCount >= 2) {
+        sellWatchLevel = "HIGH";
+      } else if (warningCount >= 2 || structuralCount >= 1) {
+        sellWatchLevel = "MEDIUM";
+      } else {
+        sellWatchLevel = "LOW";
+      }
+    } else if (warningCount === 1) {
       confidence = "LOW";
-      recommendedAction = pnlPct > 0 ? "PROFIT_HOLD" : "HOLD";
+      if (currentProfitPct > 0) {
+        recommendedAction = "PROFIT_HOLD";
+      } else {
+        recommendedAction = "SELL_WATCH";
+        sellWatchLevel = "LOW";
+      }
     } else {
       confidence = "LOW";
-      recommendedAction = pnlPct > 0 ? "PROFIT_HOLD" : "HOLD";
+      recommendedAction = currentProfitPct > 0 ? "PROFIT_HOLD" : "HOLD";
     }
 
     return {
@@ -241,10 +290,12 @@ export class ExitEvidenceEngine {
       hardExit,
       structuralCount,
       warningCount,
+      peakMetrics,
       exitRiskScore,
       confidence,
       recommendedAction,
       profitHoldStrength,
+      sellWatchLevel,
       reasons
     };
   }
