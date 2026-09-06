@@ -32,7 +32,9 @@ const forbidden = [
   /low52w:\s*price\s*\*\s*0\.75/,
   /vwap:\s*price\s*\*\s*0\.995/,
   /krxBenchmarkReturn\s*=\s*0\.5/,
-  /usBenchmarkReturn\s*=\s*0\.8/
+  /usBenchmarkReturn\s*=\s*0\.8/,
+  /getQuote\(["']005930["']\)/,
+  /getSessionInfo\(symbol\)/
 ];
 
 const allowedFolders = [

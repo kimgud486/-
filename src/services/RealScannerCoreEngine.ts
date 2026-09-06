@@ -114,7 +114,8 @@ export class RealScannerCoreEngine {
   public static analyze(
     symbol: string,
     rawCandles: Candle[],
-    liveQuote?: LiveMarketQuote
+    liveQuote?: LiveMarketQuote,
+    market: "KR" | "US" | "CRYPTO" = "KR"
   ): RealScannerResult {
     // 1. Fail-Closed Data Verification Gate
     const candleVerification = MarketDataIntegrityGate.verifyCandles(rawCandles);
@@ -156,7 +157,7 @@ export class RealScannerCoreEngine {
     const currentPrice = liveQuote?.price || candles[len - 1].close;
 
     // 2. Compute Pure Indicators via IndicatorTruthEngine with Session Reset
-    const sessionInfo = MarketSessionService.getSessionInfo(symbol);
+    const sessionInfo = MarketSessionService.getSessionInfo(market);
     const sessionOpen = sessionInfo.openTimestamp || Number(candles[0]?.timestamp) || 0;
     const indicators = IndicatorTruthEngine.computeSnapshot(candles, sessionOpen > 0 ? sessionOpen : undefined);
 

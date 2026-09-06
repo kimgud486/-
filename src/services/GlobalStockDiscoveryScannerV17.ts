@@ -42,18 +42,12 @@ export class GlobalStockDiscoveryScannerV17 {
 
     for (const stock of universe) {
       const quote = realtimeMarketFeedService.getQuote(stock.symbol);
-      const price = quote?.price || stock.price || 0;
-      if (price <= 0) continue; // Filter out 0 price items
+      const candles = realCandleStore.getCachedCandles(stock.symbol, "15m");
+      const price = quote?.price || (candles.length > 0 ? candles[candles.length - 1].close : null);
+      if (price == null || price <= 0) continue; // Fail closed if no live quote or verified candle price
 
       stage1Candidates.push({ stock, quote });
     }
-
-    // Fetch Benchmark Returns dynamically
-    const kospiQuote = realtimeMarketFeedService.getQuote("KOSPI") || realtimeMarketFeedService.getQuote("005930");
-    const nasdaqQuote = realtimeMarketFeedService.getQuote("QQQ") || realtimeMarketFeedService.getQuote("AAPL");
-
-    const krxBenchmarkReturn = kospiQuote?.changeRate ?? 0;
-    const usBenchmarkReturn = nasdaqQuote?.changeRate ?? 0;
 
     // Stage 2 & Stage 3 Deep Analysis
     const candidates: DiscoveryCandidateV17[] = [];
@@ -61,40 +55,49 @@ export class GlobalStockDiscoveryScannerV17 {
     for (const item of stage1Candidates) {
       const { stock, quote } = item;
       const candles = realCandleStore.getCachedCandles(stock.symbol, "15m");
-      const marketSession = MarketSessionService.getSessionInfo(stock.market === "US" ? "US" : stock.market === "UPBIT" ? "CRYPTO" : "KR");
+      const market: "KR" | "US" | "CRYPTO" = stock.market === "US" ? "US" : stock.market === "UPBIT" ? "CRYPTO" : "KR";
+      const marketSession = MarketSessionService.getSessionInfo(market);
       const indicators = candles.length > 0 ? IndicatorTruthEngine.computeSnapshot(candles, marketSession.openTimestamp) : null;
 
       // Scan Candle Patterns using real Session VWAP and RVOL
       const patterns = CandlePatternEngine.scan(candles, {
         vwap: indicators?.vwap ?? null,
-        rvol: indicators?.rvol ?? stock.rvol ?? null
+        rvol: indicators?.rvol ?? null
       });
 
       // Run RealScannerCoreEngine Deep Analysis
       let scannerResult: RealScannerResult | null = null;
       if (candles.length >= 10) {
-        scannerResult = RealScannerCoreEngine.analyze(stock.symbol, candles, quote);
+        scannerResult = RealScannerCoreEngine.analyze(stock.symbol, candles, quote, market);
       }
 
-      const price = quote?.price || (candles.length > 0 ? candles[candles.length - 1].close : stock.price || null);
+      const price = quote?.price || (candles.length > 0 ? candles[candles.length - 1].close : null);
       const volume = quote?.volume || (candles.length > 0 ? candles[candles.length - 1].volume : null);
       const tradeValue = quote?.tradeValue || (price != null && volume != null ? Math.round((price * volume) / 100000000) : null);
 
-      const rvol = scannerResult?.analysis.indicator.rvol ?? stock.rvol ?? null;
-      const changeRate = quote?.changeRate ?? stock.changeRate ?? 0;
-      const benchmark = stock.market === "US" ? usBenchmarkReturn : krxBenchmarkReturn;
-      const relativeStrength = +((changeRate - benchmark).toFixed(2));
+      const rvol = scannerResult?.analysis.indicator.rvol ?? indicators?.rvol ?? null;
+      const changeRate = quote?.changeRate ?? null;
+
+      // Pure Benchmark Quote & Relative Strength Calculation (No proxy fallback)
+      const benchmarkSymbol = stock.market === "US" ? "QQQ" : stock.market === "KOSDAQ" ? "KOSDAQ" : "KOSPI";
+      const benchmarkQuote = realtimeMarketFeedService.getQuote(benchmarkSymbol);
+      const benchmarkReturn = benchmarkQuote?.status === "LIVE" && benchmarkQuote.changeRate != null ? benchmarkQuote.changeRate : null;
+      const relativeStrength = changeRate != null && benchmarkReturn != null ? +((changeRate - benchmarkReturn).toFixed(2)) : null;
 
       // Calculate V17 Setup Score (100-pt System)
       let score = 0;
       if (scannerResult?.score != null) {
         score += Math.round(scannerResult.score * 0.5); // 50 pts from core scanner
       }
-      if (relativeStrength > 2.0) score += 12;
-      else if (relativeStrength > 0.5) score += 7;
+      if (relativeStrength != null) {
+        if (relativeStrength > 2.0) score += 12;
+        else if (relativeStrength > 0.5) score += 7;
+      }
 
-      if ((rvol ?? 0) >= 2.0) score += 10;
-      else if ((rvol ?? 0) >= 1.5) score += 6;
+      if (rvol != null) {
+        if (rvol >= 2.0) score += 10;
+        else if (rvol >= 1.5) score += 6;
+      }
 
       if (patterns.some((p) => p.direction === "BULLISH" && p.confidence >= 80)) score += 10;
       if (scannerResult?.analysis.pattern.breakout || scannerResult?.analysis.pattern.orb) score += 10;

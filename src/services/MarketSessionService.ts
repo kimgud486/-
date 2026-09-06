@@ -67,21 +67,29 @@ export class MarketSessionService {
       };
     }
 
-    // US Market (EST/EDT)
-    const year = date.getUTCFullYear();
-    const month = date.getUTCMonth();
-    const dayOfMonth = date.getUTCDate();
-    const day = date.getUTCDay();
+    // US Market (EST/EDT) - Dynamic DST Offset Calculation for America/New_York
+    const nyDateStr = new Date(targetTime).toLocaleString("en-US", { timeZone: "America/New_York" });
+    const nyDate = new Date(nyDateStr);
+
+    const year = nyDate.getFullYear();
+    const month = nyDate.getMonth();
+    const dayOfMonth = nyDate.getDate();
+    const day = nyDate.getDay();
 
     if (day === 0 || day === 6) {
       return { market: "US", session: "CLOSED", openTimestamp: null, closeTimestamp: null, isOpen: false };
     }
 
-    // US Regular Hours: 14:30 UTC to 21:00 UTC (EDT / Daylight Savings approx)
-    const usRegOpen = Date.UTC(year, month, dayOfMonth, 13, 30, 0);
-    const usRegClose = Date.UTC(year, month, dayOfMonth, 20, 0, 0);
-    const usPreOpen = Date.UTC(year, month, dayOfMonth, 8, 0, 0);
-    const usAfterClose = Date.UTC(year, month, dayOfMonth, 24, 0, 0);
+    // Determine UTC offset for America/New_York at targetTime (EDT: UTC-4, EST: UTC-5)
+    const utcDateStr = new Date(targetTime).toLocaleString("en-US", { timeZone: "UTC" });
+    const utcDate = new Date(utcDateStr);
+    const offsetMs = utcDate.getTime() - nyDate.getTime();
+
+    // Session Bounds in New York Time converted to exact UTC
+    const usRegOpen = new Date(year, month, dayOfMonth, 9, 30, 0).getTime() + offsetMs;
+    const usRegClose = new Date(year, month, dayOfMonth, 16, 0, 0).getTime() + offsetMs;
+    const usPreOpen = new Date(year, month, dayOfMonth, 4, 0, 0).getTime() + offsetMs;
+    const usAfterClose = new Date(year, month, dayOfMonth, 20, 0, 0).getTime() + offsetMs;
 
     if (targetTime >= usRegOpen && targetTime <= usRegClose) {
       return { market: "US", session: "US_REGULAR", openTimestamp: usRegOpen, closeTimestamp: usRegClose, isOpen: true };
