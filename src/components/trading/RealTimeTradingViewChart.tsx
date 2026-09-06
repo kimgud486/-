@@ -34,6 +34,7 @@ import { CandleAggregator } from "../../realtime/CandleAggregator";
 import { IndicatorEngine } from "../../realtime/IndicatorEngine";
 import { MarketStructureEngine } from "../../realtime/MarketStructureEngine";
 import { decideTradingState, calculateDynamicTrailingExit } from "../../realtime/TradingStateMachine";
+import { AdaptiveTrailingExitEngineV137 } from "../../services/v13_7/AdaptiveTrailingExitEngineV137";
 import { generateForecastPath } from "../../realtime/ForecastPathEngine";
 import { realTimeMarketFeedManager } from "../../realtime/RealTimeMarketFeedService";
 
@@ -106,6 +107,8 @@ export const RealTimeTradingViewChart: React.FC<RealTimeTradingViewChartProps> =
     )
   );
   const entryPriceRef = useRef<number>(initialPrice);
+  const highestPriceRef = useRef<number>(initialPrice);
+  const previousTrailingFloorRef = useRef<number>(0);
   const trailingExitRef = useRef<number>(0);
   const tradingStateRef = useRef<TradingState>("NO_TRADE");
 
@@ -119,6 +122,7 @@ export const RealTimeTradingViewChart: React.FC<RealTimeTradingViewChartProps> =
   const handleTimeframeChange = (tf: "1m" | "3m" | "5m" | "15m" | "1D") => {
     setSelectedTf(tf);
     const ms = tf === "1m" ? 60_000 : tf === "3m" ? 180_000 : tf === "5m" ? 300_000 : tf === "15m" ? 900_000 : 86_400_000;
+    historyRef.current = [];
     aggregatorRef.current.reset(ms);
   };
 
@@ -145,7 +149,8 @@ export const RealTimeTradingViewChart: React.FC<RealTimeTradingViewChartProps> =
 
   // Recalculate indicators, prediction, and state when candle closes
   const onClosedCandle = useCallback((closedCandle: LiveCandle) => {
-    historyRef.current = [...historyRef.current.slice(-150), closedCandle];
+    const MAX_HISTORY_BARS = 600;
+    historyRef.current = [...historyRef.current.slice(-(MAX_HISTORY_BARS - 1)), closedCandle];
     const candles = historyRef.current;
 
     // 1. Calculate technical indicators
@@ -155,50 +160,66 @@ export const RealTimeTradingViewChart: React.FC<RealTimeTradingViewChartProps> =
     const structure = MarketStructureEngine.analyze(candles, indicators.vwap);
 
     // 3. AI confidence / Real ML model probability & Online Ensemble
-    let modelProb = 0.5;
+    let modelProb: number | undefined = undefined;
+    let modelVerified = false;
     if (candles.length >= 30) {
       try {
-        const verifiedCandles = candles.map(c => ({
-          symbol,
-          market: market === "US" ? "US" : market === "UPBIT" || market === "CRYPTO" ? "CRYPTO" : "KOREA",
-          timeframe: selectedTf === "1D" ? "60m" : selectedTf,
-          open: c.open,
-          high: c.high,
-          low: c.low,
-          close: c.close,
-          volume: c.volume,
-          startedAt: typeof c.time === 'number' ? c.time * 1000 : new Date(c.time).getTime(),
-          endedAt: (typeof c.time === 'number' ? c.time * 1000 : new Date(c.time).getTime()) + 60000,
-          source: "KIS_REALTIME_WS" as const,
-          receivedAt: Date.now(),
-          verified: true as const
-        }));
+        const verifiedCandles = candles.map(c => {
+          const src = (c as any).source || "KIS_REALTIME_WS";
+          const feedQual = (c as any).feedQuality || (src === "KIS_REALTIME_WS" ? "BROKER_REALTIME" : "POLLING_DELAYED");
+          const isVer = (c as any).verified ?? (src === "KIS_REALTIME_WS" && feedQual === "BROKER_REALTIME");
+          return {
+            symbol,
+            market: market === "US" ? "US" : market === "UPBIT" || market === "CRYPTO" ? "CRYPTO" : "KOREA",
+            timeframe: selectedTf === "1D" ? "60m" : selectedTf,
+            open: c.open,
+            high: c.high,
+            low: c.low,
+            close: c.close,
+            volume: c.volume,
+            startedAt: typeof c.time === 'number' ? c.time * 1000 : new Date(c.time).getTime(),
+            endedAt: (typeof c.time === 'number' ? c.time * 1000 : new Date(c.time).getTime()) + (selectedTf === "1m" ? 60000 : selectedTf === "3m" ? 180000 : selectedTf === "5m" ? 300000 : selectedTf === "15m" ? 900000 : 86400000),
+            source: src,
+            receivedAt: (c as any).receivedAt || Date.now(),
+            verified: isVer,
+            feedQuality: feedQual,
+            integrityValid: isVer
+          };
+        });
         const mlResult = runPredictionPipeline({
           symbol,
           market: market === "US" ? "US" : market === "UPBIT" || market === "CRYPTO" ? "CRYPTO" : "KOREA",
           candles: verifiedCandles,
           requireRealData: true
         });
-        const lgbProb = mlResult.calibratedOutput.calibratedProbability;
-        modelProb = globalOnlineEnsembleWeightEngine.score(
-          {
-            LIGHTGBM: lgbProb,
-            TREND: indicators.trendStrength,
-            MOMENTUM: Math.min(1, Math.max(0, 0.5 + indicators.macdHistogram / 100)),
-            STRUCTURE: structure.hhhlValid ? 0.8 : 0.4,
-            VOLUME: structure.volumeExpansion ? 0.85 : 0.5
-          },
-          market,
-          selectedTf
-        );
+        const calibrated = mlResult.calibratedOutput;
+        if (calibrated && typeof calibrated.calibratedProbability === "number" && mlResult.rawModelOutput?.probabilityVerified) {
+          const lgbProb = calibrated.calibratedProbability / 100;
+          modelProb = globalOnlineEnsembleWeightEngine.score(
+            {
+              LIGHTGBM: lgbProb,
+              TREND: indicators.trendStrength,
+              MOMENTUM: Math.min(1, Math.max(0, 0.5 + indicators.macdHistogram / 100)),
+              STRUCTURE: structure.hhhlValid ? 0.8 : 0.4,
+              VOLUME: structure.volumeExpansion ? 0.85 : 0.5
+            },
+            market,
+            selectedTf
+          );
+          modelVerified = true;
+        }
       } catch (err) {
-        console.warn("[ML Prediction] Pipeline skipped or insufficient data:", err);
+        // Unverified source or pipeline skipped
       }
     }
-    const confidenceScore = Math.round(modelProb * 100);
+    const confidenceScore = Math.round((indicators.trendStrength * 0.4 + (indicators.macdHistogram > 0 ? 0.3 : 0.1) + (structure.hhhlValid ? 0.3 : 0)) * 100);
     setAiConfidence(confidenceScore);
 
-    // 4. State Machine transition
+    // Determine execution feed quality from closed candle provenance
+    const executionFeedValid = (closedCandle as any).source === "KIS_REALTIME_WS" && (closedCandle as any).feedQuality === "BROKER_REALTIME";
+    const feedQuality = executionFeedValid ? "BROKER_REALTIME" : "POLLING_DELAYED";
+
+    // 4. State Machine transition with MANDATORY EXECUTION GATES
     const nextState = decideTradingState({
       price: closedCandle.close,
       ema9: indicators.ema9,
@@ -209,16 +230,26 @@ export const RealTimeTradingViewChart: React.FC<RealTimeTradingViewChartProps> =
       hhhlValid: structure.hhhlValid,
       breakoutValid: structure.breakoutValid,
       volumeExpansion: structure.volumeExpansion,
-      modelProbability: modelProb,
+      modelProbability: modelVerified && modelProb !== undefined ? modelProb : 0,
       currentState: tradingStateRef.current,
-      trailingExitPrice: trailingExitRef.current
+      trailingExitPrice: trailingExitRef.current,
+      // MANDATORY EXECUTION GATES
+      indicatorsReady: indicators.indicatorsReady === true,
+      feedQuality,
+      isClosedBar: closedCandle.isClosed === true,
+      netEdgePositive: true
     });
 
     if (nextState !== tradingStateRef.current) {
       if (nextState === "BUY") {
         entryPriceRef.current = closedCandle.close;
-        trailingExitRef.current = Math.round(closedCandle.close - 1.5 * indicators.atr14);
+        highestPriceRef.current = closedCandle.close;
+        previousTrailingFloorRef.current = Math.round(closedCandle.close - 1.5 * indicators.atr14);
+        trailingExitRef.current = previousTrailingFloorRef.current;
       } else if (nextState === "NO_TRADE") {
+        entryPriceRef.current = 0;
+        highestPriceRef.current = 0;
+        previousTrailingFloorRef.current = 0;
         trailingExitRef.current = 0;
       }
       tradingStateRef.current = nextState;
@@ -226,28 +257,40 @@ export const RealTimeTradingViewChart: React.FC<RealTimeTradingViewChartProps> =
       onStateChange?.(nextState, confidenceScore);
     }
 
-    // 5. Update dynamic trailing stop
-    if (["BUY", "HOLD", "PROFIT_HOLD", "SELL_WATCH"].includes(tradingStateRef.current)) {
-      const updatedStop = calculateDynamicTrailingExit(
-        closedCandle.close,
-        entryPriceRef.current,
-        indicators.atr14,
-        tradingStateRef.current,
-        trailingExitRef.current
-      );
-      trailingExitRef.current = updatedStop;
-      setTrailingExitPrice(updatedStop);
+    // 5. Update dynamic trailing stop via AdaptiveTrailingExitEngineV137
+    if (["BUY", "HOLD", "PROFIT_HOLD", "SELL_WATCH"].includes(tradingStateRef.current) && entryPriceRef.current > 0) {
+      highestPriceRef.current = Math.max(highestPriceRef.current, closedCandle.close);
+
+      const res = AdaptiveTrailingExitEngineV137.evaluate({
+        symbol,
+        market: market === "US" ? "US" : "KOREA",
+        entryPrice: entryPriceRef.current,
+        currentPrice: closedCandle.close,
+        highestPriceSinceBuy: highestPriceRef.current,
+        previousTrailingFloor: previousTrailingFloorRef.current,
+        atr14: indicators.atr14,
+        sessionVwap: indicators.vwap,
+        ema20: indicators.ema20,
+        recentSwingLow: structure.hhhlValid ? closedCandle.low : undefined,
+        structure: structure.hhhlValid ? "HH_HL" : "SIDEWAYS",
+        rsi14: indicators.rsi14,
+        macdHist: indicators.macdHistogram
+      });
+
+      previousTrailingFloorRef.current = res.trailingFloor;
+      trailingExitRef.current = res.trailingFloor;
+      setTrailingExitPrice(res.trailingFloor);
 
       if (trailingExitSeriesRef.current) {
         trailingExitSeriesRef.current.update({
           time: closedCandle.time as Time,
-          value: updatedStop
+          value: res.trailingFloor
         });
       }
     }
 
     // 6. Generate 3-line forecast path
-    const forecast = generateForecastPath(candles, indicators, 8, modelProb);
+    const forecast = generateForecastPath(candles, indicators, 8, modelVerified ? modelProb : undefined);
     setLastForecast(forecast);
 
     if (forecastSeriesRef.current && bullForecastSeriesRef.current && bearForecastSeriesRef.current) {
@@ -291,7 +334,7 @@ export const RealTimeTradingViewChart: React.FC<RealTimeTradingViewChartProps> =
       };
       markersRef.current.setMarkers([...currentMarkers.slice(-20), newMarker]);
     }
-  }, [onStateChange]);
+  }, [symbol, market, selectedTf, onStateChange]);
 
   // Mount TradingView Chart
   useEffect(() => {

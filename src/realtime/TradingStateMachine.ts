@@ -14,10 +14,10 @@ export interface ExtendedDecisionInput extends DecisionInput {
 export function decideTradingState(x: ExtendedDecisionInput): TradingState {
   // Executable gate: Must be real-time broker feed, indicators ready, closed bar, and positive net edge
   const isExecutable =
-    (x.feedQuality === undefined || x.feedQuality === "BROKER_REALTIME") &&
-    (x.indicatorsReady === undefined || x.indicatorsReady === true) &&
-    (x.isClosedBar === undefined || x.isClosedBar === true) &&
-    (x.netEdgePositive === undefined || x.netEdgePositive === true);
+    x.feedQuality === "BROKER_REALTIME" &&
+    x.indicatorsReady === true &&
+    x.isClosedBar === true &&
+    x.netEdgePositive === true;
 
   const bullishStructure =
     x.price > x.vwap &&

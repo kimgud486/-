@@ -79,6 +79,8 @@ export interface StructureBreak {
 
 export interface StructureBrainAnalysisResult {
   symbol?: string;
+  status?: "READY" | "WAIT";
+  reason?: string;
   candlesCount: number;
   swingHighs: SwingPoint[];
   swingLows: SwingPoint[];
@@ -151,6 +153,8 @@ export class StructureBrain {
 
     return {
       symbol: symbolName,
+      status: "READY",
+      reason: "REAL_CANDLES_ANALYZED",
       candlesCount: candles.length,
       swingHighs,
       swingLows,
@@ -698,6 +702,8 @@ export class StructureBrain {
   private static getEmptyResult(symbolName: string, count: number): StructureBrainAnalysisResult {
     return {
       symbol: symbolName,
+      status: "WAIT",
+      reason: "WAIT_FOR_REAL_CANDLES",
       candlesCount: count,
       swingHighs: [],
       swingLows: [],
@@ -708,7 +714,7 @@ export class StructureBrain {
       currentStructureTrend: "RANGING",
       institutionalScore: 50,
       institutionalBias: "NEUTRAL",
-      summary: "캔들 데이터 부족으로 구조 분석 대기 중",
+      summary: "실시간 캔들 데이터 수량 부족으로 기관 수급 구조 분석 대기 중 (WAIT_FOR_REAL_CANDLES)",
       keyLevels: {
         nearestBullishOB: null,
         nearestBearishOB: null,
