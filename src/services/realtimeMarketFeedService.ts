@@ -3,6 +3,7 @@
 // ----------------------------------------------------------------------
 
 import { safeSymbolStr } from "../lib/stockDictionary";
+import { MarketDataIntegrityGate } from "./MarketDataIntegrityGate";
 
 export interface LiveMarketQuote {
   symbol: string;
@@ -14,10 +15,14 @@ export interface LiveMarketQuote {
   tradeValue: string;
   volume: string;
   timestamp: string | number;
+  provider?: "UPBIT" | "NAVER_POLLING" | "YAHOO_FINANCE" | "KIS" | "SYSTEM_HUB";
   source?: string;
+  exchange?: string;
   providerTimestamp?: string | null;
   receivedAt?: string;
   ageMs?: number;
+  isRealtime?: boolean;
+  isVerified?: boolean;
   isStale?: boolean;
   status?: "LIVE" | "STALE" | "UNAVAILABLE";
 }
@@ -138,6 +143,15 @@ class RealtimeMarketFeedService {
             data.forEach((item: any) => {
               const sym = item.market.replace("KRW-", "");
               const prev = this.quotes.get(sym);
+              const { isVerified, metadata } = MarketDataIntegrityGate.verifyQuote({
+                symbol: sym,
+                price: item.trade_price,
+                market: "UPBIT",
+                providerTimestamp: item.trade_timestamp,
+                provider: "UPBIT",
+                source: "UPBIT_PUBLIC_TICKER"
+              });
+
               const updated: LiveMarketQuote = {
                 symbol: sym,
                 name: prev?.name || sym,
@@ -147,7 +161,17 @@ class RealtimeMarketFeedService {
                 changeAmount: item.signed_change_price,
                 tradeValue: `${Math.round((item.acc_trade_price_24h || 0) / 100000000).toLocaleString()}억`,
                 volume: `${item.acc_trade_volume_24h ? Math.round(item.acc_trade_volume_24h).toLocaleString() : "0"} ${sym}`,
-                timestamp: new Date().toISOString()
+                timestamp: metadata.receivedAt,
+                provider: metadata.provider,
+                source: metadata.source,
+                exchange: metadata.exchange,
+                providerTimestamp: metadata.providerTimestamp,
+                receivedAt: metadata.receivedAt,
+                ageMs: metadata.ageMs,
+                isRealtime: metadata.isRealtime,
+                isVerified,
+                isStale: metadata.isStale,
+                status: isVerified ? "LIVE" : "STALE"
               };
               this.quotes.set(sym, updated);
               this.quotes.set(`KRW-${sym}`, updated);
@@ -199,6 +223,14 @@ class RealtimeMarketFeedService {
 
                   const mappedMarket: "KOSPI" | "KOSDAQ" = item.stockExchangeType?.nameKor === "코스닥" ? "KOSDAQ" : "KOSPI";
 
+                  const { isVerified, metadata } = MarketDataIntegrityGate.verifyQuote({
+                    symbol: code,
+                    price: priceNum,
+                    market: mappedMarket,
+                    provider: "NAVER_POLLING",
+                    source: "NAVER_BATCH_POLLING"
+                  });
+
                   const updated: LiveMarketQuote = {
                     symbol: code,
                     name: item.stockName || prev?.name || code,
@@ -208,8 +240,17 @@ class RealtimeMarketFeedService {
                     changeAmount: isDown ? -Math.abs(changeNum) : Math.abs(changeNum),
                     tradeValue: item.marketValueFull ? `${item.marketValueFull}` : (prev?.tradeValue || "실시간 연동"),
                     volume: item.accumulatedTradingVolume ? `${item.accumulatedTradingVolume}주` : (prev?.volume || "실시간 연동"),
-                    timestamp: new Date().toISOString(),
-                    source: "NAVER_POLLING"
+                    timestamp: metadata.receivedAt,
+                    provider: metadata.provider,
+                    source: metadata.source,
+                    exchange: metadata.exchange,
+                    providerTimestamp: metadata.providerTimestamp,
+                    receivedAt: metadata.receivedAt,
+                    ageMs: metadata.ageMs,
+                    isRealtime: metadata.isRealtime,
+                    isVerified,
+                    isStale: metadata.isStale,
+                    status: isVerified ? "LIVE" : "STALE"
                   };
                   this.quotes.set(code, updated);
                 }
@@ -234,6 +275,14 @@ class RealtimeMarketFeedService {
               const mappedMarket: "KOSPI" | "KOSDAQ" | "UPBIT" | "US" =
                 s.market === "US" ? "US" : (s.market === "UPBIT" || s.market === "BTC") ? "UPBIT" : (s.market === "KOSDAQ" ? "KOSDAQ" : "KOSPI");
 
+              const { isVerified, metadata } = MarketDataIntegrityGate.verifyQuote({
+                symbol: s.symbol,
+                price: s.price,
+                market: mappedMarket,
+                provider: mappedMarket === "US" ? "YAHOO_FINANCE" : "SYSTEM_HUB",
+                source: "API_STOCKS"
+              });
+
               const updated: LiveMarketQuote = {
                 symbol: s.symbol,
                 name: s.name || prev?.name || s.symbol,
@@ -241,9 +290,19 @@ class RealtimeMarketFeedService {
                 price: s.price,
                 changeRate: typeof s.changePct === "number" ? s.changePct : (s.changeRate || 0),
                 changeAmount: typeof s.change === "number" ? s.change : (s.changeAmount || 0),
-                tradeValue: s.marketCap || prev?.tradeValue || "실시간",
-                volume: prev?.volume || "실시간",
-                timestamp: new Date().toISOString()
+                tradeValue: s.marketCap || prev?.tradeValue || "--",
+                volume: prev?.volume || "--",
+                timestamp: metadata.receivedAt,
+                provider: metadata.provider,
+                source: metadata.source,
+                exchange: metadata.exchange,
+                providerTimestamp: metadata.providerTimestamp,
+                receivedAt: metadata.receivedAt,
+                ageMs: metadata.ageMs,
+                isRealtime: metadata.isRealtime,
+                isVerified,
+                isStale: metadata.isStale,
+                status: isVerified ? "LIVE" : "STALE"
               };
               this.quotes.set(s.symbol, updated);
             }

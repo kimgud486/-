@@ -37,6 +37,9 @@ import {
 import { useApp } from "../../context/AppContext";
 import { getAllStocks, StockItem } from "../../data/stockUniverse";
 import { StructureBrain, StructureBrainAnalysisResult } from "../../services/StructureBrain";
+import { RealScannerCoreEngine } from "../../services/RealScannerCoreEngine";
+import { realCandleStore } from "../../services/RealCandleStore";
+import { realtimeMarketFeedService } from "../../services/realtimeMarketFeedService";
 import { useModalScrollLock } from "../../hooks/useModalScrollLock";
 
 interface GithubRepoSpec {
@@ -193,6 +196,30 @@ export const GithubQuantPatternEngineHub: React.FC = () => {
   const [swingWindowLeft, setSwingWindowLeft] = useState<number>(2);
   const [swingWindowRight, setSwingWindowRight] = useState<number>(2);
   const [minFvgPercent, setMinFvgPercent] = useState<number>(0.15);
+  const [, setCandleTick] = useState(0);
+
+  // Background fetch verified candles for active stocks
+  React.useEffect(() => {
+    let isMounted = true;
+    const fetchTopCandles = async () => {
+      const symbolsToFetch = [brainSelectedSymbol, ...stocks.slice(0, 10).map((s) => s.symbol)];
+      const uniqueSymbols = Array.from(new Set(symbolsToFetch));
+      for (const sym of uniqueSymbols) {
+        if (!isMounted) break;
+        await realCandleStore.fetchRealCandles(sym, "15m", 60);
+      }
+      if (isMounted) {
+        setCandleTick((prev) => prev + 1);
+      }
+    };
+
+    fetchTopCandles();
+    const interval = setInterval(fetchTopCandles, 15000);
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
+  }, [brainSelectedSymbol, stocks]);
 
   const currentBrainStock = useMemo(() => {
     return stocks.find((s) => s.symbol === brainSelectedSymbol) || stocks[0];
@@ -201,8 +228,9 @@ export const GithubQuantPatternEngineHub: React.FC = () => {
   // Calculated StructureBrain Analysis Result
   const structureBrainResult: StructureBrainAnalysisResult = useMemo(() => {
     // Requires real verified candles
+    const cachedCandles = realCandleStore.getCachedCandles(currentBrainStock.symbol);
     return StructureBrain.analyze(
-      [],
+      cachedCandles,
       {
         swingWindowLeft,
         swingWindowRight,
@@ -224,7 +252,7 @@ export const GithubQuantPatternEngineHub: React.FC = () => {
   const [newDslCondition, setNewDslCondition] = useState("");
   const [dslResultOutput, setDslResultOutput] = useState<string | null>(null);
 
-  // Scanned pattern list derived strictly from verified real market data / fail-closed states
+  // Scanned pattern list derived strictly from verified real market data via RealScannerCoreEngine
   const scannedItems: ScannedPatternItem[] = stocks.map((s) => {
     // Fail-Closed Check: Disconnected / Missing Price
     if (!s.price || s.price <= 0 || s.dataStatus === "DISCONNECTED") {
@@ -279,16 +307,33 @@ export const GithubQuantPatternEngineHub: React.FC = () => {
       };
     }
 
-    // Live Market Verified State
-    const changeRate = s.changeRate ?? 0;
-    const isBullish = changeRate > 0;
+    // Process via RealScannerCoreEngine
+    const quote = realtimeMarketFeedService.getQuote(s.symbol);
+    const cachedCandles = realCandleStore.getCachedCandles(s.symbol);
 
-    const baseScore = isBullish ? Math.min(Math.round(72 + Math.abs(changeRate) * 2), 96) : Math.max(Math.round(50 - Math.abs(changeRate) * 2), 20);
-    const patternScore = Math.min(Math.max(baseScore, 10), 99);
-    const grade: "S" | "A" | "B" | "C" = patternScore >= 88 ? "S" : patternScore >= 78 ? "A" : patternScore >= 65 ? "B" : "C";
+    const realScan = RealScannerCoreEngine.analyze(s.symbol, cachedCandles, quote);
+
+    const patternScore = realScan.score ?? 0;
+    const grade: "S" | "A" | "B" | "C" =
+      realScan.grade === "S+" || realScan.grade === "S"
+        ? "S"
+        : realScan.grade === "A+" || realScan.grade === "A"
+        ? "A"
+        : realScan.grade === "B"
+        ? "B"
+        : "C";
 
     const setupStatus: "BUY CANDIDATE" | "BREAKOUT WATCH" | "WAIT RE-TEST" | "REJECT" =
-      patternScore >= 88 ? "BUY CANDIDATE" : patternScore >= 75 ? "BREAKOUT WATCH" : patternScore >= 55 ? "WAIT RE-TEST" : "REJECT";
+      realScan.signal === "BUY_CANDIDATE"
+        ? "BUY CANDIDATE"
+        : realScan.signal === "WATCH"
+        ? "BREAKOUT WATCH"
+        : "REJECT";
+
+    const rvol = realScan.analysis.indicator.rvol ?? 1.0;
+    const vwapVal = realScan.analysis.indicator.vwap;
+    const vwapPos = vwapVal ? Math.round((s.price / vwapVal) * 100) : 50;
+    const trendQuality = realScan.analysis.structure.trend === "UP" ? 85 : realScan.analysis.structure.trend === "DOWN" ? 25 : 50;
 
     return {
       symbol: s.symbol,
@@ -297,49 +342,49 @@ export const GithubQuantPatternEngineHub: React.FC = () => {
       price: s.price,
       changeRate: s.changeRate,
       dataStatus: s.dataStatus || "LIVE",
-      mainPattern: isBullish
-        ? `실시간 수급 상승 추세 (${changeRate > 0 ? "+" : ""}${changeRate.toFixed(2)}%)`
-        : `실시간 시세 감시 중 (${changeRate.toFixed(2)}%)`,
+      mainPattern: realScan.summary,
       matchedBots: [
-        "Realtime Data Feed",
+        "RealScannerCoreEngine V14.0",
         "SMC / ICT Structure Engine",
         "Order Flow Delta Gate"
       ],
       denoiseMethod: "Kalman Filter",
       smcInfo: {
-        structure: isBullish ? "Bullish BOS" : "Ranging",
-        orderBlock: `Live Price ₩${s.price.toLocaleString()}`,
+        structure: realScan.analysis.structure.trend === "UP" ? "Bullish BOS" : realScan.analysis.structure.choch ? "CHoCH" : "Ranging",
+        orderBlock: realScan.brainResult?.keyLevels.nearestBullishOB
+          ? `Bullish OB (₩${realScan.brainResult.keyLevels.nearestBullishOB.priceTop.toLocaleString()})`
+          : "NONE",
         obVolume: (s.volume || 0) > 1000000 ? "HIGH" : "MEDIUM",
         isMitigated: false,
-        fvgFillRate: 50
+        fvgFillRate: realScan.analysis.smc.fvgFillRate ?? 0
       },
       orderFlow: {
-        deltaStatus: changeRate > 0 ? "Positive Delta" : changeRate < 0 ? "Negative Delta" : "Neutral",
+        deltaStatus: (s.changeRate || 0) > 0 ? "Positive Delta" : (s.changeRate || 0) < 0 ? "Negative Delta" : "Neutral",
         cumulativeDelta: Math.round((s.tradeValue || 0) * 0.1),
-        imbalanceType: changeRate > 0 ? "Ask Imbalance" : changeRate < 0 ? "Bid Imbalance" : "Balanced",
-        pocStatus: changeRate > 0 ? "Above POC & VAH" : "Inside Value Area"
+        imbalanceType: (s.changeRate || 0) > 0 ? "Ask Imbalance" : (s.changeRate || 0) < 0 ? "Bid Imbalance" : "Balanced",
+        pocStatus: (s.changeRate || 0) > 0 ? "Above POC & VAH" : "Inside Value Area"
       },
       timeframeConcordance: {
         m1: true,
         m3: true,
         m5: true,
-        m15: isBullish,
-        m30: isBullish,
-        h1: isBullish,
+        m15: realScan.analysis.structure.trend === "UP",
+        m30: realScan.analysis.structure.trend === "UP",
+        h1: realScan.analysis.structure.trend === "UP",
         d1: true
       },
       metrics: {
         geometry: patternScore,
-        trendQuality: patternScore,
+        trendQuality,
         volumeConf: Math.min(Math.round((s.volume || 0) / 10000), 99),
-        rvol: s.rvol || 1.0,
-        breakoutQuality: patternScore,
+        rvol,
+        breakoutQuality: realScan.analysis.pattern.breakout ? 90 : 40,
         srAlignment: patternScore,
-        vwapPos: patternScore,
-        smcScore: patternScore,
+        vwapPos,
+        smcScore: realScan.brainResult?.institutionalScore ?? 0,
         orderFlowScore: patternScore,
-        falseBreakoutRisk: Math.max(10, 100 - patternScore),
-        chaseRisk: Math.max(10, 100 - patternScore)
+        falseBreakoutRisk: realScan.analysis.risk.falseBreakoutRisk ?? 50,
+        chaseRisk: realScan.analysis.risk.chaseRisk ?? 50
       },
       patternScore,
       grade,
