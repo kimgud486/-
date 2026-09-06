@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   ResponsiveContainer,
   LineChart,
@@ -9,135 +9,148 @@ import {
   ReferenceLine,
   CartesianGrid
 } from "recharts";
+import { AlertTriangle, RefreshCw } from "lucide-react";
+import { fetchInvestorFlow, InvestorFlowResult } from "../../services/InvestorFlowService";
 
-interface FlowPoint {
-  time: string;
-  foreign: number; // 외국인 (억원)
-  institution: number; // 기관 (억원)
-  retail: number; // 개인 (억원)
+interface InvestorFlowChartProps {
+  symbol?: string;
 }
 
-const SAMPLE_FLOW_DATA: FlowPoint[] = [
-  { time: "09:00", foreign: 0, institution: 0, retail: 0 },
-  { time: "09:30", foreign: 420, institution: 180, retail: -600 },
-  { time: "10:00", foreign: 980, institution: 350, retail: -1330 },
-  { time: "10:30", foreign: 1420, institution: 520, retail: -1940 },
-  { time: "11:00", foreign: 1850, institution: 710, retail: -2560 },
-  { time: "11:30", foreign: 2100, institution: 840, retail: -2940 },
-  { time: "12:00", foreign: 2280, institution: 910, retail: -3190 },
-  { time: "12:30", foreign: 2390, institution: 960, retail: -3350 },
-  { time: "13:00", foreign: 2480, institution: 1040, retail: -3520 },
-  { time: "13:30", foreign: 2610, institution: 1120, retail: -3730 },
-  { time: "14:00", foreign: 2720, institution: 1190, retail: -3910 },
-  { time: "14:30", foreign: 2810, institution: 1220, retail: -4030 },
-  { time: "15:00", foreign: 2854, institution: 1247, retail: -4101 }
-];
+export const InvestorFlowChart: React.FC<InvestorFlowChartProps> = ({ symbol }) => {
+  const [flowResult, setFlowResult] = useState<InvestorFlowResult>({
+    status: "UNAVAILABLE",
+    points: []
+  });
+  const [loading, setLoading] = useState<boolean>(true);
 
-export const InvestorFlowChart: React.FC = () => {
-  const [data] = useState<FlowPoint[]>(SAMPLE_FLOW_DATA);
+  useEffect(() => {
+    let isMounted = true;
+    setLoading(true);
+
+    fetchInvestorFlow(symbol).then((res) => {
+      if (isMounted) {
+        setFlowResult(res);
+        setLoading(false);
+      }
+    });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [symbol]);
+
+  const latestPoint = flowResult.points.length > 0 ? flowResult.points[flowResult.points.length - 1] : null;
 
   return (
-    <div className="w-full bg-white rounded-xl border border-slate-200 p-3.5 shadow-xs">
+    <div className="w-full bg-slate-900 border border-slate-800 rounded-xl p-3.5 shadow-xs">
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-1.5">
-          <span className="text-xs font-black text-slate-800 tracking-tight">INVESTOR FLOW</span>
+          <span className="text-xs font-black text-white tracking-tight">INVESTOR FLOW (실시간 기관/외국인 수급)</span>
         </div>
         <span className="text-[10px] text-slate-400 font-medium">(단위: 억원)</span>
       </div>
 
-      {/* Metrics Row */}
-      <div className="grid grid-cols-3 gap-1.5 pb-2 mb-2 border-b border-slate-100 font-mono text-xs">
-        <div className="bg-emerald-50/60 rounded-lg p-1.5 border border-emerald-100">
-          <div className="text-[10px] text-slate-500 font-sans font-medium">외국인</div>
-          <div className="text-xs font-black text-emerald-600">+2,854억</div>
+      {loading ? (
+        <div className="p-6 flex items-center justify-center text-xs text-slate-400 gap-2 font-mono">
+          <RefreshCw className="w-4 h-4 animate-spin text-purple-400" />
+          실시간 수급 데이터 동기화 중...
         </div>
-        <div className="bg-sky-50/60 rounded-lg p-1.5 border border-sky-100">
-          <div className="text-[10px] text-slate-500 font-sans font-medium">기관</div>
-          <div className="text-xs font-black text-sky-600">+1,247억</div>
+      ) : flowResult.status === "UNAVAILABLE" || flowResult.points.length === 0 ? (
+        <div className="p-4 bg-amber-500/10 border border-amber-500/20 rounded-xl text-amber-300 text-xs font-mono space-y-1 my-2">
+          <div className="font-bold flex items-center gap-2">
+            <AlertTriangle className="w-4 h-4 text-amber-400" />
+            기관/외국인 실시간 수급 데이터 미연결 (INVESTOR_FLOW_UNAVAILABLE)
+          </div>
+          <div className="text-[11px] text-amber-200/70">
+            실시간 기관/외국인 수급 데이터 피드가 미연결 상태입니다. 허위 샘플 수급 데이터 표시는 전면 금지되어 있습니다.
+          </div>
         </div>
-        <div className="bg-rose-50/60 rounded-lg p-1.5 border border-rose-100">
-          <div className="text-[10px] text-slate-500 font-sans font-medium">개인</div>
-          <div className="text-xs font-black text-rose-600">-4,101억</div>
-        </div>
-      </div>
+      ) : (
+        <>
+          {/* Metrics Row */}
+          <div className="grid grid-cols-3 gap-1.5 pb-2 mb-2 border-b border-slate-800 font-mono text-xs">
+            <div className="bg-emerald-950/40 rounded-lg p-1.5 border border-emerald-500/30">
+              <div className="text-[10px] text-slate-400 font-sans font-medium">외국인</div>
+              <div className="text-xs font-black text-emerald-400">
+                {latestPoint?.foreignNet != null ? `${latestPoint.foreignNet > 0 ? "+" : ""}${latestPoint.foreignNet.toLocaleString()}억` : "--"}
+              </div>
+            </div>
+            <div className="bg-sky-950/40 rounded-lg p-1.5 border border-sky-500/30">
+              <div className="text-[10px] text-slate-400 font-sans font-medium">기관</div>
+              <div className="text-xs font-black text-sky-400">
+                {latestPoint?.institutionNet != null ? `${latestPoint.institutionNet > 0 ? "+" : ""}${latestPoint.institutionNet.toLocaleString()}억` : "--"}
+              </div>
+            </div>
+            <div className="bg-rose-950/40 rounded-lg p-1.5 border border-rose-500/30">
+              <div className="text-[10px] text-slate-400 font-sans font-medium">개인</div>
+              <div className="text-xs font-black text-rose-400">
+                {latestPoint?.retailNet != null ? `${latestPoint.retailNet > 0 ? "+" : ""}${latestPoint.retailNet.toLocaleString()}억` : "--"}
+              </div>
+            </div>
+          </div>
 
-      {/* Legend */}
-      <div className="flex items-center justify-center gap-4 text-[10px] font-sans font-semibold mb-1 text-slate-500">
-        <div className="flex items-center gap-1">
-          <span className="w-2.5 h-0.5 bg-emerald-500 rounded-full inline-block"></span>
-          <span>외국인</span>
-        </div>
-        <div className="flex items-center gap-1">
-          <span className="w-2.5 h-0.5 bg-sky-500 rounded-full inline-block"></span>
-          <span>기관</span>
-        </div>
-        <div className="flex items-center gap-1">
-          <span className="w-2.5 h-0.5 bg-rose-400 rounded-full inline-block"></span>
-          <span>개인</span>
-        </div>
-      </div>
+          {/* Legend */}
+          <div className="flex items-center justify-center gap-4 text-[10px] font-sans font-semibold mb-1 text-slate-400">
+            <div className="flex items-center gap-1">
+              <span className="w-2.5 h-0.5 bg-emerald-500 rounded-full inline-block"></span>
+              <span>외국인</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <span className="w-2.5 h-0.5 bg-sky-500 rounded-full inline-block"></span>
+              <span>기관</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <span className="w-2.5 h-0.5 bg-rose-400 rounded-full inline-block"></span>
+              <span>개인</span>
+            </div>
+          </div>
 
-      {/* Chart Canvas */}
-      <div className="h-32 w-full">
-        <ResponsiveContainer width="100%" height="100%">
-          <LineChart data={data} margin={{ top: 5, right: 8, left: -20, bottom: 0 }}>
-            <CartesianGrid strokeDasharray="2 2" stroke="#F1F5F9" vertical={false} />
-            <XAxis
-              dataKey="time"
-              tick={{ fill: "#94A3B8", fontSize: 9 }}
-              tickLine={false}
-              axisLine={{ stroke: "#E2E8F0" }}
-            />
-            <YAxis
-              tick={{ fill: "#94A3B8", fontSize: 9 }}
-              tickLine={false}
-              axisLine={false}
-              tickFormatter={(v) => `${v}`}
-              domain={[-4500, 3500]}
-            />
-            <ReferenceLine y={0} stroke="#CBD5E1" strokeWidth={1} strokeDasharray="3 3" />
-            <Tooltip
-              content={({ active, payload, label }) => {
-                if (active && payload && payload.length) {
-                  return (
-                    <div className="bg-slate-900 text-white p-2 rounded-lg text-[10px] font-mono shadow-lg border border-slate-700">
-                      <div className="text-slate-400 mb-1">{label} 기준 수급</div>
-                      <div className="text-emerald-400">외국인: +{payload[0]?.value}억</div>
-                      <div className="text-sky-400">기관: +{payload[1]?.value}억</div>
-                      <div className="text-rose-400">개인: {payload[2]?.value}억</div>
-                    </div>
-                  );
-                }
-                return null;
-              }}
-            />
-            <Line
-              type="monotone"
-              dataKey="foreign"
-              stroke="#10B981"
-              strokeWidth={2}
-              dot={false}
-              isAnimationActive={false}
-            />
-            <Line
-              type="monotone"
-              dataKey="institution"
-              stroke="#0EA5E9"
-              strokeWidth={1.8}
-              dot={false}
-              isAnimationActive={false}
-            />
-            <Line
-              type="monotone"
-              dataKey="retail"
-              stroke="#FB7185"
-              strokeWidth={1.5}
-              dot={false}
-              isAnimationActive={false}
-            />
-          </LineChart>
-        </ResponsiveContainer>
-      </div>
+          {/* Chart Canvas */}
+          <div className="h-32 w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={flowResult.points} margin={{ top: 5, right: 8, left: -20, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="2 2" stroke="#334155" vertical={false} />
+                <XAxis
+                  dataKey="timeStr"
+                  tick={{ fill: "#94A3B8", fontSize: 9 }}
+                  tickLine={false}
+                  axisLine={{ stroke: "#475569" }}
+                />
+                <YAxis
+                  tick={{ fill: "#94A3B8", fontSize: 9 }}
+                  tickLine={false}
+                  axisLine={false}
+                  tickFormatter={(v) => `${v}`}
+                />
+                <ReferenceLine y={0} stroke="#64748B" strokeWidth={1} strokeDasharray="3 3" />
+                <Tooltip
+                  content={({ active, payload, label }) => {
+                    if (active && payload && payload.length) {
+                      return (
+                        <div className="bg-slate-950 border border-slate-800 p-2 rounded-lg text-xs font-mono shadow-xl space-y-1">
+                          <div className="text-slate-400 font-sans text-[10px]">{label}</div>
+                          {payload.map((entry: any, index: number) => (
+                            <div key={index} className="flex items-center justify-between gap-3 text-[11px]">
+                              <span style={{ color: entry.color }}>{entry.name}:</span>
+                              <span className="font-bold" style={{ color: entry.color }}>
+                                {entry.value != null ? `${entry.value > 0 ? "+" : ""}${entry.value}억` : "--"}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      );
+                    }
+                    return null;
+                  }}
+                />
+                <Line type="monotone" dataKey="foreignNet" name="외국인" stroke="#10B981" strokeWidth={1.5} dot={false} />
+                <Line type="monotone" dataKey="institutionNet" name="기관" stroke="#38BDF8" strokeWidth={1.5} dot={false} />
+                <Line type="monotone" dataKey="retailNet" name="개인" stroke="#FB7185" strokeWidth={1.5} dot={false} />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </>
+      )}
     </div>
   );
 };

@@ -481,11 +481,8 @@ export function buildLiveStockItem(
   }
 
   // Verified Real Live Market Data
-  const isStale = Boolean(live.isStale);
+  const isStale = live.status === "STALE";
   const dataStatus: "LIVE" | "STALE" = isStale ? "STALE" : "LIVE";
-
-  const parsedVol = parseFloat(String(live.volume).replace(/[^0-9.]/g, ""));
-  const parsedTV = parseFloat(String(live.tradeValue).replace(/[^0-9.]/g, ""));
 
   return {
     symbol,
@@ -494,11 +491,11 @@ export function buildLiveStockItem(
     dataStatus,
 
     price: live.price,
-    changeRate: typeof live.changeRate === "number" ? live.changeRate : null,
-    changeAmount: typeof live.changeAmount === "number" ? live.changeAmount : null,
+    changeRate: live.changeRate,
+    changeAmount: live.changeAmount,
 
-    volume: !isNaN(parsedVol) && parsedVol > 0 ? parsedVol : null,
-    tradeValue: !isNaN(parsedTV) && parsedTV > 0 ? parsedTV : null,
+    volume: live.volume,
+    tradeValue: live.tradeValue,
 
     rvol: null, // RVOL must be calculated dynamically by IndicatorEngine from real OHLCV candles
     vwap: null, // VWAP must be calculated dynamically by IndicatorEngine from real OHLCV candles
@@ -512,7 +509,7 @@ export function buildLiveStockItem(
     categoryLabel: meta?.categoryLabel || "",
     theme: meta?.theme || "",
     strategy: meta?.strategy || "",
-    marketCap: live.tradeValue || null,
+    marketCap: live.marketCap ? String(live.marketCap) : null,
     isCustom: meta?.isCustom
   };
 }

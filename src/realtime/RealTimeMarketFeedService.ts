@@ -50,12 +50,10 @@ export class RealTimeMarketFeedManager {
 
         if (!symbolListeners?.size) return;
 
+        if (quote.price == null || quote.price <= 0) return;
+
         const now = Date.now();
-        const tickTs = typeof quote.timestamp === "number"
-          ? quote.timestamp
-          : typeof quote.timestamp === "string" && quote.timestamp.trim().length > 0
-          ? (isNaN(new Date(quote.timestamp).getTime()) ? now : new Date(quote.timestamp).getTime())
-          : now;
+        const tickTs = quote.providerTimestamp || quote.receivedAt || now;
 
         const source = (quote.source || "KIS_REALTIME_WS") as "KIS_REALTIME_WS" | "US_BROKER_WS" | "NAVER_POLLING";
         const quality: FeedQuality = source === "KIS_REALTIME_WS" || source === "US_BROKER_WS" ? "BROKER_REALTIME" : "POLLING_DELAYED";
@@ -77,7 +75,7 @@ export class RealTimeMarketFeedManager {
           return;
         }
 
-        const accumulatedVolume = parseKoreanVolume(quote.volume);
+        const accumulatedVolume = quote.volume || 0;
         const previousAccumulatedVolume = this.lastAccumulatedVolume.get(symbol);
 
         const incrementalVolume =

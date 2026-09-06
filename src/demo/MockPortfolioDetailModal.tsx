@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { AiLossCauseAnalysisModal } from './AiLossCauseAnalysisModal';
-import { AiTradingPerformanceReportModal } from './AiTradingPerformanceReportModal';
+import { AiLossCauseAnalysisModal } from '../components/trading/AiLossCauseAnalysisModal';
+import { AiTradingPerformanceReportModal } from '../components/trading/AiTradingPerformanceReportModal';
 import {
   ShieldAlert,
   X,
@@ -28,10 +28,10 @@ import {
   Award,
   ArrowLeft
 } from 'lucide-react';
-import { useApp } from '../../context/AppContext';
-import { useModalScrollLock } from '../../hooks/useModalScrollLock';
-import { StockPosition, ActiveChartStock } from '../../types';
-import { ExchangeRateInfoModal } from './ExchangeRateInfoModal';
+import { useApp } from '../context/AppContext';
+import { useModalScrollLock } from '../hooks/useModalScrollLock';
+import { StockPosition, ActiveChartStock } from '../types';
+import { ExchangeRateInfoModal } from '../components/trading/ExchangeRateInfoModal';
 
 interface MockPortfolioDetailModalProps {
   isOpen: boolean;

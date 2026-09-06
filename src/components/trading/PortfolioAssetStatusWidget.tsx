@@ -27,7 +27,7 @@ import {
 import { useApp } from "../../context/AppContext";
 import { AiTradingPerformanceReportModal } from "./AiTradingPerformanceReportModal";
 import { HoldingExecutionRationaleModal, HoldingDetailData } from "./HoldingExecutionRationaleModal";
-import { EditMockBalanceModal } from "./EditMockBalanceModal";
+import { EditMockBalanceModal } from "../../demo/EditMockBalanceModal";
 
 interface PortfolioAssetStatusWidgetProps {
   onOpenHoldingsModal?: () => void;

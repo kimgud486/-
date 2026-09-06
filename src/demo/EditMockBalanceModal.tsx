@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Coins, Check, X, Sparkles, RefreshCcw, ShieldAlert } from "lucide-react";
-import { useApp } from "../../context/AppContext";
+import { useApp } from "../context/AppContext";
 
 interface EditMockBalanceModalProps {
   isOpen: boolean;

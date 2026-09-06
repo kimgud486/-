@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
-import { EditMockBalanceModal } from "./EditMockBalanceModal";
-import { MockPortfolioDetailModal } from "./MockPortfolioDetailModal";
+import { EditMockBalanceModal } from "../../demo/EditMockBalanceModal";
+import { MockPortfolioDetailModal } from "../../demo/MockPortfolioDetailModal";
 import { ExchangeRateInfoModal } from "./ExchangeRateInfoModal";
 import { AiLossCauseAnalysisModal } from "./AiLossCauseAnalysisModal";
 import { AiTradeFeedbackAnalyzerModal } from "./AiTradeFeedbackAnalyzerModal";

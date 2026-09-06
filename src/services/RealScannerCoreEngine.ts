@@ -1,11 +1,13 @@
 // ----------------------------------------------------------------------
-// REAL SCANNER CORE ENGINE (V14.0)
-// Zero Fake Data, Pure Candle Indicator & SMC Pattern Analysis
+// REAL SCANNER CORE ENGINE (V14.1 TRUTH ENGINE INTEGRATED)
+// Pure Candle Technical Indicators, SMC & Multi-Timeframe Truth Analysis
 // ----------------------------------------------------------------------
 
 import { Candle, StructureBrain, StructureBrainAnalysisResult } from "./StructureBrain";
 import { MarketDataIntegrityGate } from "./MarketDataIntegrityGate";
 import { LiveMarketQuote } from "./realtimeMarketFeedService";
+import { IndicatorSnapshot, IndicatorTruthEngine } from "./IndicatorTruthEngine";
+import { MultiTimeframeAnalysisEngine, MultiTimeframeResult } from "./MultiTimeframeAnalysisEngine";
 
 export interface ScannerAnalysis {
   indicator: {
@@ -41,6 +43,7 @@ export interface ScannerAnalysis {
     fvgFillRate: number | null;
     orderBlock: boolean;
     liquiditySweep: boolean;
+    smcStructureScore: number | null;
   };
 
   risk: {
@@ -59,6 +62,8 @@ export interface RealScannerResult {
   grade: "S+" | "S" | "A+" | "A" | "B" | "WATCH" | "NO_SETUP" | null;
   signal: "BUY_CANDIDATE" | "WATCH" | "REJECT" | "NO_DATA";
   analysis: ScannerAnalysis;
+  indicators: IndicatorSnapshot;
+  mtfResult: MultiTimeframeResult;
   brainResult: StructureBrainAnalysisResult | null;
   summary: string;
 }
@@ -67,7 +72,9 @@ export function calculateSetupScore(a: ScannerAnalysis): number | null {
   if (
     a.indicator.vwap == null ||
     a.indicator.rvol == null ||
-    a.indicator.atr == null
+    a.indicator.atr == null ||
+    a.indicator.macdHistogram == null ||
+    a.indicator.adx == null
   ) {
     return null;
   }
@@ -81,10 +88,13 @@ export function calculateSetupScore(a: ScannerAnalysis): number | null {
   if (a.indicator.rvol >= 2.0) score += 12;
   else if (a.indicator.rvol >= 1.5) score += 7;
 
-  if (a.pattern.breakout) score += 10;
-  if (a.pattern.retest) score += 10;
-  if (a.pattern.vwapReclaim) score += 8;
-  if (a.pattern.firstPullback) score += 10;
+  if (a.indicator.macdHistogram > 0) score += 8;
+  if (a.indicator.adx >= 25) score += 8;
+
+  if (a.pattern.breakout) score += 8;
+  if (a.pattern.retest) score += 8;
+  if (a.pattern.vwapReclaim) score += 7;
+  if (a.pattern.firstPullback) score += 8;
   if (a.pattern.orb) score += 5;
 
   if (a.smc.liquiditySweep) score += 5;
@@ -112,6 +122,12 @@ export class RealScannerCoreEngine {
       : { isVerified: false, metadata: null };
 
     if (!candleVerification.isVerified || rawCandles.length < 10) {
+      const emptyIndicators = IndicatorTruthEngine.computeSnapshot([]);
+      const emptyMTF: MultiTimeframeResult = {
+        m1: null, m3: null, m5: null, m15: null, m30: null, h1: null, d1: null,
+        bullishCount: 0, bearishCount: 0, timeframesEvaluated: 0, consensus: "NO_DATA"
+      };
+
       return {
         symbol,
         dataStatus: "NO_DATA",
@@ -124,9 +140,11 @@ export class RealScannerCoreEngine {
           indicator: { vwap: null, rvol: null, atr: null, rsi: null, macdHistogram: null, adx: null, ema20: null },
           structure: { trend: "NO_DATA", hh: false, hl: false, bos: false, choch: false },
           pattern: { orb: false, gapAndGo: false, firstPullback: false, breakout: false, retest: false, vwapReclaim: false, bullFlag: false },
-          smc: { fvg: false, fvgFillRate: null, orderBlock: false, liquiditySweep: false },
+          smc: { fvg: false, fvgFillRate: null, orderBlock: false, liquiditySweep: false, smcStructureScore: null },
           risk: { chaseRisk: null, falseBreakoutRisk: null, spreadRisk: null }
         },
+        indicators: emptyIndicators,
+        mtfResult: emptyMTF,
         brainResult: null,
         summary: "실시간 OHLCV 캔들 데이터 부족 (NO_DATA) - AI 분석 및 매수 차단"
       };
@@ -136,71 +154,8 @@ export class RealScannerCoreEngine {
     const len = candles.length;
     const currentPrice = liveQuote?.price || candles[len - 1].close;
 
-    // 2. Real Indicator Engine Calculation
-    // VWAP Calculation
-    let sumPV = 0;
-    let sumV = 0;
-    for (const c of candles) {
-      const tp = (c.high + c.low + c.close) / 3;
-      sumPV += tp * c.volume;
-      sumV += c.volume;
-    }
-    const vwap = sumV > 0 ? sumPV / sumV : currentPrice;
-
-    // RVOL Calculation (20-period average volume)
-    const recent20 = candles.slice(-20);
-    const avgVol20 = recent20.reduce((acc, c) => acc + c.volume, 0) / Math.max(1, recent20.length);
-    const currentVol = candles[len - 1].volume;
-    const rvol = avgVol20 > 0 ? +(currentVol / avgVol20).toFixed(2) : 1.0;
-
-    // ATR Calculation (14-period Wilder)
-    let trSum = 0;
-    const atrPeriod = Math.min(14, len - 1);
-    for (let i = len - atrPeriod; i < len; i++) {
-      const prevClose = candles[i - 1]?.close || candles[i].open;
-      const tr = Math.max(
-        candles[i].high - candles[i].low,
-        Math.abs(candles[i].high - prevClose),
-        Math.abs(candles[i].low - prevClose)
-      );
-      trSum += tr;
-    }
-    const atr = atrPeriod > 0 ? +(trSum / atrPeriod).toFixed(2) : +(currentPrice * 0.02).toFixed(2);
-
-    // RSI Calculation (14-period)
-    let gains = 0;
-    let losses = 0;
-    const rsiPeriod = Math.min(14, len - 1);
-    for (let i = len - rsiPeriod; i < len; i++) {
-      const change = candles[i].close - (candles[i - 1]?.close || candles[i].open);
-      if (change > 0) gains += change;
-      else losses += Math.abs(change);
-    }
-    const avgGain = gains / Math.max(1, rsiPeriod);
-    const avgLoss = losses / Math.max(1, rsiPeriod);
-    const rsi = avgLoss === 0 ? 100 : +(100 - 100 / (1 + avgGain / avgLoss)).toFixed(1);
-
-    // EMA 20
-    let ema20 = candles[0].close;
-    const k20 = 2 / (20 + 1);
-    for (let i = 1; i < len; i++) {
-      ema20 = candles[i].close * k20 + ema20 * (1 - k20);
-    }
-
-    // MACD Histogram estimation
-    let ema12 = candles[0].close;
-    let ema26 = candles[0].close;
-    const k12 = 2 / 13;
-    const k26 = 2 / 27;
-    for (let i = 1; i < len; i++) {
-      ema12 = candles[i].close * k12 + ema12 * (1 - k12);
-      ema26 = candles[i].close * k26 + ema26 * (1 - k26);
-    }
-    const macdLine = ema12 - ema26;
-    const macdHistogram = +(macdLine * 0.8).toFixed(2);
-
-    // ADX estimation based on high/low expansion
-    const adx = +(Math.min(50, Math.max(15, (atr / currentPrice) * 1000))).toFixed(1);
+    // 2. Compute Pure Indicators via IndicatorTruthEngine
+    const indicators = IndicatorTruthEngine.computeSnapshot(candles);
 
     // 3. Market Structure Analysis via StructureBrain
     const brainResult = StructureBrain.analyze(candles, { swingWindowLeft: 2, swingWindowRight: 2 }, symbol);
@@ -216,12 +171,20 @@ export class RealScannerCoreEngine {
     const hasBos = brainResult.structureBreaks.some((b) => b.type === "BOS" && b.direction === "BULLISH");
     const hasChoch = brainResult.structureBreaks.some((b) => b.type === "CHOCH" && b.direction === "BULLISH");
 
-    // 4. Pattern Recognition
+    // 4. Multi-Timeframe Analysis
+    const mtfResult = MultiTimeframeAnalysisEngine.analyzeSymbol(symbol);
+
+    // 5. Pattern Recognition
     const prevClose = candles[len - 2]?.close || currentPrice;
     const openPrice = candles[len - 1].open;
     const gapPercent = ((openPrice - prevClose) / prevClose) * 100;
 
+    const rvol = indicators.rvol ?? 1.0;
+    const vwap = indicators.vwap ?? currentPrice;
+    const ema20 = indicators.ema20 ?? currentPrice;
+
     const gapAndGo = gapPercent >= 1.5 && rvol >= 1.8;
+    const recent20 = candles.slice(-20);
     const breakout = currentPrice > Math.max(...recent20.slice(0, -1).map((c) => c.high));
     const vwapReclaim = candles[len - 2].close < vwap && currentPrice > vwap;
     const firstPullback = isUpTrend && currentPrice <= ema20 * 1.01 && currentPrice >= ema20 * 0.99;
@@ -229,26 +192,26 @@ export class RealScannerCoreEngine {
     const retest = breakout && candles[len - 1].low <= Math.max(...recent20.slice(0, -2).map((c) => c.high));
     const bullFlag = isUpTrend && rvol < 1.2 && Math.abs(currentPrice - ema20) / ema20 < 0.015;
 
-    // 5. SMC Components
+    // 6. SMC Components
     const hasFvg = brainResult.fairValueGaps.some((g) => !g.isFilled);
     const fvgFillRate = brainResult.keyLevels.activeBullishFVG ? brainResult.keyLevels.activeBullishFVG.fillPercentage : null;
     const hasOb = Boolean(brainResult.keyLevels.nearestBullishOB);
     const hasSweep = Boolean(brainResult.keyLevels.lastSweep);
 
-    // 6. Risk Metrics
-    const chaseRisk = +(Math.max(0, ((currentPrice - vwap) / vwap) * 100 * 5)).toFixed(1);
-    const falseBreakoutRisk = +((1 - Math.min(rvol / 2.0, 1.0)) * 50 + (chaseRisk > 30 ? 30 : 0)).toFixed(1);
-    const spreadRisk = 10;
+    // 7. Risk Metrics
+    const chaseRisk = vwap > 0 ? +(Math.max(0, ((currentPrice - vwap) / vwap) * 100 * 5)).toFixed(1) : null;
+    const falseBreakoutRisk = rvol !== null && chaseRisk !== null ? +((1 - Math.min(rvol / 2.0, 1.0)) * 50 + (chaseRisk > 30 ? 30 : 0)).toFixed(1) : null;
+    const spreadRisk = null; // null if orderbook spread unavailable
 
     const analysis: ScannerAnalysis = {
       indicator: {
-        vwap: +vwap.toFixed(2),
-        rvol,
-        atr,
-        rsi,
-        macdHistogram,
-        adx,
-        ema20: +ema20.toFixed(2)
+        vwap: indicators.vwap,
+        rvol: indicators.rvol,
+        atr: indicators.atr14,
+        rsi: indicators.rsi14,
+        macdHistogram: indicators.macd.histogram,
+        adx: indicators.dmi.adx,
+        ema20: indicators.ema20
       },
       structure: {
         trend: trendState,
@@ -270,7 +233,8 @@ export class RealScannerCoreEngine {
         fvg: hasFvg,
         fvgFillRate,
         orderBlock: hasOb,
-        liquiditySweep: hasSweep
+        liquiditySweep: hasSweep,
+        smcStructureScore: brainResult.smcStructureScore
       },
       risk: {
         chaseRisk,
@@ -279,7 +243,7 @@ export class RealScannerCoreEngine {
       }
     };
 
-    // 7. Calculate Setup Score
+    // 8. Calculate Setup Score
     const score = calculateSetupScore(analysis);
 
     let grade: RealScannerResult["grade"] = "NO_SETUP";
@@ -305,8 +269,10 @@ export class RealScannerCoreEngine {
       grade,
       signal,
       analysis,
+      indicators,
+      mtfResult,
       brainResult,
-      summary: `점수: ${score ?? "NO_DATA"}점 (${grade}) | 추세: ${trendState} | RVOL: ${rvol} | VWAP: ₩${vwap.toLocaleString()}`
+      summary: `점수: ${score ?? "NO_DATA"}점 (${grade ?? "N/A"}) | 추세: ${trendState} | RVOL: ${indicators.rvol ?? "--"} | VWAP: ${indicators.vwap ? `₩${indicators.vwap.toLocaleString()}` : "--"}`
     };
   }
 }

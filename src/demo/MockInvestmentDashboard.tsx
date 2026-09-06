@@ -31,10 +31,10 @@ import {
   Tooltip, 
   CartesianGrid 
 } from "recharts";
-import { useApp } from "../../context/AppContext";
-import { AiInvestmentReportModal } from "./AiInvestmentReportModal";
-import { HistoricalAssetGrowthChart } from "./HistoricalAssetGrowthChart";
-import { HoldingExecutionRationaleModal, HoldingDetailData } from "./HoldingExecutionRationaleModal";
+import { useApp } from "../context/AppContext";
+import { AiInvestmentReportModal } from "../components/trading/AiInvestmentReportModal";
+import { HistoricalAssetGrowthChart } from "../components/trading/HistoricalAssetGrowthChart";
+import { HoldingExecutionRationaleModal, HoldingDetailData } from "../components/trading/HoldingExecutionRationaleModal";
 
 const MOCK_YIELD_CURVE_DATA = [
   { time: "Day 1", yieldPct: 0.0, balance: 10000000 },

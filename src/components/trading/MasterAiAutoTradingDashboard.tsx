@@ -383,11 +383,8 @@ export const MasterAiAutoTradingDashboard: React.FC<{
           updated.high = Math.max(last.high, activeQuote.price);
           updated.low = Math.min(last.low, activeQuote.price);
           updated.isUp = updated.close >= updated.open;
-          if (activeQuote.volume) {
-            const parsedVol = parseInt(activeQuote.volume.replace(/[^0-9]/g, ""), 10);
-            if (!isNaN(parsedVol) && parsedVol > 0) {
-              updated.volume = parsedVol;
-            }
+          if (typeof activeQuote.volume === "number" && activeQuote.volume > 0) {
+            updated.volume = activeQuote.volume;
           }
 
           const copy = [...prev];

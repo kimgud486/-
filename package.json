@@ -9,6 +9,7 @@
     "start": "node dist/server.cjs",
     "test": "node --import tsx --test tests/**/*.test.ts",
     "clean": "rm -rf dist server.js",
+    "audit:fake-data": "node scripts/check-no-fake-production-data.mjs",
     "lint": "tsc --noEmit"
   },
   "dependencies": {

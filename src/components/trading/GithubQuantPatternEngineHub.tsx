@@ -40,6 +40,7 @@ import { StructureBrain, StructureBrainAnalysisResult } from "../../services/Str
 import { RealScannerCoreEngine } from "../../services/RealScannerCoreEngine";
 import { realCandleStore } from "../../services/RealCandleStore";
 import { realtimeMarketFeedService } from "../../services/realtimeMarketFeedService";
+import { institutionalOrderFlowService } from "../../services/InstitutionalOrderFlowService";
 import { useModalScrollLock } from "../../hooks/useModalScrollLock";
 
 interface GithubRepoSpec {
@@ -145,10 +146,10 @@ export interface ScannedPatternItem {
     fvgFillRate: number;
   };
   orderFlow: {
-    deltaStatus: "Positive Delta" | "Negative Delta" | "Neutral";
-    cumulativeDelta: number;
-    imbalanceType: "Ask Imbalance" | "Bid Imbalance" | "Balanced";
-    pocStatus: "Above POC & VAH" | "Inside Value Area" | "Below VAL";
+    deltaStatus: string;
+    cumulativeDelta: number | null;
+    imbalanceType: string;
+    pocStatus: string;
   };
   timeframeConcordance: {
     m1: boolean;
@@ -307,11 +308,12 @@ export const GithubQuantPatternEngineHub: React.FC = () => {
       };
     }
 
-    // Process via RealScannerCoreEngine
+    // Process via RealScannerCoreEngine & InstitutionalOrderFlowService
     const quote = realtimeMarketFeedService.getQuote(s.symbol);
     const cachedCandles = realCandleStore.getCachedCandles(s.symbol);
 
     const realScan = RealScannerCoreEngine.analyze(s.symbol, cachedCandles, quote);
+    const flow = institutionalOrderFlowService.getFlow(s.symbol);
 
     const patternScore = realScan.score ?? 0;
     const grade: "S" | "A" | "B" | "C" =
@@ -332,7 +334,7 @@ export const GithubQuantPatternEngineHub: React.FC = () => {
 
     const rvol = realScan.analysis.indicator.rvol ?? 1.0;
     const vwapVal = realScan.analysis.indicator.vwap;
-    const vwapPos = vwapVal ? Math.round((s.price / vwapVal) * 100) : 50;
+    const vwapPos = vwapVal && s.price ? Math.round((s.price / vwapVal) * 100) : 50;
     const trendQuality = realScan.analysis.structure.trend === "UP" ? 85 : realScan.analysis.structure.trend === "DOWN" ? 25 : 50;
 
     return {
@@ -344,9 +346,9 @@ export const GithubQuantPatternEngineHub: React.FC = () => {
       dataStatus: s.dataStatus || "LIVE",
       mainPattern: realScan.summary,
       matchedBots: [
-        "RealScannerCoreEngine V14.0",
+        "RealScannerCoreEngine V14.1",
         "SMC / ICT Structure Engine",
-        "Order Flow Delta Gate"
+        "Institutional Flow Gate"
       ],
       denoiseMethod: "Kalman Filter",
       smcInfo: {
@@ -355,23 +357,23 @@ export const GithubQuantPatternEngineHub: React.FC = () => {
           ? `Bullish OB (₩${realScan.brainResult.keyLevels.nearestBullishOB.priceTop.toLocaleString()})`
           : "NONE",
         obVolume: (s.volume || 0) > 1000000 ? "HIGH" : "MEDIUM",
-        isMitigated: false,
+        isMitigated: realScan.brainResult?.keyLevels.nearestBullishOB?.isMitigated ?? false,
         fvgFillRate: realScan.analysis.smc.fvgFillRate ?? 0
       },
       orderFlow: {
-        deltaStatus: (s.changeRate || 0) > 0 ? "Positive Delta" : (s.changeRate || 0) < 0 ? "Negative Delta" : "Neutral",
-        cumulativeDelta: Math.round((s.tradeValue || 0) * 0.1),
-        imbalanceType: (s.changeRate || 0) > 0 ? "Ask Imbalance" : (s.changeRate || 0) < 0 ? "Bid Imbalance" : "Balanced",
-        pocStatus: (s.changeRate || 0) > 0 ? "Above POC & VAH" : "Inside Value Area"
+        deltaStatus: flow.status === "LIVE" && flow.cumulativeDelta !== null ? `${flow.cumulativeDelta > 0 ? "+" : ""}${flow.cumulativeDelta} Delta` : "UNAVAILABLE",
+        cumulativeDelta: flow.status === "LIVE" ? flow.cumulativeDelta : null,
+        imbalanceType: flow.status === "LIVE" ? (flow.askImbalance ? `Ask Imbalance ${flow.askImbalance}` : flow.bidImbalance ? `Bid Imbalance ${flow.bidImbalance}` : "Balanced") : "UNAVAILABLE",
+        pocStatus: flow.status === "LIVE" && flow.poc ? `POC ₩${flow.poc.toLocaleString()}` : "UNAVAILABLE"
       },
       timeframeConcordance: {
-        m1: true,
-        m3: true,
-        m5: true,
-        m15: realScan.analysis.structure.trend === "UP",
-        m30: realScan.analysis.structure.trend === "UP",
-        h1: realScan.analysis.structure.trend === "UP",
-        d1: true
+        m1: realScan.mtfResult.m1?.isBullish ?? false,
+        m3: realScan.mtfResult.m3?.isBullish ?? false,
+        m5: realScan.mtfResult.m5?.isBullish ?? false,
+        m15: realScan.mtfResult.m15?.isBullish ?? false,
+        m30: realScan.mtfResult.m30?.isBullish ?? false,
+        h1: realScan.mtfResult.h1?.isBullish ?? false,
+        d1: realScan.mtfResult.d1?.isBullish ?? false
       },
       metrics: {
         geometry: patternScore,
@@ -381,8 +383,8 @@ export const GithubQuantPatternEngineHub: React.FC = () => {
         breakoutQuality: realScan.analysis.pattern.breakout ? 90 : 40,
         srAlignment: patternScore,
         vwapPos,
-        smcScore: realScan.brainResult?.institutionalScore ?? 0,
-        orderFlowScore: patternScore,
+        smcScore: realScan.brainResult?.smcStructureScore ?? 0,
+        orderFlowScore: flow.status === "LIVE" ? patternScore : 0,
         falseBreakoutRisk: realScan.analysis.risk.falseBreakoutRisk ?? 50,
         chaseRisk: realScan.analysis.risk.chaseRisk ?? 50
       },
@@ -1053,23 +1055,54 @@ export const GithubQuantPatternEngineHub: React.FC = () => {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 font-mono text-xs">
-            <div className="p-4 bg-slate-950 rounded-xl border border-slate-800 space-y-2">
-              <span className="text-slate-400 font-bold block">Footprint Delta Imbalance</span>
-              <div className="text-lg font-black text-emerald-400">+14,500 Ask Imbalance</div>
-              <p className="text-[11px] text-slate-400">매도호가 대량 체결 흡수(Absorption) 포착됨</p>
-            </div>
-            <div className="p-4 bg-slate-950 rounded-xl border border-slate-800 space-y-2">
-              <span className="text-slate-400 font-bold block">Volume Profile (POC &amp; VAH)</span>
-              <div className="text-lg font-black text-cyan-300">POC ₩71,200 돌파</div>
-              <p className="text-[11px] text-slate-400">Value Area High (VAH) 상단지지 안착</p>
-            </div>
-            <div className="p-4 bg-slate-950 rounded-xl border border-slate-800 space-y-2">
-              <span className="text-slate-400 font-bold block">Order Block Mitigation</span>
-              <div className="text-lg font-black text-purple-400">Unmitigated OB 88%</div>
-              <p className="text-[11px] text-slate-400">주요 매집 구간 재테스트 후 강한 반등</p>
-            </div>
-          </div>
+          {(() => {
+            const currentFlow = institutionalOrderFlowService.getFlow(brainSelectedSymbol);
+            if (currentFlow.status === "UNAVAILABLE") {
+              return (
+                <div className="p-4 bg-amber-500/10 border border-amber-500/20 rounded-xl text-amber-300 text-xs font-mono space-y-1">
+                  <div className="font-bold flex items-center gap-2">
+                    <AlertTriangle className="w-4 h-4 text-amber-400" />
+                    실시간 틱/호가 체결 피드 미연결 (ORDER_FLOW_UNAVAILABLE)
+                  </div>
+                  <div className="text-[11px] text-amber-200/70">
+                    Order Flow (Delta, Ask/Bid Imbalance, POC/VAH) 분석을 수행하려면 실시간 틱 체결 피드가 연결되어야 합니다. 가짜 추정치 생성이 금지되어 있습니다.
+                  </div>
+                </div>
+              );
+            }
+
+            const imbalanceText = currentFlow.askImbalance ? `Ask Imbalance ${currentFlow.askImbalance}` : currentFlow.bidImbalance ? `Bid Imbalance ${currentFlow.bidImbalance}` : "Balanced";
+
+            return (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 font-mono text-xs">
+                <div className="p-4 bg-slate-950 rounded-xl border border-slate-800 space-y-2">
+                  <span className="text-slate-400 font-bold block">Footprint Delta Imbalance</span>
+                  <div className="text-lg font-black text-emerald-400">
+                    {currentFlow.cumulativeDelta != null ? `${currentFlow.cumulativeDelta > 0 ? "+" : ""}${currentFlow.cumulativeDelta} Delta` : "UNAVAILABLE"}
+                  </div>
+                  <p className="text-[11px] text-slate-400">{imbalanceText}</p>
+                </div>
+                <div className="p-4 bg-slate-950 rounded-xl border border-slate-800 space-y-2">
+                  <span className="text-slate-400 font-bold block">Volume Profile (POC &amp; VAH)</span>
+                  <div className="text-lg font-black text-cyan-300">
+                    {currentFlow.poc ? `POC ₩${currentFlow.poc.toLocaleString()}` : "UNAVAILABLE"}
+                  </div>
+                  <p className="text-[11px] text-slate-400">
+                    {currentFlow.vah ? `VAH ₩${currentFlow.vah.toLocaleString()}` : "Value Area Inside"}
+                  </p>
+                </div>
+                <div className="p-4 bg-slate-950 rounded-xl border border-slate-800 space-y-2">
+                  <span className="text-slate-400 font-bold block">Order Block Mitigation</span>
+                  <div className="text-lg font-black text-purple-400">
+                    SMC Score: {structureBrainResult?.smcStructureScore ?? "--"}점
+                  </div>
+                  <p className="text-[11px] text-slate-400">
+                    Unmitigated OBs: {structureBrainResult?.orderBlocks.filter((ob) => !ob.isMitigated).length ?? 0}개
+                  </p>
+                </div>
+              </div>
+            );
+          })()}
         </div>
       )}
 

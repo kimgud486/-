@@ -30,6 +30,16 @@ export interface SwingPoint {
   brokenIndex?: number;
 }
 
+export type MitigationStatus = "UNTOUCHED" | "PARTIAL" | "MITIGATED" | "INVALIDATED";
+
+export interface OrderBlockQuality {
+  displacementRatio: number;
+  volumeRatio: number;
+  bodyExpansion: number;
+  bosDistanceAtr: number;
+  qualityScore: number | null;
+}
+
 export interface OrderBlock {
   id: string;
   type: "BULLISH" | "BEARISH";
@@ -37,9 +47,10 @@ export interface OrderBlock {
   priceTop: number;
   priceBottom: number;
   volume: number;
+  mitigationStatus: MitigationStatus;
   isMitigated: boolean;
   mitigatedIndex?: number;
-  strength: number; // 0 ~ 100 score based on displacement volume and move size
+  strength: number; // 0 ~ 100 quality score
   associatedBOSIndex?: number;
   description: string;
 }
@@ -89,8 +100,9 @@ export interface StructureBrainAnalysisResult {
   liquiditySweeps: LiquiditySweep[];
   structureBreaks: StructureBreak[];
   currentStructureTrend: "BULLISH_BOS" | "BEARISH_BOS" | "BULLISH_CHOCH" | "BEARISH_CHOCH" | "RANGING";
-  institutionalScore: number; // 0 ~ 100
-  institutionalBias: "STRONG_BUY" | "BUY" | "NEUTRAL" | "SELL" | "STRONG_SELL";
+  smcStructureScore: number | null; // 0 ~ 100 or null if insufficient data
+  institutionalScore?: number | null; // Alias for backward compatibility
+  institutionalBias: "STRONG_BUY" | "BUY" | "NEUTRAL" | "SELL" | "STRONG_SELL" | "NO_DATA";
   summary: string;
   keyLevels: {
     nearestBullishOB: OrderBlock | null;
@@ -163,6 +175,7 @@ export class StructureBrain {
       liquiditySweeps,
       structureBreaks,
       currentStructureTrend: structureTrend,
+      smcStructureScore: score,
       institutionalScore: score,
       institutionalBias: bias,
       summary,
@@ -361,23 +374,54 @@ export class StructureBrain {
           const top = Math.max(obCandle.open, obCandle.high);
           const bottom = obCandle.low;
 
-          // Check displacement impulse volume
+          // Check displacement impulse volume & quality
           let impulseVol = 0;
           for (let v = obCandleIdx + 1; v <= breakIdx; v++) {
             impulseVol += candles[v].volume;
           }
-          const avgVol = impulseVol / (breakIdx - obCandleIdx || 1);
-          const strength = Math.min(Math.round((avgVol / (obCandle.volume || 1)) * 40 + 50), 99);
+          const impulseCount = breakIdx - obCandleIdx || 1;
+          const avgImpulseVol = impulseVol / impulseCount;
+          
+          // Prior 20-period average volume & body
+          const priorSlice = candles.slice(Math.max(0, obCandleIdx - 20), obCandleIdx);
+          const priorAvgVol = priorSlice.length > 0 ? priorSlice.reduce((s, c) => s + c.volume, 0) / priorSlice.length : obCandle.volume || 1;
+          const priorAvgBody = priorSlice.length > 0 ? priorSlice.reduce((s, c) => s + Math.abs(c.close - c.open), 0) / priorSlice.length : Math.abs(obCandle.close - obCandle.open) || 1;
+
+          const volumeRatio = priorAvgVol > 0 ? avgImpulseVol / priorAvgVol : 1.0;
+          const bodyExpansion = priorAvgBody > 0 ? Math.abs(candles[breakIdx].close - candles[breakIdx].open) / priorAvgBody : 1.0;
+          const bosMove = Math.abs(candles[breakIdx].close - obCandle.close);
+          const estAtr = Math.abs(obCandle.high - obCandle.low) || 1;
+          const bosDistanceAtr = bosMove / estAtr;
+
+          const strength = Math.min(
+            100,
+            Math.round(
+              Math.min(volumeRatio / 2, 1) * 35 +
+              Math.min(bodyExpansion / 2, 1) * 35 +
+              Math.min(bosDistanceAtr / 2, 1) * 30
+            )
+          );
 
           // Check mitigation status
           let isMitigated = false;
           let mitigatedIndex: number | undefined;
+          let mitigationStatus: MitigationStatus = "UNTOUCHED";
 
           for (let m = breakIdx + 1; m < candles.length; m++) {
-            if (candles[m].low <= top) {
+            if (candles[m].close < bottom) {
+              mitigationStatus = "INVALIDATED";
               isMitigated = true;
               mitigatedIndex = m;
               break;
+            } else if (candles[m].low <= bottom) {
+              mitigationStatus = "MITIGATED";
+              isMitigated = true;
+              mitigatedIndex = m;
+              break;
+            } else if (candles[m].low <= top) {
+              mitigationStatus = "PARTIAL";
+              isMitigated = true;
+              mitigatedIndex = m;
             }
           }
 
@@ -388,11 +432,12 @@ export class StructureBrain {
             priceTop: top,
             priceBottom: bottom,
             volume: obCandle.volume,
+            mitigationStatus,
             isMitigated,
             mitigatedIndex,
             strength,
             associatedBOSIndex: breakIdx,
-            description: `Bullish Order Block (₩${bottom.toLocaleString()} ~ ₩${top.toLocaleString()}) [${isMitigated ? "Mitigated" : "Unmitigated / High Demand"}]`
+            description: `Bullish Order Block (₩${bottom.toLocaleString()} ~ ₩${top.toLocaleString()}) [${mitigationStatus}]`
           });
         }
       } else {
@@ -420,17 +465,47 @@ export class StructureBrain {
           for (let v = obCandleIdx + 1; v <= breakIdx; v++) {
             impulseVol += candles[v].volume;
           }
-          const avgVol = impulseVol / (breakIdx - obCandleIdx || 1);
-          const strength = Math.min(Math.round((avgVol / (obCandle.volume || 1)) * 40 + 50), 99);
+          const impulseCount = breakIdx - obCandleIdx || 1;
+          const avgImpulseVol = impulseVol / impulseCount;
+
+          const priorSlice = candles.slice(Math.max(0, obCandleIdx - 20), obCandleIdx);
+          const priorAvgVol = priorSlice.length > 0 ? priorSlice.reduce((s, c) => s + c.volume, 0) / priorSlice.length : obCandle.volume || 1;
+          const priorAvgBody = priorSlice.length > 0 ? priorSlice.reduce((s, c) => s + Math.abs(c.close - c.open), 0) / priorSlice.length : Math.abs(obCandle.close - obCandle.open) || 1;
+
+          const volumeRatio = priorAvgVol > 0 ? avgImpulseVol / priorAvgVol : 1.0;
+          const bodyExpansion = priorAvgBody > 0 ? Math.abs(candles[breakIdx].close - candles[breakIdx].open) / priorAvgBody : 1.0;
+          const bosMove = Math.abs(obCandle.close - candles[breakIdx].close);
+          const estAtr = Math.abs(obCandle.high - obCandle.low) || 1;
+          const bosDistanceAtr = bosMove / estAtr;
+
+          const strength = Math.min(
+            100,
+            Math.round(
+              Math.min(volumeRatio / 2, 1) * 35 +
+              Math.min(bodyExpansion / 2, 1) * 35 +
+              Math.min(bosDistanceAtr / 2, 1) * 30
+            )
+          );
 
           let isMitigated = false;
           let mitigatedIndex: number | undefined;
+          let mitigationStatus: MitigationStatus = "UNTOUCHED";
 
           for (let m = breakIdx + 1; m < candles.length; m++) {
-            if (candles[m].high >= bottom) {
+            if (candles[m].close > top) {
+              mitigationStatus = "INVALIDATED";
               isMitigated = true;
               mitigatedIndex = m;
               break;
+            } else if (candles[m].high >= top) {
+              mitigationStatus = "MITIGATED";
+              isMitigated = true;
+              mitigatedIndex = m;
+              break;
+            } else if (candles[m].high >= bottom) {
+              mitigationStatus = "PARTIAL";
+              isMitigated = true;
+              mitigatedIndex = m;
             }
           }
 
@@ -441,11 +516,12 @@ export class StructureBrain {
             priceTop: top,
             priceBottom: bottom,
             volume: obCandle.volume,
+            mitigationStatus,
             isMitigated,
             mitigatedIndex,
             strength,
             associatedBOSIndex: breakIdx,
-            description: `Bearish Order Block (₩${bottom.toLocaleString()} ~ ₩${top.toLocaleString()}) [${isMitigated ? "Mitigated" : "Unmitigated / Supply"}]`
+            description: `Bearish Order Block (₩${bottom.toLocaleString()} ~ ₩${top.toLocaleString()}) [${mitigationStatus}]`
           });
         }
       }
@@ -712,8 +788,9 @@ export class StructureBrain {
       liquiditySweeps: [],
       structureBreaks: [],
       currentStructureTrend: "RANGING",
-      institutionalScore: 50,
-      institutionalBias: "NEUTRAL",
+      smcStructureScore: null,
+      institutionalScore: null,
+      institutionalBias: "NO_DATA",
       summary: "실시간 캔들 데이터 수량 부족으로 기관 수급 구조 분석 대기 중 (WAIT_FOR_REAL_CANDLES)",
       keyLevels: {
         nearestBullishOB: null,
