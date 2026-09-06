@@ -17,6 +17,7 @@ export interface LifecycleInput {
   entryPrice: number;
   currentPrice: number;
   highestPriceSinceBuy: number;
+  lowestPriceSinceBuy?: number;
   previousTrailingFloor: number | null;
 
   quantities: PositionQuantityState;
@@ -76,6 +77,7 @@ export class PositionLifecycleOrchestrator {
       currentPrice: input.currentPrice,
       entryPrice: input.entryPrice,
       highestPriceSinceBuy: Math.max(input.highestPriceSinceBuy, input.currentPrice),
+      lowestPriceSinceBuy: Math.min(input.lowestPriceSinceBuy || input.currentPrice, input.currentPrice),
       initialStopPrice: trailing.initialRiskStop,
       trailingFloorPrice: trailing.newTrailingFloor,
 

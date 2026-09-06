@@ -62,6 +62,10 @@ export interface RealScannerResult {
   score: number | null;
   grade: "S+" | "S" | "A+" | "A" | "B" | "WATCH" | "NO_SETUP" | null;
   signal: "BUY_CANDIDATE" | "WATCH" | "REJECT" | "NO_DATA";
+  proposedRiskFloor: number | null;
+  projectedSellLow: number | null;
+  projectedSellMid: number | null;
+  projectedSellHigh: number | null;
   analysis: ScannerAnalysis;
   indicators: IndicatorSnapshot;
   mtfResult: MultiTimeframeResult;
@@ -138,6 +142,10 @@ export class RealScannerCoreEngine {
         score: null,
         grade: null,
         signal: "NO_DATA",
+        proposedRiskFloor: null,
+        projectedSellLow: null,
+        projectedSellMid: null,
+        projectedSellHigh: null,
         analysis: {
           indicator: { vwap: null, rvol: null, atr: null, rsi: null, macdHistogram: null, adx: null, ema20: null },
           structure: { trend: "NO_DATA", hh: false, hl: false, bos: false, choch: false },
@@ -289,6 +297,21 @@ export class RealScannerCoreEngine {
 
     const tradingAllowed = marketDataVerified && signal === "BUY_CANDIDATE";
 
+    // Pre-Buy Projections (Not LIVE DEFENSE SELL)
+    const effectiveAtr = indicators.atr14 != null && indicators.atr14 > 0 ? indicators.atr14 : currentPrice * 0.015;
+
+    let proposedRiskFloor: number | null = null;
+    let projectedSellLow: number | null = null;
+    let projectedSellMid: number | null = null;
+    let projectedSellHigh: number | null = null;
+
+    if (currentPrice > 0) {
+      proposedRiskFloor = +Math.max(currentPrice * 0.95, currentPrice - effectiveAtr * 2.0).toFixed(2);
+      projectedSellLow = +(currentPrice + effectiveAtr * 1.5).toFixed(2);
+      projectedSellMid = +(currentPrice + effectiveAtr * 2.5).toFixed(2);
+      projectedSellHigh = +(currentPrice + effectiveAtr * 3.8).toFixed(2);
+    }
+
     return {
       symbol,
       dataStatus: marketDataVerified ? "LIVE" : "STALE",
@@ -297,6 +320,10 @@ export class RealScannerCoreEngine {
       score,
       grade,
       signal,
+      proposedRiskFloor,
+      projectedSellLow,
+      projectedSellMid,
+      projectedSellHigh,
       analysis,
       indicators,
       mtfResult,

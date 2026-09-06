@@ -9,6 +9,7 @@ export interface ExitEvidenceInput {
   currentPrice: number;
   entryPrice: number;
   highestPriceSinceBuy: number;
+  lowestPriceSinceBuy?: number;
   initialStopPrice: number | null;
   trailingFloorPrice: number | null;
 
@@ -103,10 +104,11 @@ export class ExitEvidenceEngine {
     // Peak Metrics Calculation
     const currentProfitPct = entryPrice > 0 ? ((currentPrice - entryPrice) / entryPrice) * 100 : 0;
     const peakPrice = Math.max(highestPriceSinceBuy || currentPrice, currentPrice);
+    const lowestPrice = Math.min(input.lowestPriceSinceBuy || currentPrice, currentPrice);
     const peakProfitPct = entryPrice > 0 ? Math.max(0, ((peakPrice - entryPrice) / entryPrice) * 100) : 0;
     const givebackPct = Math.max(0, peakProfitPct - currentProfitPct);
     const mfePct = peakProfitPct;
-    const maePct = 0; // MAE tracked dynamically during position lifecycle
+    const maePct = entryPrice > 0 ? Math.min(0, ((lowestPrice - entryPrice) / entryPrice) * 100) : 0;
 
     const peakMetrics: PeakMetrics = {
       mfePct: +mfePct.toFixed(2),

@@ -11,6 +11,7 @@ import { StructureBrain, Candle } from "../services/StructureBrain";
 import { CandlePatternEngine } from "../services/CandlePatternEngine";
 import { ExitEvidence } from "../services/ExitEvidenceEngine";
 import { IndicatorHistoryEngine } from "../services/IndicatorHistoryEngine";
+import { DynamicSellZoneEngine } from "../services/DynamicSellZoneEngine";
 
 export interface VerifiedMarketSnapshot {
   symbol: string;
@@ -43,8 +44,15 @@ export interface LivePosition {
 
   entryPrice: number;
   highestPriceSinceBuy: number;
+  lowestPriceSinceBuy: number;
   trailingFloor: number | null;
   initialStopPrice: number | null;
+
+  defenseSellPrice: number | null;
+  expectedSellLow: number | null;
+  expectedSellMid: number | null;
+  expectedSellHigh: number | null;
+  continuationScore: number | null;
 
   quantities: PositionQuantityState;
 
@@ -130,8 +138,9 @@ export class LivePositionRuntimeService {
 
     const currentPrice = snapshot.price > 0 ? snapshot.price : snapshot.candles[snapshot.candles.length - 1].close;
 
-    // Update highest price since buy
+    // Update highest and lowest price since buy
     position.highestPriceSinceBuy = Math.max(position.highestPriceSinceBuy || currentPrice, currentPrice);
+    position.lowestPriceSinceBuy = Math.min(position.lowestPriceSinceBuy || currentPrice, currentPrice);
 
     // 1. Compute Indicators & Record History Point
     const indicators = IndicatorTruthEngine.computeSnapshot(snapshot.candles, snapshot.sessionOpen);
@@ -181,6 +190,7 @@ export class LivePositionRuntimeService {
       entryPrice: position.entryPrice,
       currentPrice,
       highestPriceSinceBuy: position.highestPriceSinceBuy,
+      lowestPriceSinceBuy: position.lowestPriceSinceBuy,
       previousTrailingFloor: position.trailingFloor,
 
       quantities: position.quantities,
@@ -219,6 +229,43 @@ export class LivePositionRuntimeService {
     }
 
     position.lastExitEvidence = lifecycleOutput.exitEvidence;
+
+    // Evaluate Dynamic Dual Sell Zone Intelligence
+    const swingHighs = structure.swingHighs;
+    const lastSwingHigh = swingHighs.length > 0 ? swingHighs[swingHighs.length - 1].price : null;
+
+    const sellZoneRes = DynamicSellZoneEngine.evaluate({
+      positionId: position.positionId,
+      symbol: position.symbol,
+      strategyId: position.strategyId,
+      entryPrice: position.entryPrice,
+      currentPrice,
+      highestPriceSinceBuy: position.highestPriceSinceBuy,
+      lowestPriceSinceBuy: position.lowestPriceSinceBuy,
+      previousDefenseSell: position.defenseSellPrice ?? position.trailingFloor,
+      atr14: indicators.atr14,
+      vwap: indicators.vwap,
+      ema9: indicators.ema9,
+      ema20: indicators.ema20,
+      ema50: indicators.ema50,
+      lastSwingLow,
+      lastSwingHigh,
+      rvol: indicators.rvol,
+      rs5m: snapshot.relativeStrength?.rs5m,
+      rs15m: snapshot.relativeStrength?.rs15m,
+      rs1h: snapshot.relativeStrength?.rs1h,
+      rs1d: snapshot.relativeStrength?.rs1d,
+      structureTrend: structureValid ? "BULLISH" : "BEARISH",
+      exitRiskScore: lifecycleOutput.exitEvidence.exitRiskScore,
+      profitHoldStrength: lifecycleOutput.exitEvidence.profitHoldStrength,
+      sellWatchLevel: lifecycleOutput.exitEvidence.sellWatchLevel
+    });
+
+    position.defenseSellPrice = sellZoneRes.defenseSellPrice;
+    position.expectedSellLow = sellZoneRes.expectedSellLow;
+    position.expectedSellMid = sellZoneRes.expectedSellMid;
+    position.expectedSellHigh = sellZoneRes.expectedSellHigh;
+    position.continuationScore = sellZoneRes.continuationScore;
 
     const previousState = position.state;
     position.state = lifecycleOutput.nextState;

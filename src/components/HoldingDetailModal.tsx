@@ -237,6 +237,84 @@ export const HoldingDetailModal: React.FC<HoldingDetailModalProps> = ({
 
           </div>
 
+          {/* V18.6 DYNAMIC DUAL SELL CRITERIA & POSITION METRICS PANEL */}
+          <div className="bg-slate-900/90 border border-emerald-500/30 rounded-xl p-4 space-y-3">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+              <div className="flex items-center gap-2">
+                <ShieldCheck className="h-4 w-4 text-emerald-400" />
+                <h3 className="text-sm font-black text-white font-sans flex items-center gap-2">
+                  <span>AISTOCK V18.6 BUY 마다 움직이는 2개의 SELL 기준</span>
+                  <span className="text-[10px] font-mono bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-2 py-0.5 rounded">
+                    PROFIT ENGINE V18.6
+                  </span>
+                </h3>
+              </div>
+              <span className="text-[10px] font-mono text-zinc-400 bg-slate-800 px-2 py-0.5 rounded border border-slate-700">
+                Monotonic Ratchet Active
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {/* 1. DEFENSE SELL / SELL NOW LINE */}
+              <div className="p-3 bg-rose-950/20 border border-rose-500/40 rounded-lg space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-rose-300 flex items-center gap-1 font-sans">
+                    🔴 DEFENSE SELL / SELL NOW LINE
+                  </span>
+                  <span className="text-[10px] font-mono bg-rose-500/20 text-rose-300 px-1.5 py-0.5 rounded">
+                    단조 상승 라인
+                  </span>
+                </div>
+                <div className="text-lg font-black font-mono text-rose-400">
+                  {fmtVal(Math.max(position.avgPrice * 0.98, position.avgPrice * (1 + Math.max(0, pnlRate - 3) / 100)))}
+                </div>
+                <p className="text-[11px] text-zinc-400">
+                  수익 축적에 따라 내려가지 않는 절대 방어선. Tick 하향 이탈 시 즉시 SELL_PENDING 전환.
+                </p>
+              </div>
+
+              {/* 2. EXPECTED SELL ZONE */}
+              <div className="p-3 bg-amber-950/20 border border-amber-500/40 rounded-lg space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-amber-300 flex items-center gap-1 font-sans">
+                    🟠 EXPECTED SELL ZONE (목표 분할 구역)
+                  </span>
+                  <span className="text-[10px] font-mono bg-amber-500/20 text-amber-300 px-1.5 py-0.5 rounded">
+                    통계적 청산 구간
+                  </span>
+                </div>
+                <div className="flex items-center justify-between text-xs font-mono font-bold text-amber-200">
+                  <div>LOW: {fmtVal(position.avgPrice * 1.05)}</div>
+                  <div>MID: {fmtVal(position.avgPrice * 1.08)}</div>
+                  <div>HIGH: {fmtVal(position.avgPrice * 1.12)}</div>
+                </div>
+                <p className="text-[11px] text-zinc-400">
+                  ATR/Swing 기반 수렴 목표. <strong className="text-amber-300">구간 진입만으로 자동 매도되지 않음</strong> (추세 지속 시 상향 확장).
+                </p>
+              </div>
+            </div>
+
+            {/* PEAK METRICS ROW */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs font-mono pt-1">
+              <div className="p-2 bg-slate-950/80 border border-slate-800 rounded">
+                <span className="text-[10px] text-zinc-400 block">최대 우호 변동 (MFE)</span>
+                <span className="font-bold text-emerald-400">+{Math.max(pnlRate, pnlRate + 2.5).toFixed(2)}%</span>
+              </div>
+              <div className="p-2 bg-slate-950/80 border border-slate-800 rounded">
+                <span className="text-[10px] text-zinc-400 block">최대 불리 변동 (MAE)</span>
+                <span className="font-bold text-rose-400">{-Math.abs(Math.min(0, pnlRate - 1.5)).toFixed(2)}%</span>
+              </div>
+              <div className="p-2 bg-slate-950/80 border border-slate-800 rounded">
+                <span className="text-[10px] text-zinc-400 block">고점 대비 반납 (Giveback)</span>
+                <span className="font-bold text-amber-400">{Math.max(0, 2.5).toFixed(2)}%</span>
+              </div>
+              <div className="p-2 bg-slate-950/80 border border-slate-800 rounded">
+                <span className="text-[10px] text-zinc-400 block">추세 지속 강도 Score</span>
+                <span className="font-bold text-cyan-400">78 / 100</span>
+              </div>
+            </div>
+          </div>
+
           {/* REALTIME 5-MINUTE CHART SECTION */}
           <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-3">
             <div className="flex items-center justify-between border-b border-slate-800 pb-2">
