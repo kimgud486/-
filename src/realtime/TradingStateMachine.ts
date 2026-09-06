@@ -1,10 +1,24 @@
-import type { DecisionInput, TradingState } from "./types";
+import type { DecisionInput, TradingState, FeedQuality } from "./types";
+
+export interface ExtendedDecisionInput extends DecisionInput {
+  indicatorsReady?: boolean;
+  feedQuality?: FeedQuality;
+  isClosedBar?: boolean;
+  netEdgePositive?: boolean;
+}
 
 /**
  * Real-time BUY -> PROFIT_HOLD -> SELL_WATCH -> SELL State Machine
  * Strictly avoids arbitrary static +3% exit targets; follows bullish structure & trailing stops.
  */
-export function decideTradingState(x: DecisionInput): TradingState {
+export function decideTradingState(x: ExtendedDecisionInput): TradingState {
+  // Executable gate: Must be real-time broker feed, indicators ready, closed bar, and positive net edge
+  const isExecutable =
+    (x.feedQuality === undefined || x.feedQuality === "BROKER_REALTIME") &&
+    (x.indicatorsReady === undefined || x.indicatorsReady === true) &&
+    (x.isClosedBar === undefined || x.isClosedBar === true) &&
+    (x.netEdgePositive === undefined || x.netEdgePositive === true);
+
   const bullishStructure =
     x.price > x.vwap &&
     x.ema9 > x.ema20 &&
@@ -16,6 +30,7 @@ export function decideTradingState(x: DecisionInput): TradingState {
     x.macdHistogram > 0;
 
   const strongBuy =
+    isExecutable &&
     bullishStructure &&
     bullishMomentum &&
     x.breakoutValid &&

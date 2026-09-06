@@ -12,7 +12,7 @@ export interface MetaLabelingInput {
   currentSectorExposurePct: number; // e.g. 62.5% in Semiconductor
   maxSectorExposureLimitPct?: number; // Default limit 65.0%
   volatilityAnomalous: boolean;
-  modelAgreementPct: number; // e.g. 89.0%
+  modelAgreementPct: number | null; // null when unverified/deterministic
 }
 
 export interface MetaLabelingOutput {
@@ -42,7 +42,7 @@ export class MetaLabelingFilter {
     const sectorExposurePass = input.currentSectorExposurePct < maxSectorLimit;
     const riskRewardPass = input.riskRewardRatio >= 1.8;
     const volatilityPass = !input.volatilityAnomalous;
-    const consensusPass = input.modelAgreementPct >= 75.0;
+    const consensusPass = input.modelAgreementPct === null || input.modelAgreementPct >= 75.0;
 
     let decision: "BUY_READY" | "NO_TRADE" = "BUY_READY";
     let noTradeReason = "";
@@ -52,7 +52,7 @@ export class MetaLabelingFilter {
       noTradeReason = `${input.sectorName} 업종 한도 (현재 ${input.currentSectorExposurePct}% / 제한 ${maxSectorLimit}%) 초과 위험 방지 차단`;
     } else if (!confidenceThresholdPass) {
       decision = "NO_TRADE";
-      noTradeReason = `보정 승률(${input.calibratedResult.calibratedProbability}%) < 기준 임계치(${minHitRateThreshold}%) 미달`;
+      noTradeReason = `보정 점수(${input.calibratedResult.calibratedProbability}%) < 기준 임계치(${minHitRateThreshold}%) 미달`;
     } else if (!riskRewardPass) {
       decision = "NO_TRADE";
       noTradeReason = `손익비(${input.riskRewardRatio.toFixed(2)}) < 최소 손익비(1.80) 기준 미달`;
@@ -79,7 +79,7 @@ export class MetaLabelingFilter {
         consensusPass
       },
       filterExplanation: decision === "BUY_READY"
-        ? `모든 5대 리스크 검증 관문 통과. 보정 승률 ${input.calibratedResult.calibratedProbability}% / 포트폴리오 비중 ${basePosition}% 자율 체결 승인.`
+        ? `모든 5대 리스크 검증 관문 통과. 보정 점수 ${input.calibratedResult.calibratedProbability}% / 포트폴리오 비중 ${basePosition}% 자율 체결 승인.`
         : `NO_TRADE 리스크 게이트 차단: ${noTradeReason}`
     };
   }

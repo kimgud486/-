@@ -1,4 +1,4 @@
-name: AISTOCK v13.1 Validation & Safety CI Workflow
+name: AISTOCK v13.6 Validation & Safety CI Workflow
 
 on:
   push:
@@ -25,8 +25,13 @@ jobs:
       - name: TypeScript Type Check & Lint
         run: npm run lint
 
-      - name: Run AISTOCK v13.1 Safety Test Suite
-        run: node --import tsx --test tests/v13_1/validation-safety.test.ts
+      - name: Run Complete AISTOCK Test Suite
+        run: npm test
+
+      - name: Static Safety Scan - Ban synthetic live-market code in src
+        run: |
+          ! grep -R "MOCK_SYNTHETIC_GENERATOR" src/ --include="*.ts" --include="*.tsx"
+          ! grep -R "generateSynthetic" src/ --include="*.ts" --include="*.tsx"
 
       - name: Verify Production Build
         run: npm run build

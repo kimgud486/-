@@ -204,13 +204,21 @@ describe("AISTOCK v13.5 Observability & Live Readiness Test Suite", () => {
   });
 
   test("11. Real Market Data Enforcement: Executes pipeline with >= 30 real candles", () => {
+    const now = Date.now();
     const candles = Array.from({ length: 40 }, (_, i) => ({
-      time: 1700000000 + i * 900,
+      symbol: "005930",
+      market: "KOREA" as const,
+      timeframe: "15m" as const,
       open: 70000 + i * 100,
       high: 70500 + i * 100,
       low: 69800 + i * 100,
       close: 70200 + i * 100,
-      volume: 10000 + i * 500
+      volume: 10000 + i * 500,
+      startedAt: now - (40 - i) * 900000,
+      endedAt: now - (40 - i - 1) * 900000,
+      source: "KIS_REALTIME_WS" as const,
+      receivedAt: now,
+      verified: true as const
     }));
 
     const result = runPredictionPipeline({

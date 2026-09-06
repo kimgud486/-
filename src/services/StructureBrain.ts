@@ -689,40 +689,10 @@ export class StructureBrain {
   }
 
   /**
-   * Helper to generate synthetic candle data for live structure testing
+   * Helper to generate candle data for live structure testing (DISABLED)
    */
-  public static generateSyntheticCandles(basePrice: number = 70000, count: number = 60): Candle[] {
-    const candles: Candle[] = [];
-    let price = basePrice;
-    const now = Date.now();
-
-    for (let i = 0; i < count; i++) {
-      // Simulate institutional moves: periodic displacement and retracements
-      const isImpulse = i % 8 === 0 || i % 15 === 0;
-      const trendDir = i > 25 ? 1 : -0.5;
-      const change = isImpulse
-        ? (Math.random() * 0.03 + 0.01) * basePrice * trendDir
-        : (Math.random() - 0.48) * 0.015 * basePrice;
-
-      const open = price;
-      const close = Math.round(open + change);
-      const high = Math.round(Math.max(open, close) + Math.random() * 0.008 * basePrice);
-      const low = Math.round(Math.min(open, close) - Math.random() * 0.008 * basePrice);
-      const volume = Math.round((isImpulse ? 250000 : 80000) * (Math.random() * 0.5 + 0.8));
-
-      candles.push({
-        timestamp: new Date(now - (count - i) * 60000).toISOString(),
-        open,
-        high,
-        low,
-        close,
-        volume
-      });
-
-      price = close;
-    }
-
-    return candles;
+  public static disabledCandleGenerator(): Candle[] {
+    throw new Error("SYNTHETIC_CANDLE_GENERATOR_DISABLED: Real verified candles required.");
   }
 
   private static getEmptyResult(symbolName: string, count: number): StructureBrainAnalysisResult {

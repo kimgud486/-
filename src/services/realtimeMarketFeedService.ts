@@ -13,7 +13,13 @@ export interface LiveMarketQuote {
   changeAmount: number;
   tradeValue: string;
   volume: string;
-  timestamp: string;
+  timestamp: string | number;
+  source?: string;
+  providerTimestamp?: string | null;
+  receivedAt?: string;
+  ageMs?: number;
+  isStale?: boolean;
+  status?: "LIVE" | "STALE" | "UNAVAILABLE";
 }
 
 class RealtimeMarketFeedService {
@@ -202,7 +208,8 @@ class RealtimeMarketFeedService {
                     changeAmount: isDown ? -Math.abs(changeNum) : Math.abs(changeNum),
                     tradeValue: item.marketValueFull ? `${item.marketValueFull}` : (prev?.tradeValue || "실시간 연동"),
                     volume: item.accumulatedTradingVolume ? `${item.accumulatedTradingVolume}주` : (prev?.volume || "실시간 연동"),
-                    timestamp: new Date().toISOString()
+                    timestamp: new Date().toISOString(),
+                    source: "NAVER_POLLING"
                   };
                   this.quotes.set(code, updated);
                 }

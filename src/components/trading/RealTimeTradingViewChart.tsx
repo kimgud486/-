@@ -27,6 +27,8 @@ import {
   ArrowDownRight,
   ShieldAlert
 } from "lucide-react";
+import { runPredictionPipeline } from "../../prediction";
+import { globalOnlineEnsembleWeightEngine } from "../../prediction/OnlineEnsembleWeightEngine";
 import type { LiveTick, LiveCandle, IndicatorSnapshot, TradingState, ForecastPoint } from "../../realtime/types";
 import { CandleAggregator } from "../../realtime/CandleAggregator";
 import { IndicatorEngine } from "../../realtime/IndicatorEngine";
@@ -152,8 +154,47 @@ export const RealTimeTradingViewChart: React.FC<RealTimeTradingViewChartProps> =
     // 2. Analyze market structure (HH/HL, Breakout, etc.)
     const structure = MarketStructureEngine.analyze(candles, indicators.vwap);
 
-    // 3. AI confidence / model probability
-    const modelProb = Math.max(0.4, Math.min(0.95, 0.5 + indicators.trendStrength * 0.35));
+    // 3. AI confidence / Real ML model probability & Online Ensemble
+    let modelProb = 0.5;
+    if (candles.length >= 30) {
+      try {
+        const verifiedCandles = candles.map(c => ({
+          symbol,
+          market: market === "US" ? "US" : market === "UPBIT" || market === "CRYPTO" ? "CRYPTO" : "KOREA",
+          timeframe: selectedTf === "1D" ? "60m" : selectedTf,
+          open: c.open,
+          high: c.high,
+          low: c.low,
+          close: c.close,
+          volume: c.volume,
+          startedAt: typeof c.time === 'number' ? c.time * 1000 : new Date(c.time).getTime(),
+          endedAt: (typeof c.time === 'number' ? c.time * 1000 : new Date(c.time).getTime()) + 60000,
+          source: "KIS_REALTIME_WS" as const,
+          receivedAt: Date.now(),
+          verified: true as const
+        }));
+        const mlResult = runPredictionPipeline({
+          symbol,
+          market: market === "US" ? "US" : market === "UPBIT" || market === "CRYPTO" ? "CRYPTO" : "KOREA",
+          candles: verifiedCandles,
+          requireRealData: true
+        });
+        const lgbProb = mlResult.calibratedOutput.calibratedProbability;
+        modelProb = globalOnlineEnsembleWeightEngine.score(
+          {
+            LIGHTGBM: lgbProb,
+            TREND: indicators.trendStrength,
+            MOMENTUM: Math.min(1, Math.max(0, 0.5 + indicators.macdHistogram / 100)),
+            STRUCTURE: structure.hhhlValid ? 0.8 : 0.4,
+            VOLUME: structure.volumeExpansion ? 0.85 : 0.5
+          },
+          market,
+          selectedTf
+        );
+      } catch (err) {
+        console.warn("[ML Prediction] Pipeline skipped or insufficient data:", err);
+      }
+    }
     const confidenceScore = Math.round(modelProb * 100);
     setAiConfidence(confidenceScore);
 
@@ -211,24 +252,30 @@ export const RealTimeTradingViewChart: React.FC<RealTimeTradingViewChartProps> =
 
     if (forecastSeriesRef.current && bullForecastSeriesRef.current && bearForecastSeriesRef.current) {
       forecastSeriesRef.current.setData(
-        forecast.map(p => ({ time: p.time as Time, value: p.predicted }))
+        forecast
+          .map(p => ({ time: p.time as Time, value: p.predicted }))
+          .filter((p): p is { time: Time; value: number } => Number.isFinite(p.value) && p.value > 0)
       );
       bullForecastSeriesRef.current.setData(
-        forecast.map(p => ({ time: p.time as Time, value: p.upper }))
+        forecast
+          .map(p => ({ time: p.time as Time, value: p.upper }))
+          .filter((p): p is { time: Time; value: number } => Number.isFinite(p.value) && p.value > 0)
       );
       bearForecastSeriesRef.current.setData(
-        forecast.map(p => ({ time: p.time as Time, value: p.lower }))
+        forecast
+          .map(p => ({ time: p.time as Time, value: p.lower }))
+          .filter((p): p is { time: Time; value: number } => Number.isFinite(p.value) && p.value > 0)
       );
     }
 
     // 7. Update indicator series lines
-    if (ema9SeriesRef.current) {
+    if (ema9SeriesRef.current && Number.isFinite(indicators.ema9) && indicators.ema9 > 0) {
       ema9SeriesRef.current.update({ time: closedCandle.time as Time, value: indicators.ema9 });
     }
-    if (ema20SeriesRef.current) {
+    if (ema20SeriesRef.current && Number.isFinite(indicators.ema20) && indicators.ema20 > 0) {
       ema20SeriesRef.current.update({ time: closedCandle.time as Time, value: indicators.ema20 });
     }
-    if (vwapSeriesRef.current) {
+    if (vwapSeriesRef.current && Number.isFinite(indicators.vwap) && indicators.vwap > 0) {
       vwapSeriesRef.current.update({ time: closedCandle.time as Time, value: indicators.vwap });
     }
 
@@ -359,30 +406,36 @@ export const RealTimeTradingViewChart: React.FC<RealTimeTradingViewChartProps> =
     const initialCloses = historyRef.current.map(c => c.close);
 
     ema9Series.setData(
-      historyRef.current.map((c, idx) => ({
-        time: c.time as Time,
-        value: IndicatorEngine.calcEMA(initialCloses.slice(0, idx + 1), 9)
-      }))
+      historyRef.current
+        .map((c, idx) => ({
+          time: c.time as Time,
+          value: IndicatorEngine.calcEMA(initialCloses.slice(0, idx + 1), 9)
+        }))
+        .filter((p): p is { time: Time; value: number } => Number.isFinite(p.value) && p.value > 0)
     );
 
     ema20Series.setData(
-      historyRef.current.map((c, idx) => ({
-        time: c.time as Time,
-        value: IndicatorEngine.calcEMA(initialCloses.slice(0, idx + 1), 20)
-      }))
+      historyRef.current
+        .map((c, idx) => ({
+          time: c.time as Time,
+          value: IndicatorEngine.calcEMA(initialCloses.slice(0, idx + 1), 20)
+        }))
+        .filter((p): p is { time: Time; value: number } => Number.isFinite(p.value) && p.value > 0)
     );
 
     let runningCumVol = 0;
     let runningCumVolP = 0;
     vwapSeries.setData(
-      historyRef.current.map(c => {
-        runningCumVol += c.volume;
-        runningCumVolP += ((c.high + c.low + c.close) / 3) * c.volume;
-        return {
-          time: c.time as Time,
-          value: runningCumVol > 0 ? Math.round((runningCumVolP / runningCumVol) * 100) / 100 : c.close
-        };
-      })
+      historyRef.current
+        .map(c => {
+          runningCumVol += c.volume;
+          runningCumVolP += ((c.high + c.low + c.close) / 3) * c.volume;
+          return {
+            time: c.time as Time,
+            value: runningCumVol > 0 ? Math.round((runningCumVolP / runningCumVol) * 100) / 100 : c.close
+          };
+        })
+        .filter((p): p is { time: Time; value: number } => Number.isFinite(p.value) && p.value > 0)
     );
 
     // 5. AI Forecast Paths (Base: dashed purple, Bull: dotted green, Bear: dotted red)
@@ -422,9 +475,21 @@ export const RealTimeTradingViewChart: React.FC<RealTimeTradingViewChartProps> =
     // Initial forecast calculation
     const initForecast = generateForecastPath(historyRef.current, initialIndicators, 8);
     setLastForecast(initForecast);
-    forecastSeries.setData(initForecast.map(p => ({ time: p.time as Time, value: p.predicted })));
-    bullForecastSeries.setData(initForecast.map(p => ({ time: p.time as Time, value: p.upper })));
-    bearForecastSeries.setData(initForecast.map(p => ({ time: p.time as Time, value: p.lower })));
+    forecastSeries.setData(
+      initForecast
+        .map(p => ({ time: p.time as Time, value: p.predicted }))
+        .filter((p): p is { time: Time; value: number } => Number.isFinite(p.value) && p.value > 0)
+    );
+    bullForecastSeries.setData(
+      initForecast
+        .map(p => ({ time: p.time as Time, value: p.upper }))
+        .filter((p): p is { time: Time; value: number } => Number.isFinite(p.value) && p.value > 0)
+    );
+    bearForecastSeries.setData(
+      initForecast
+        .map(p => ({ time: p.time as Time, value: p.lower }))
+        .filter((p): p is { time: Time; value: number } => Number.isFinite(p.value) && p.value > 0)
+    );
 
     // Fit content smoothly
     chart.timeScale().fitContent();
@@ -526,10 +591,16 @@ export const RealTimeTradingViewChart: React.FC<RealTimeTradingViewChartProps> =
             <span>상태: {tradingState}</span>
           </div>
 
-          {/* AI Confidence */}
-          <div className="px-2 py-1 rounded-lg bg-purple-950/60 border border-purple-800/60 text-purple-300 text-xs font-mono font-bold flex items-center gap-1">
+          {/* Technical Score Badge */}
+          <div className="px-2 py-1 rounded-lg bg-purple-950/60 border border-purple-800/60 text-purple-300 text-xs font-mono font-bold flex items-center gap-1" title="기술적 종합 점수 (확률값 아님)">
             <Sparkles className="w-3 h-3 text-purple-400" />
-            <span>AI 신뢰도 {aiConfidence}%</span>
+            <span>Technical Score {aiConfidence}/100</span>
+          </div>
+
+          {/* Feed Quality Badge */}
+          <div className="px-2 py-1 rounded-lg bg-emerald-950/60 border border-emerald-800/60 text-emerald-300 text-xs font-mono font-bold flex items-center gap-1">
+            <ShieldCheck className="w-3 h-3 text-emerald-400" />
+            <span>FEED: BROKER REALTIME</span>
           </div>
 
           {/* Trailing Stop Display if Active */}
@@ -539,6 +610,19 @@ export const RealTimeTradingViewChart: React.FC<RealTimeTradingViewChartProps> =
               <span>Trailing Stop: {formatDisplayPrice(trailingExitPrice)}</span>
             </div>
           )}
+        </div>
+      </div>
+
+      {/* Model Metadata Status Bar */}
+      <div className="flex flex-wrap items-center justify-between gap-2 px-2 py-1 bg-slate-900/90 rounded border border-slate-800 text-[10px] font-mono text-slate-400">
+        <div className="flex items-center gap-3">
+          <span>SOURCE: <strong className="text-cyan-400">KIS_REALTIME_WS</strong></span>
+          <span>QUALITY: <strong className="text-emerald-400">BROKER_REALTIME</strong></span>
+          <span>TIMEFRAME: <strong className="text-amber-400">{selectedTf}</strong></span>
+          <span>MODEL: <strong className="text-purple-400">TECHNICAL PROJECTION</strong></span>
+        </div>
+        <div>
+          <span>BAR STATUS: <strong className="text-cyan-300">BUILDING (CONFIRM ON CLOSE)</strong></span>
         </div>
       </div>
 

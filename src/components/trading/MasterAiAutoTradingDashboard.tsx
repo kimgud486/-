@@ -292,7 +292,7 @@ export const MasterAiAutoTradingDashboard: React.FC<{
               value: data.kospi.value,
               changePct: data.kospi.pct || 0,
               isUp: (data.kospi.pct || 0) >= 0,
-              sparkline: [data.kospi.value * 0.998, data.kospi.value]
+              sparkline: Array.isArray(data.kospi.sparkline) ? data.kospi.sparkline : []
             });
           }
           if (data.kosdaq && typeof data.kosdaq.value === "number") {
@@ -301,7 +301,7 @@ export const MasterAiAutoTradingDashboard: React.FC<{
               value: data.kosdaq.value,
               changePct: data.kosdaq.pct || 0,
               isUp: (data.kosdaq.pct || 0) >= 0,
-              sparkline: [data.kosdaq.value * 0.998, data.kosdaq.value]
+              sparkline: Array.isArray(data.kosdaq.sparkline) ? data.kosdaq.sparkline : []
             });
           }
           if (data.sp500 && typeof data.sp500.value === "number") {
@@ -310,7 +310,7 @@ export const MasterAiAutoTradingDashboard: React.FC<{
               value: data.sp500.value,
               changePct: data.sp500.pct || 0,
               isUp: (data.sp500.pct || 0) >= 0,
-              sparkline: [data.sp500.value * 0.998, data.sp500.value]
+              sparkline: Array.isArray(data.sp500.sparkline) ? data.sp500.sparkline : []
             });
           }
           if (data.nasdaq && typeof data.nasdaq.value === "number") {
@@ -319,7 +319,7 @@ export const MasterAiAutoTradingDashboard: React.FC<{
               value: data.nasdaq.value,
               changePct: data.nasdaq.pct || 0,
               isUp: (data.nasdaq.pct || 0) >= 0,
-              sparkline: [data.nasdaq.value * 0.998, data.nasdaq.value]
+              sparkline: Array.isArray(data.nasdaq.sparkline) ? data.nasdaq.sparkline : []
             });
           }
           if (data.btc && typeof data.btc.value === "number") {
@@ -328,7 +328,7 @@ export const MasterAiAutoTradingDashboard: React.FC<{
               value: data.btc.value,
               changePct: data.btc.pct || 0,
               isUp: (data.btc.pct || 0) >= 0,
-              sparkline: [data.btc.value * 0.998, data.btc.value]
+              sparkline: Array.isArray(data.btc.sparkline) ? data.btc.sparkline : []
             });
           }
           if (newIndices.length > 0) {
@@ -614,10 +614,10 @@ export const MasterAiAutoTradingDashboard: React.FC<{
     let cumVol = 0;
     let cumVolPrice = 0;
     return candles.map(c => {
+      if (!Number.isFinite(c.volume) || c.volume <= 0) return null;
       const typicalPrice = (c.high + c.low + c.close) / 3;
-      const vol = c.volume || 1000;
-      cumVol += vol;
-      cumVolPrice += typicalPrice * vol;
+      cumVol += c.volume;
+      cumVolPrice += typicalPrice * c.volume;
       return cumVol > 0 ? cumVolPrice / cumVol : c.close;
     });
   }, [candles]);
@@ -625,7 +625,7 @@ export const MasterAiAutoTradingDashboard: React.FC<{
   // Calculate ATR (Average True Range) for Dynamic Volatility Channel
   const atrValues = useMemo(() => {
     return candles.map((c, i) => {
-      if (i === 0) return Math.max(10, c.high - c.low);
+      if (i === 0) return Math.max(0, c.high - c.low);
       const prevClose = candles[i - 1].close;
       const tr = Math.max(
         c.high - c.low,
@@ -648,20 +648,20 @@ export const MasterAiAutoTradingDashboard: React.FC<{
     return { support: lowest, resistance: highest };
   }, [candles]);
 
-  // Current indicators values for legend
-  const latestMa5 = maValues.ma5[maValues.ma5.length - 1] || 78120;
-  const latestMa20 = maValues.ma20[maValues.ma20.length - 1] || 76510;
-  const latestMa60 = maValues.ma60[maValues.ma60.length - 1] || 74890;
-  const latestMa120 = maValues.ma120[maValues.ma120.length - 1] || 72980;
-  const latestVwap = vwapValues[vwapValues.length - 1] || currentStock.price || 75200;
-  const latestBbUpper = bbValues.upper[bbValues.upper.length - 1] || 79240;
-  const latestBbLower = bbValues.lower[bbValues.lower.length - 1] || 73780;
-  const latestRsi = rsiValues[rsiValues.length - 1] || 62.35;
-  const latestMacd = Number((macdValues.macdLine[macdValues.macdLine.length - 1] / 1000).toFixed(2)) || 0.92;
-  const latestSignal = Number((macdValues.signalLine[macdValues.signalLine.length - 1] / 1000).toFixed(2)) || 0.67;
-  const latestHist = Number((macdValues.histogram[macdValues.histogram.length - 1] / 1000).toFixed(2)) || 0.25;
-  const latestStochK = stochValues.kLine[stochValues.kLine.length - 1] || 72.35;
-  const latestStochD = stochValues.dLine[stochValues.dLine.length - 1] || 68.21;
+  // Current indicators values for legend (strictly null if unavailable)
+  const latestMa5 = maValues.ma5[maValues.ma5.length - 1] ?? null;
+  const latestMa20 = maValues.ma20[maValues.ma20.length - 1] ?? null;
+  const latestMa60 = maValues.ma60[maValues.ma60.length - 1] ?? null;
+  const latestMa120 = maValues.ma120[maValues.ma120.length - 1] ?? null;
+  const latestVwap = vwapValues[vwapValues.length - 1] ?? null;
+  const latestBbUpper = bbValues.upper[bbValues.upper.length - 1] ?? null;
+  const latestBbLower = bbValues.lower[bbValues.lower.length - 1] ?? null;
+  const latestRsi = rsiValues[rsiValues.length - 1] ?? null;
+  const latestMacd = macdValues.macdLine[macdValues.macdLine.length - 1] !== undefined ? Number((macdValues.macdLine[macdValues.macdLine.length - 1] / 1000).toFixed(2)) : null;
+  const latestSignal = macdValues.signalLine[macdValues.signalLine.length - 1] !== undefined ? Number((macdValues.signalLine[macdValues.signalLine.length - 1] / 1000).toFixed(2)) : null;
+  const latestHist = macdValues.histogram[macdValues.histogram.length - 1] !== undefined ? Number((macdValues.histogram[macdValues.histogram.length - 1] / 1000).toFixed(2)) : null;
+  const latestStochK = stochValues.kLine[stochValues.kLine.length - 1] ?? null;
+  const latestStochD = stochValues.dLine[stochValues.dLine.length - 1] ?? null;
 
   // Price formatting helper for Domestic KRX / Overseas US / Upbit Crypto
   const formatPrice = (p: number) => {
@@ -675,14 +675,8 @@ export const MasterAiAutoTradingDashboard: React.FC<{
     return `₩${Math.round(p).toLocaleString()}`;
   };
 
-  // Real-time Trade Log Items matching user image
-  const [tradeLogs, setTradeLogs] = useState([
-    { id: "t1", time: "09:41:27", symbol: "삼성전자", action: "BUY", price: 78600, pnlPct: 1.55 },
-    { id: "t2", time: "09:30:15", symbol: "SK하이닉스", action: "BUY", price: 192700, pnlPct: 2.13 },
-    { id: "t3", time: "09:15:43", symbol: "LG에너지솔루션", action: "SELL", price: 405500, pnlPct: -0.32 },
-    { id: "t4", time: "09:10:22", symbol: "카카오", action: "BUY", price: 53900, pnlPct: 0.37 },
-    { id: "t5", time: "09:01:05", symbol: "네이버", action: "BUY", price: 218500, pnlPct: 0.69 },
-  ]);
+  // Real-time Trade Log Items populated ONLY from real broker fills
+  const [tradeLogs, setTradeLogs] = useState<any[]>([]);
 
   // AI Autonomous Buy/Sell Triggering
   const triggerAiExecution = (type: "BUY" | "SELL", symbolArg: string, price: number) => {
@@ -819,17 +813,21 @@ export const MasterAiAutoTradingDashboard: React.FC<{
 
   // JARVIS Dynamic Position & Target AI Engine Calculation
   const jarvisPositionAiResult = useMemo(() => {
-    const currentStockAiScore = (currentStock as any).aiScore || (currentStock as any).score || 85;
+    const currentStockAiScore = Number.isFinite((currentStock as any)?.aiScore)
+      ? (currentStock as any).aiScore
+      : Number.isFinite((currentStock as any)?.score)
+      ? (currentStock as any).score
+      : null;
     return calculateJarvisPositionAi({
       symbol: currentStock.symbol,
       currentPrice: currentStock.price,
       candles,
-      vwap: latestVwap,
-      rsi: latestRsi,
-      macdHist: latestHist,
-      ema5: latestMa5,
-      ema20: latestMa20,
-      buyScoreOverride: currentStockAiScore,
+      vwap: latestVwap ?? 0,
+      rsi: latestRsi ?? 50,
+      macdHist: latestHist ?? 0,
+      ema5: latestMa5 ?? 0,
+      ema20: latestMa20 ?? 0,
+      buyScoreOverride: currentStockAiScore ?? undefined,
       unifiedShapeScore: unifiedMarketShape.overallShapeScore,
     });
   }, [
@@ -869,57 +867,8 @@ export const MasterAiAutoTradingDashboard: React.FC<{
         isValidForSignal: dp.isValidForSignal !== undefined ? dp.isValidForSignal : true,
       }));
     }
-    return [
-      {
-        id: "db-default",
-        name: "Double Bottom",
-        koreanName: "쌍바닥 W 패턴",
-        category: "DOUBLE_BOTTOM" as const,
-        type: "BULLISH" as const,
-        confidence: 88,
-        targetPrice: Math.round(currentStock.price * 1.05),
-        stopLossPrice: Math.round(currentStock.price * 0.97),
-        pathData: "M5,12 Q20,38 35,20 Q52,38 72,12 Q85,15 95,5",
-        description: "바닥 지지 확인 및 넥라인 상방 돌파",
-        state: "ACTIVE" as const,
-        stateLabel: "ACTIVE (진행중)",
-        stateDescription: "목표가 추적 진행 중",
-        isValidForSignal: true,
-      },
-      {
-        id: "hs-default",
-        name: "Head & Shoulders",
-        koreanName: "헤드앤숄더 패턴",
-        category: "HEAD_AND_SHOULDERS" as const,
-        type: "BEARISH" as const,
-        confidence: 84,
-        targetPrice: Math.round(currentStock.price * 0.95),
-        stopLossPrice: Math.round(currentStock.price * 1.03),
-        pathData: "M5,35 Q20,15 35,25 Q50,5 65,25 Q80,18 95,38",
-        description: "3봉 완성 후 넥라인 하향 이탈 경보",
-        state: "ACTIVE" as const,
-        stateLabel: "ACTIVE (진행중)",
-        stateDescription: "목표가 추적 진행 중",
-        isValidForSignal: true,
-      },
-      {
-        id: "at-default",
-        name: "Ascending Triangle",
-        koreanName: "상승 삼각수렴",
-        category: "ASCENDING_TRIANGLE" as const,
-        type: "BULLISH" as const,
-        confidence: 81,
-        targetPrice: Math.round(currentStock.price * 1.06),
-        stopLossPrice: Math.round(currentStock.price * 0.975),
-        pathData: "M5,35 L95,8 M5,8 L95,8",
-        description: "수렴 꼭짓점 돌파 시 강력한 변동성 폭발",
-        state: "ACTIVE" as const,
-        stateLabel: "ACTIVE (진행중)",
-        stateDescription: "목표가 추적 진행 중",
-        isValidForSignal: true,
-      }
-    ];
-  }, [detectedPatterns, currentStock.price]);
+    return [];
+  }, [detectedPatterns]);
 
   return (
     <div className={`min-h-screen ${isWhiteTheme ? "bg-[#f8fafc] text-slate-800" : "bg-[#060B13] text-slate-100"} font-sans select-none flex flex-col justify-between overflow-x-hidden transition-colors duration-200`}>

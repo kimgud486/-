@@ -1,5 +1,6 @@
-import type { LiveTick } from "./types";
+import type { LiveTick, FeedQuality } from "./types";
 import { realtimeMarketFeedService } from "../services/realtimeMarketFeedService";
+import { LiveDataIntegrityGate } from "./LiveDataIntegrityGate";
 
 type TickListener = (tick: LiveTick) => void;
 
@@ -28,6 +29,7 @@ export class RealTimeMarketFeedManager {
   private listeners = new Map<string, Set<TickListener>>();
   private lastPrices = new Map<string, number>();
   private lastAccumulatedVolume = new Map<string, number>();
+  private integrityGate = new LiveDataIntegrityGate();
 
   private constructor() {
     this.initFeedBridge();
@@ -48,6 +50,33 @@ export class RealTimeMarketFeedManager {
 
         if (!symbolListeners?.size) return;
 
+        const now = Date.now();
+        const tickTs = typeof quote.timestamp === "number"
+          ? quote.timestamp
+          : typeof quote.timestamp === "string" && quote.timestamp.trim().length > 0
+          ? (isNaN(new Date(quote.timestamp).getTime()) ? now : new Date(quote.timestamp).getTime())
+          : now;
+
+        const source = (quote.source || "KIS_REALTIME_WS") as "KIS_REALTIME_WS" | "US_BROKER_WS" | "NAVER_POLLING";
+        const quality: FeedQuality = source === "KIS_REALTIME_WS" || source === "US_BROKER_WS" ? "BROKER_REALTIME" : "POLLING_DELAYED";
+
+        // Pass through LiveDataIntegrityGate
+        const validation = this.integrityGate.validate(
+          {
+            symbol,
+            price: quote.price,
+            timestamp: tickTs,
+            source,
+            receivedAt: now
+          },
+          5000
+        );
+
+        if (!validation.valid) {
+          console.warn(`[LiveDataIntegrityGate] Rejected tick for ${symbol}: ${validation.reason}`);
+          return;
+        }
+
         const accumulatedVolume = parseKoreanVolume(quote.volume);
         const previousAccumulatedVolume = this.lastAccumulatedVolume.get(symbol);
 
@@ -64,11 +93,15 @@ export class RealTimeMarketFeedManager {
 
         const tick: LiveTick = {
           symbol,
-          timestamp: Date.now(),
+          timestamp: tickTs,
+          exchangeTimestamp: tickTs,
+          receivedTimestamp: now,
           price: quote.price,
-          // Actual incremental volume calculated from accumulated volume delta
-          volume: incrementalVolume
-          // bid / ask / bidVolume / askVolume are left undefined unless genuine Level-2 orderbook is present
+          volume: incrementalVolume,
+          source,
+          quality,
+          isRealtime: quality === "BROKER_REALTIME",
+          isDelayed: quality === "POLLING_DELAYED"
         };
 
         symbolListeners.forEach((listener) => listener(tick));

@@ -1,4 +1,4 @@
-import type { LiveTick, LiveCandle } from "./types";
+import type { LiveTick, LiveCandle, FeedQuality } from "./types";
 
 export class CandleAggregator {
   private candle: LiveCandle | null = null;
@@ -9,7 +9,7 @@ export class CandleAggregator {
   ) {}
 
   public reset(timeframeMs?: number) {
-    if (timeframeMs) {
+    if (timeframeMs && timeframeMs > 0) {
       this.timeframeMs = timeframeMs;
     }
     this.candle = null;
@@ -67,6 +67,9 @@ export class CandleAggregator {
 
     this.candle.isClosed = false;
 
+    if (tick.source) this.candle.source = tick.source;
+    if (tick.quality) this.candle.quality = tick.quality;
+
     return {
       candle: this.candle,
       closed: false
@@ -86,7 +89,9 @@ export class CandleAggregator {
       volume: tick.volume,
       bidVolume: tick.bidVolume ?? 0,
       askVolume: tick.askVolume ?? 0,
-      isClosed: false
+      isClosed: false,
+      source: tick.source || "KIS_REALTIME_WS",
+      quality: tick.quality || "BROKER_REALTIME"
     };
   }
 }
