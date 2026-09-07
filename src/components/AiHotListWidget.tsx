@@ -129,40 +129,9 @@ export const AiHotListWidget: React.FC<AiHotListWidgetProps> = ({
     );
   }, [hotItems, searchQuery]);
 
-  // One-click Jarvis Auto Order Execution
-  const handleAutoTradeExecute = async (item: HotItem) => {
-    try {
-      const isCrypto = item.market === "BTC";
-      const allocAmt = isCrypto ? 100000 : 1000000;
-      const rawQty = allocAmt / item.currentPrice;
-      const qty = isCrypto
-        ? Number(rawQty.toFixed(8))
-        : (rawQty >= 1 ? Math.floor(rawQty) : Number(rawQty.toFixed(4)));
-
-      await executeTrade(
-        item.symbol,
-        item.name,
-        item.market,
-        "BUY",
-        qty,
-        item.currentPrice,
-        "AI 핫 리스트 고수익 자동체결",
-        `[AI 핫 리스트 체결] ${item.patternName} (${item.reasoning.slice(0, 30)}...)`
-      );
-
-      addToast({
-        type: "SUCCESS",
-        title: "🚀 AI 핫 리스트 매수 체결 완료",
-        message: `${item.name}(${item.symbol}) - ${qty}주가 실거래 계좌에 매수 체결되었습니다.`
-      });
-    } catch (err: any) {
-      console.error(err);
-      addToast({
-        type: "ERROR",
-        title: "매수 실패",
-        message: err.message || "주문 처리 중 오류가 발생했습니다."
-      });
-    }
+  // One-click Jarvis Auto Order Execution -> Opens Order Review & Risk Gate Modal
+  const handleAutoTradeExecute = (item: HotItem) => {
+    handleOpenQuickOrder(item);
   };
 
   // Open Quick Order Modal

@@ -9,6 +9,9 @@ import dotenv from "dotenv";
 import { UsMarketAiPromptBuilder, UsFinancialDataAnalyzer, UsMarketDataPromptInput } from "./src/services/UsMarketSpecializedModule.js";
 import { UsScalperSuperBrainEngine } from "./src/services/UsScalperSuperBrainEngine.js";
 import { scanGlobalRealtimeHotListV191 } from "./src/services/GlobalRealtimeScannerV191.js";
+import { scanGlobalRealtimeHotListV192 } from "./src/services/GlobalRealtimeScannerV192.js";
+import { serverRealtimeMarketHubV20 } from "./server/v20/ServerRealtimeMarketHubV20";
+import { serverUpbitRealtimeClientV20 } from "./server/v20/ServerUpbitRealtimeClientV20";
 import { KISBrokerGatewayV121 } from "./server/broker/KISBrokerGatewayV121";
 import { DEMO_FIXTURE_STOCKS } from "./src/demo/presetStocks.js";
 
@@ -5268,7 +5271,7 @@ app.post("/api/ai/jarvis-v4-engine", async (req, res) => {
   }
 });
 
-// AI Real-time Volatility & High-Yield Hot List Endpoint (AISTOCK V19.0)
+// AI Real-time Volatility & High-Yield Hot List Endpoint (AISTOCK V20)
 app.post("/api/ai/hot-list", async (req, res) => {
   try {
     const { 
@@ -5278,10 +5281,12 @@ app.post("/api/ai/hot-list", async (req, res) => {
       minYield = 15 
     } = req.body || {};
 
-    // 1. ALWAYS run verified real-time V19.1 scanner FIRST
-    const scanResult = await scanGlobalRealtimeHotListV191({
+    // 1. ALWAYS run verified real-time V19.2 scanner FIRST with pattern and yield filters
+    const scanResult = await scanGlobalRealtimeHotListV192({
       marketFilter,
-      exchangeFilter
+      exchangeFilter,
+      patternFilter,
+      minObjectivePct: Number(minYield) || 15
     });
 
     // 2. If candidates exist, use AI ONLY to enrich reasoning/risk interpretation for verified items
@@ -5299,7 +5304,7 @@ app.post("/api/ai/hot-list", async (req, res) => {
           rsi: item.rsiIndicator
         }));
 
-        const systemPrompt = `You are the AI Real-time Analysis Assistant for AISTOCK V19.0.
+        const systemPrompt = `You are the AI Real-time Analysis Assistant for AISTOCK V20.
 Your task: Analyze the provided verified real-time scanner candidates. For each candidate symbol, generate an enriched, professional 1-sentence Korean trading rationale focusing on catalyst, VWAP/RVOL structure, and key risk.
 
 CRITICAL RULES:
@@ -5339,7 +5344,7 @@ CRITICAL RULES:
 
     return res.json(scanResult);
   } catch (err: any) {
-    return res.status(500).json({ error: err.message || "AISTOCK V19.0 Scanner error" });
+    return res.status(500).json({ error: err.message || "AISTOCK V20 Scanner error" });
   }
 });
 
@@ -5348,9 +5353,9 @@ app.post("/api/ai/predict-engine", async (req, res) => {
   try {
     const { 
       symbol = "BTC", 
-      name = "비트코인", 
-      market = "BTC", 
-      currentPrice = 98500000, 
+      name: rawName, 
+      market: rawMarket, 
+      currentPrice: rawPrice, 
       changeRate: rawChangeRate,
       changePct: rawChangePct,
       investment = 1000000,
@@ -5358,7 +5363,32 @@ app.post("/api/ai/predict-engine", async (req, res) => {
       horizonMode: rawHorizon = "SHORT"
     } = req.body || {};
 
-    const price = Number(currentPrice) || 98500000;
+    const resolved = await resolveSymbolAndMarket(symbol);
+    const resolvedName = rawName || resolved.name;
+    const resolvedMarket = rawMarket || resolved.market;
+
+    let price = Number(rawPrice);
+    if (!price || isNaN(price) || price <= 0) {
+      const liveStock = await fetchLiveStockData({
+        symbol: resolved.symbol,
+        name: resolvedName,
+        market: resolvedMarket,
+        price: 100,
+        change: 0,
+        changePct: 0,
+        marketCap: "-",
+        per: 0,
+        pbr: 0,
+        roe: 0,
+        debtRatio: 0,
+        revenueGrowth: 0,
+        operatingMargin: 0,
+        news: [],
+        technical: { rsi: 50, macd: "NEUTRAL", bollinger: "middle", trend: "sideways" }
+      });
+      price = liveStock.price;
+    }
+
     const changePctVal = Number(rawChangePct ?? rawChangeRate) || 0;
     const inv = Number(investment) || 1000000;
     const ai = getAI();
@@ -5384,8 +5414,8 @@ app.post("/api/ai/predict-engine", async (req, res) => {
 다음 종목을 정밀 분석하여 미래 3중 시나리오 가격 경로, 고점 반전 확률, 투자금 대비 수익/손해 파동, 기술지표 점수, 자동매매 판단 데이터를 산출하십시오.
 
 [분석 종목 정보]
-- 종목명: ${name} (${symbol})
-- 시장구분: ${market}
+- 종목명: ${resolvedName} (${symbol})
+- 시장구분: ${resolvedMarket}
 - 현재가: ${price} KRW (또는 외화 기준 단가)
 - 실시간 당일 시세 변동률: ${changePctVal}% (${changePctVal < 0 ? '하락 흐름 진행중' : '상승 흐름 진행중'})
 - 투자 예정 금액: ${inv} KRW
@@ -5474,7 +5504,7 @@ CRITICAL: 당일 변동률이 음수(${changePctVal}%)인 하락세 종목인 �
     }
 
     // 퀀트 자체 예측 엔진 Fallback Logic
-    const isCrypto = market === "BTC" || symbol.includes("BTC") || symbol.includes("ETH");
+    const isCrypto = resolvedMarket === "BTC" || symbol.includes("BTC") || symbol.includes("ETH");
     const volatilityMult = isCrypto ? 0.025 : 0.012;
     
     // Dynamic Probability Calculation based on real-time price change trend
