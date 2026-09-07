@@ -109,34 +109,27 @@ export const StockCandleChartModal: React.FC<StockCandleChartModalProps> = ({
   const [isLiveUpdating, setIsLiveUpdating] = useState<boolean>(true);
   const [candleData, setCandleData] = useState<CandleTickData[]>([]);
 
-  // Dual Chart Matrix Dataset (Realtime Ticks vs AI Prediction Points)
+  // Dual Chart Matrix Dataset (Realtime Ticks vs AI Prediction Points - strictly real or empty)
   const dualPredictedPath = useMemo(() => {
-    const baseP = livePrice || 50000;
-    const step = baseP * 0.006;
-    const labels = ["D-3 (과거)", "D-2 (과거)", "D-1 (과거)", "현재 (T-0 LIVE)", "+1D (예측)", "+3D (예측)", "+5D (예측)", "+10D (예측)", "+15D (예측)", "+30D (예측)"];
-    return labels.map((lbl, idx) => {
-      const isPast = idx < 3;
-      const isNow = idx === 3;
-      const isFuturePredict = idx > 3;
-      const baseVal = Math.round(baseP + (idx - 3) * step * 0.95);
-      const bullVal = Math.round(baseVal + step * 1.5 * (idx > 3 ? idx - 2 : 1));
-      const bearVal = Math.round(baseVal - step * 1.1 * (idx > 3 ? idx - 2 : 1));
-      return {
-        timeLabel: lbl,
-        timestamp: Date.now() + (idx - 3) * 86400000,
-        actualPrice: isPast || isNow ? Math.round(baseP + (idx - 3) * step * 0.5) : null,
-        bullPrice: bullVal,
-        basePrice: baseVal,
-        bearPrice: bearVal,
-        upperBand: Math.round(bullVal * 1.015),
-        lowerBand: Math.round(bearVal * 0.985),
-        isNow,
-        isPast,
-        isLivePoint: isNow,
-        isFuturePredict,
-        aiSignalNote: isNow ? "🎯 실시간 매수 타점 포착" : isFuturePredict ? `D+${idx - 3} AI 예상 궤적` : "과거 체결 기록"
-      };
-    });
+    if (!livePrice || livePrice <= 0) return [];
+    const baseP = livePrice;
+    return [
+      {
+        timeLabel: "현재 (T-0 LIVE)",
+        timestamp: Date.now(),
+        actualPrice: baseP,
+        bullPrice: baseP,
+        basePrice: baseP,
+        bearPrice: baseP,
+        upperBand: baseP,
+        lowerBand: baseP,
+        isNow: true,
+        isPast: false,
+        isLivePoint: true,
+        isFuturePredict: false,
+        aiSignalNote: "🎯 실시간 검증 가격"
+      }
+    ];
   }, [livePrice]);
 
   const capInfoData = useMemo(() => {
@@ -144,51 +137,37 @@ export const StockCandleChartModal: React.FC<StockCandleChartModalProps> = ({
   }, [symbol, market, name]);
 
   const corpInfo = useMemo(() => {
-    const isUpbit = market === "BTC";
+    const isUpbit = market === "BTC" || market === "CRYPTO";
     const isUs = market === "US";
-    const price = livePrice > 0 ? livePrice : 50000;
-
-    const baseVol = isUpbit ? Math.round(1500 + Math.random() * 50000) : Math.round(500000 + Math.random() * 15000000);
-    const tradeValue = Math.round(baseVol * price);
-    const tradeValueStr = isUs 
-      ? `$${(tradeValue / 1e6).toFixed(1)}M` 
-      : tradeValue > 1e12 
-      ? `₩${(tradeValue / 1e12).toFixed(2)}조원` 
-      : `₩${Math.round(tradeValue / 1e8).toLocaleString()}억원`;
-
-    const marketCap = isUpbit 
-      ? `₩${Math.round((price * 19700000) / 1e12).toFixed(1)}조원` 
-      : isUs 
-      ? `$${Math.round((price * 320000000) / 1e9).toLocaleString()}B` 
-      : `₩${Math.round((price * 5960000000) / 1e12).toLocaleString()}조원`;
+    const price = livePrice > 0 ? livePrice : 0;
 
     return {
-      volume: (baseVol ?? 0).toLocaleString(),
-      tradeValueStr,
-      marketCap,
-      openPrice: Math.round(price * 0.985),
-      highPrice: Math.round(price * 1.028),
-      lowPrice: Math.round(price * 0.972),
-      prevClose: Math.round(price * 0.98),
-      per: isUpbit ? "N/A" : (11.4 + (symbol.length % 7) * 2.1).toFixed(1) + "배",
-      pbr: isUpbit ? "N/A" : (0.9 + (symbol.length % 5) * 0.45).toFixed(2) + "배",
-      dividendYield: isUpbit ? "N/A" : (1.2 + (symbol.length % 4) * 0.7).toFixed(2) + "%",
-      high52w: isUs ? `$${(price * 1.35).toFixed(2)}` : `₩${Math.round(price * 1.35).toLocaleString()}`,
-      low52w: isUs ? `$${(price * 0.72).toFixed(2)}` : `₩${Math.round(price * 0.72).toLocaleString()}`,
+      volume: price > 0 ? "실시간 연동 중" : "N/A",
+      tradeValueStr: price > 0 ? (isUs ? `$${(price / 1000).toFixed(1)}K` : `₩${Math.round(price * 100).toLocaleString()}`) : "N/A",
+      marketCap: isUpbit ? "N/A" : isUs ? "$--B" : "₩--조원",
+      openPrice: price > 0 ? price : 0,
+      highPrice: price > 0 ? price : 0,
+      lowPrice: price > 0 ? price : 0,
+      prevClose: price > 0 ? price : 0,
+      per: "N/A",
+      pbr: "N/A",
+      dividendYield: "N/A",
+      high52w: "N/A",
+      low52w: "N/A",
       description: isUpbit
-        ? `${name}(${symbol})는 탈중앙화 블록체인 네트워크 프로토콜로, 업비트 원화 마켓에서 실시간 체결되는 대표 가상자산입니다.`
+        ? `${name}(${symbol})는 업비트 원화 마켓에서 실시간 체결되는 대표 가상자산입니다.`
         : isUs
-        ? `${name}(${symbol})는 독점적 고성능 기술력과 강력한 글로벌 플랫폼 생태계를 기반으로 북미 및 글로벌 시장에서 지속 성장을 이어가는 우량 기업입니다.`
-        : `${name}(${symbol})는 대한민국 대표 선도 우량기업으로서 차세대 핵심 플랫폼 및 모듈 솔루션을 글로벌 시장에 공급하며 업계 최고의 기술 진입장벽을 확보하고 있습니다.`,
-      revenue: isUs ? `$${(price * 0.45).toFixed(1)}B` : `₩${Math.round(price * 3.2).toLocaleString()}억원`,
-      opProfit: isUs ? `$${(price * 0.08).toFixed(1)}B` : `₩${Math.round(price * 0.48).toLocaleString()}억원`,
-      roe: `${(8.5 + (symbol.length % 8) * 1.5).toFixed(1)}%`,
-      debtRatio: `${(22.0 + (symbol.length % 6) * 7.5).toFixed(1)}%`,
+        ? `${name}(${symbol})는 나스닥/뉴욕 증시의 실시간 체결 종목입니다.`
+        : `${name}(${symbol})는 한국거래소(KRX) 실시간 체결 종목입니다.`,
+      revenue: "N/A",
+      opProfit: "N/A",
+      roe: "N/A",
+      debtRatio: "N/A",
       themes: isUpbit
-        ? ["#가상자산", "#업비트실시간", "#블록체인", "#웹3", "#수급모멘텀"]
+        ? ["#가상자산", "#업비트실시간", "#수급모멘텀"]
         : isUs
-        ? ["#서학개미인기", "#빅테크", "#나스닥100", "#AI모멘텀", "#외국인집중"]
-        : ["#K-증시핵심", "#기관순매수", "#AI반도체", "#실적개선", "#외국인집중"]
+        ? ["#나스닥", "#미국주식", "#실시간체결"]
+        : ["#K-증시", "#실시간체결", "#수급검증"]
     };
   }, [symbol, name, market, livePrice]);
 
@@ -225,102 +204,11 @@ export const StockCandleChartModal: React.FC<StockCandleChartModalProps> = ({
     setLiveChangeRate(changeRate);
   }, [currentPrice, changeRate, market, symbol]);
 
-  // Generate realistic OHLC candlestick simulation data + AI Future forecast projection
+  // Trigger real candle fetch immediately on symbol, timeframe, or market change (NO SYNTHETIC CANDLES!)
   useEffect(() => {
-    const base = livePrice > 0 ? livePrice : 50000;
-    const count = 35;
-    const list: CandleTickData[] = [];
-    
-    let runningPrice = base * (1 - (liveChangeRate / 100) * 0.8);
-
-    const now = new Date();
-    const intervalMs = timeframe === "1M" ? 60000 : timeframe === "5M" ? 300000 : timeframe === "15M" ? 900000 : timeframe === "1H" ? 3600000 : 86400000;
-
-    // Historical 35 candles
-    for (let i = count; i >= 0; i--) {
-      const t = new Date(now.getTime() - i * intervalMs);
-      const timeStr = t.toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" });
-
-      const volatility = base * 0.008;
-      const change = (Math.random() - 0.47) * volatility;
-      const open = Math.round(runningPrice);
-      const close = i === 0 ? Math.round(livePrice) : Math.round(open + change);
-      const high = Math.max(open, close) + Math.round(Math.random() * volatility * 0.7);
-      const low = Math.min(open, close) - Math.round(Math.random() * volatility * 0.7);
-      const volume = Math.round(8000 + Math.random() * 95000);
-
-      list.push({ time: timeStr, open, high, low, close, volume });
-      runningPrice = close;
-    }
-
-    // AI Future Path Projection (5 future candles T+1 ~ T+5)
-    let lastClose = list[list.length - 1].close;
-    const isBullTrend = liveChangeRate >= 0;
-    for (let f = 1; f <= 5; f++) {
-      const futureTime = new Date(now.getTime() + f * intervalMs);
-      const timeStr = futureTime.toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" }) + " (예측)";
-
-      const expectedDelta = (isBullTrend ? 1 : -0.5) * (base * 0.006 * f * 0.6);
-      const forecastP = Math.round(lastClose + expectedDelta);
-      const bandWidth = Math.round(base * 0.008 * f);
-
-      list.push({
-        time: timeStr,
-        open: lastClose,
-        high: forecastP + bandWidth,
-        low: forecastP - bandWidth,
-        close: forecastP,
-        volume: Math.round(12000 + Math.random() * 30000),
-        forecastPrice: forecastP,
-        forecastUpper: forecastP + bandWidth,
-        forecastLower: forecastP - bandWidth,
-        isForecast: true
-      });
-      lastClose = forecastP;
-    }
-
-    // Calculate MA5, MA20, MA60, Bollinger Bands, and RSI
-    for (let i = 0; i < list.length; i++) {
-      // MA5
-      if (i >= 4) {
-        const ma5Slice = list.slice(i - 4, i + 1);
-        list[i].ma5 = Math.round(ma5Slice.reduce((sum, c) => sum + c.close, 0) / 5);
-      }
-      // MA20 & Bollinger Bands
-      if (i >= 19) {
-        const ma20Slice = list.slice(i - 19, i + 1);
-        const mean = ma20Slice.reduce((sum, c) => sum + c.close, 0) / 20;
-        list[i].ma20 = Math.round(mean);
-
-        const variance = ma20Slice.reduce((sum, c) => sum + Math.pow(c.close - mean, 2), 0) / 20;
-        const stdDev = Math.sqrt(variance);
-
-        list[i].bollingerUpper = Math.round(mean + stdDev * 2);
-        list[i].bollingerLower = Math.round(mean - stdDev * 2);
-      }
-      // MA60 approximation
-      if (i >= 10) {
-        const slice = list.slice(0, i + 1);
-        list[i].ma60 = Math.round(slice.reduce((sum, c) => sum + c.close, 0) / slice.length);
-      }
-      // RSI 14
-      if (i >= 14) {
-        let gains = 0;
-        let losses = 0;
-        for (let j = i - 13; j <= i; j++) {
-          const diff = list[j].close - list[j - 1].close;
-          if (diff >= 0) gains += diff;
-          else losses += Math.abs(diff);
-        }
-        const avgGain = gains / 14;
-        const avgLoss = losses / 14 || 1;
-        const rs = avgGain / avgLoss;
-        list[i].rsi = parseFloat((100 - (100 / (1 + rs))).toFixed(1));
-      }
-    }
-
-    setCandleData(list);
-  }, [symbol, timeframe, liveChangeRate]);
+    // Initial empty state before real feed arrives
+    setCandleData([]);
+  }, [symbol, timeframe]);
 
   // Live Price & Real Candle synchronization from real market API
   useEffect(() => {
@@ -598,28 +486,9 @@ export const StockCandleChartModal: React.FC<StockCandleChartModalProps> = ({
     return { pivot: Math.round(pivot), r1: Math.round(r1), s1: Math.round(s1), r2: Math.round(r2), s2: Math.round(s2) };
   }, [candleData, livePrice]);
 
-  // Live 10-Tier Orderbook Simulation
+  // Live Orderbook (Empty if no live depth API connected - NO SYNTHETIC RANDOM HO-GA)
   const liveOrderbook = useMemo(() => {
-    const p = livePrice || 50000;
-    const step = p > 100000 ? 500 : p > 50000 ? 100 : p > 10000 ? 50 : 10;
-
-    const asks = []; // 매도 호가 (10 ~ 1호가)
-    for (let i = 10; i >= 1; i--) {
-      const askPrice = p + i * step;
-      const askQty = Math.round(120 + Math.random() * 2500);
-      asks.push({ price: askPrice, qty: askQty, level: i });
-    }
-
-    const bids = []; // 매수 호가 (1 ~ 10호가)
-    for (let i = 1; i <= 10; i++) {
-      const bidPrice = p - i * step;
-      const bidQty = Math.round(150 + Math.random() * 3200);
-      bids.push({ price: bidPrice, qty: bidQty, level: i });
-    }
-
-    const maxQty = Math.max(...asks.map(a => a.qty), ...bids.map(b => b.qty)) || 1;
-
-    return { asks, bids, maxQty };
+    return { asks: [], bids: [], maxQty: 1 };
   }, [livePrice]);
 
   // Handle Order Submission
