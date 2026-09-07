@@ -8,7 +8,7 @@ import { GoogleGenAI, Type } from "@google/genai";
 import dotenv from "dotenv";
 import { UsMarketAiPromptBuilder, UsFinancialDataAnalyzer, UsMarketDataPromptInput } from "./src/services/UsMarketSpecializedModule.js";
 import { UsScalperSuperBrainEngine } from "./src/services/UsScalperSuperBrainEngine.js";
-import { scanGlobalRealtimeHotList } from "./src/services/GlobalRealtimeScannerV188.js";
+import { scanGlobalRealtimeHotListV191 } from "./src/services/GlobalRealtimeScannerV191.js";
 import { KISBrokerGatewayV121 } from "./server/broker/KISBrokerGatewayV121";
 import { DEMO_FIXTURE_STOCKS } from "./src/demo/presetStocks.js";
 
@@ -5278,12 +5278,10 @@ app.post("/api/ai/hot-list", async (req, res) => {
       minYield = 15 
     } = req.body || {};
 
-    // 1. ALWAYS run verified real-time scanner FIRST
-    const scanResult = scanGlobalRealtimeHotList({
+    // 1. ALWAYS run verified real-time V19.1 scanner FIRST
+    const scanResult = await scanGlobalRealtimeHotListV191({
       marketFilter,
-      exchangeFilter,
-      patternFilter,
-      minYield
+      exchangeFilter
     });
 
     // 2. If candidates exist, use AI ONLY to enrich reasoning/risk interpretation for verified items

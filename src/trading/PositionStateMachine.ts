@@ -1,6 +1,6 @@
 // ----------------------------------------------------------------------
-// POSITION STATE MACHINE V3 (AISTOCK V18 CANONICAL LIFECYCLE ENGINE)
-// Evidence-Driven State Transitions & Broker Event-Synced Quantities
+// POSITION STATE MACHINE V19.1 (TRUTH-FIRST CANONICAL LIFECYCLE ENGINE)
+// Evidence-Driven State Transitions, Multi-Factor Profit Hold & Hysteresis
 // ----------------------------------------------------------------------
 
 import { ExitEvidence } from "../services/ExitEvidenceEngine";
@@ -28,7 +28,7 @@ export interface PositionQuantityState {
   remainingPositionQty: number;
 }
 
-export interface PositionContextV18 {
+export interface PositionContextV191 {
   state: PositionState;
   symbol: string;
   strategyId: string;
@@ -43,26 +43,66 @@ export interface PositionContextV18 {
 
   exitEvidence: ExitEvidence | null;
 
-  watchThreshold?: number; // default 35
-  sellThreshold?: number;  // default 65
+  watchThreshold?: number;     // default 35
+  recoveryThreshold?: number;  // default 25 (Hysteresis gap)
+  sellThreshold?: number;      // default 65
+
+  profitActivationPct?: number; // default 0.8 (+0.8%)
+  profitReleasePct?: number;    // default 0.3 (+0.3%)
 }
 
 export class PositionStateMachine {
   /**
-   * Evaluate canonical position state transition
+   * Evaluate canonical V19.1 position state transitions with Hysteresis & Multi-Factor Profit Hold
    */
-  public static evaluateNextState(ctx: PositionContextV18): PositionState {
+  public static evaluateNextState(ctx: PositionContextV191): PositionState {
     const {
       state,
       entryPrice,
       currentPrice,
+      highestPriceSinceBuy,
       quantities,
       exitEvidence,
       watchThreshold = 35,
-      sellThreshold = 65
+      recoveryThreshold = 25,
+      sellThreshold = 65,
+      profitActivationPct = 0.8,
+      profitReleasePct = 0.3
     } = ctx;
 
     const { remainingPositionQty, buyFilledQty, requestedBuyQty, sellFilledQty } = quantities;
+
+    // Hard/Trailing Stop & Critical Safety Fast-Path
+    const isCatastrophicExit = exitEvidence
+      ? (exitEvidence.hardStopHit || exitEvidence.trailingStopHit || exitEvidence.exitRiskScore >= sellThreshold)
+      : false;
+
+    // Profit calculation
+    const currentProfitPct = (entryPrice != null && entryPrice > 0)
+      ? ((currentPrice - entryPrice) / entryPrice) * 100
+      : 0;
+
+    const peakPrice = highestPriceSinceBuy ?? currentPrice;
+    const peakProfitPct = (entryPrice != null && entryPrice > 0)
+      ? ((peakPrice - entryPrice) / entryPrice) * 100
+      : 0;
+
+    const givebackPct = peakProfitPct > 0 ? peakProfitPct - currentProfitPct : 0;
+
+    // PROFIT_HOLD multi-factor qualification:
+    // 1. Profit rate >= activation threshold (+0.8%)
+    // 2. Giveback is not excessive (< 50% of peak gain or < 1.5% absolute)
+    // 3. Exit risk score is low (< watchThreshold)
+    const qualifiesForProfitHold =
+      entryPrice != null &&
+      currentProfitPct >= profitActivationPct &&
+      givebackPct < Math.max(1.5, peakProfitPct * 0.5) &&
+      (!exitEvidence || exitEvidence.exitRiskScore < watchThreshold);
+
+    const retainsProfitHold =
+      entryPrice != null &&
+      currentProfitPct >= profitReleasePct &&
+      (!exitEvidence || exitEvidence.exitRiskScore < watchThreshold);
 
     switch (state) {
       case "FLAT":
@@ -85,15 +125,12 @@ export class PositionStateMachine {
 
       case "HOLD": {
         if (remainingPositionQty <= 0) return "CLOSED";
-        if (!exitEvidence) return "HOLD";
+        if (isCatastrophicExit) return "SELL_PENDING";
 
-        if (exitEvidence.hardStopHit || exitEvidence.trailingStopHit || exitEvidence.exitRiskScore >= sellThreshold) {
-          return "SELL_PENDING";
-        }
-        if (exitEvidence.exitRiskScore >= watchThreshold) {
+        if (exitEvidence && exitEvidence.exitRiskScore >= watchThreshold) {
           return "SELL_WATCH";
         }
-        if (entryPrice != null && currentPrice > entryPrice && exitEvidence.exitRiskScore < watchThreshold) {
+        if (qualifiesForProfitHold) {
           return "PROFIT_HOLD";
         }
         return "HOLD";
@@ -101,27 +138,24 @@ export class PositionStateMachine {
 
       case "PROFIT_HOLD": {
         if (remainingPositionQty <= 0) return "CLOSED";
-        if (!exitEvidence) return "PROFIT_HOLD";
+        if (isCatastrophicExit) return "SELL_PENDING";
 
-        if (exitEvidence.hardStopHit || exitEvidence.trailingStopHit || exitEvidence.exitRiskScore >= sellThreshold) {
-          return "SELL_PENDING";
-        }
-        if (exitEvidence.exitRiskScore >= watchThreshold) {
+        if (exitEvidence && exitEvidence.exitRiskScore >= watchThreshold) {
           return "SELL_WATCH";
+        }
+        if (!retainsProfitHold) {
+          return "HOLD";
         }
         return "PROFIT_HOLD";
       }
 
       case "SELL_WATCH": {
         if (remainingPositionQty <= 0) return "CLOSED";
-        if (!exitEvidence) return "SELL_WATCH";
+        if (isCatastrophicExit) return "SELL_PENDING";
 
-        if (exitEvidence.hardStopHit || exitEvidence.trailingStopHit || exitEvidence.exitRiskScore >= sellThreshold) {
-          return "SELL_PENDING";
-        }
-        // Recovery back to HOLD / PROFIT_HOLD if exit risk drops below watch threshold
-        if (exitEvidence.exitRiskScore < watchThreshold) {
-          return entryPrice != null && currentPrice > entryPrice ? "PROFIT_HOLD" : "HOLD";
+        // Hysteresis: Recovery requires exitRiskScore < recoveryThreshold (25), NOT just < watchThreshold (35)
+        if (exitEvidence && exitEvidence.exitRiskScore < recoveryThreshold) {
+          return retainsProfitHold ? "PROFIT_HOLD" : "HOLD";
         }
         return "SELL_WATCH";
       }

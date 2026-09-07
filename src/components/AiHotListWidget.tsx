@@ -69,11 +69,11 @@ export const AiHotListWidget: React.FC<AiHotListWidgetProps> = ({
   const [marketFilter, setMarketFilter] = useState<"ALL" | "KOREA" | "US" | "BTC">("ALL");
   const [exchangeFilter, setExchangeFilter] = useState<"ALL" | "NASDAQ" | "NYSE" | "AMEX">("ALL");
   const [patternFilter, setPatternFilter] = useState<string>("ALL");
-  const [minYieldFilter, setMinYieldFilter] = useState<number>(15);
+  const [minYieldFilter, setMinYieldFilter] = useState<number>(0);
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [lastScanTime, setLastScanTime] = useState<string>("");
-  const [scannedTotal, setScannedTotal] = useState<number>(3420);
+  const [scannedTotal, setScannedTotal] = useState<number>(0);
   const [marketCounts, setMarketCounts] = useState<{ KOREA: number; US: number; UPBIT: number }>({ KOREA: 0, US: 0, UPBIT: 0 });
   const [hotItems, setHotItems] = useState<HotItem[]>([]);
 
@@ -100,13 +100,14 @@ export const AiHotListWidget: React.FC<AiHotListWidgetProps> = ({
         const data = await res.json();
         setHotItems(data.hotItems || []);
         setLastScanTime(data.scanTimestamp || new Date().toLocaleTimeString());
-        if (data.scannedTotal) setScannedTotal(data.scannedTotal);
+        if (data.scannedTotal != null) setScannedTotal(data.scannedTotal);
         if (data.marketCounts) setMarketCounts(data.marketCounts);
       } else {
         throw new Error("API response not ok");
       }
     } catch (e) {
-      console.warn("Hot list fetch error, using local quantitative generator", e);
+      console.warn("Hot list fetch error", e);
+      setHotItems([]);
       setLastScanTime(new Date().toLocaleTimeString());
     } finally {
       setIsLoading(false);
@@ -339,18 +340,18 @@ export const AiHotListWidget: React.FC<AiHotListWidgetProps> = ({
           </div>
         )}
 
-        {/* MIN EXPECTED YIELD SELECTOR */}
+        {/* MIN PLANNING OBJECTIVE SELECTOR */}
         <div className="space-y-1">
           <label className="text-[10px] font-bold text-zinc-400 flex items-center gap-1">
             <TrendingUp className="h-3 w-3 text-emerald-400" />
-            <span>최소 기대수익률 (Min Yield)</span>
+            <span>최소 계획 목표폭 (Min Target)</span>
           </label>
           <div className="flex bg-zinc-950 p-1 rounded-lg border border-zinc-800 gap-1">
             {[
-              { val: 15, label: "+15%" },
-              { val: 25, label: "+25%" },
-              { val: 35, label: "+35%" },
-              { val: 45, label: "+45%+" }
+              { val: 0, label: "전체" },
+              { val: 2, label: "+2%+" },
+              { val: 4, label: "+4%+" },
+              { val: 6, label: "+6%+" }
             ].map(y => (
               <button
                 key={y.val}

@@ -516,19 +516,21 @@ export function buildLiveStockItem(
 
 export function getCustomStocks(): LiveStockItem[] {
   try {
-    const raw = localStorage.getItem("aistock_custom_registered_stocks");
-    if (raw) {
-      const customMetaList = JSON.parse(raw);
-      if (Array.isArray(customMetaList)) {
-        return customMetaList.map((item) =>
-          buildLiveStockItem(item.symbol, item.name, item.market || "KOSPI", {
-            category: item.category,
-            categoryLabel: item.categoryLabel,
-            theme: item.theme,
-            strategy: item.strategy,
-            isCustom: true
-          })
-        );
+    if (typeof localStorage !== "undefined") {
+      const raw = localStorage.getItem("aistock_custom_registered_stocks");
+      if (raw) {
+        const customMetaList = JSON.parse(raw);
+        if (Array.isArray(customMetaList)) {
+          return customMetaList.map((item) =>
+            buildLiveStockItem(item.symbol, item.name, item.market || "KOSPI", {
+              category: item.category,
+              categoryLabel: item.categoryLabel,
+              theme: item.theme,
+              strategy: item.strategy,
+              isCustom: true
+            })
+          );
+        }
       }
     }
   } catch (e) {
