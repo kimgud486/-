@@ -33,15 +33,33 @@ export const H0STASP0 = {
 } as const;
 
 export const H0STCNI0 = {
-  ACCOUNT_NO: 0,          // 계좌번호
-  ORDER_ID: 1,            // 주문번호
-  ORIGINAL_ORDER_ID: 2,   // 원주문번호
-  SYMBOL: 3,              // 종목코드
+  ACCOUNT_NO: 1,          // 계좌번호
+  ORDER_ID: 2,            // 주문번호
+  ORIGINAL_ORDER_ID: 3,   // 원주문번호
   SIDE_CODE: 4,           // 매도매수구분코드 (01: 매도, 02: 매수)
-  EXEC_QTY: 5,            // 체결수량
-  EXEC_PRICE: 6,          // 체결단가
-  REMAINING_QTY: 7,       // 미체결수량
-  EXEC_TIME: 8,           // 체결시각
+  SYMBOL: 8,              // 종목코드
+  EXEC_QTY: 9,            // 체결수량
+  EXEC_PRICE: 10,         // 체결단가
+  EXEC_TIME: 11,          // 체결시각
+  REJECT_FLAG: 12,        // 거부플래그
+  EXEC_FLAG: 13,          // 체결여부/플래그 (1:체결, 2:미체결 등)
+  ACCEPT_FLAG: 14,        // 접수플래그
+  ORDER_QTY: 16,          // 주문수량
+} as const;
+
+export const H0GSCNI0 = {
+  ACCOUNT_NO: 1,          // 계좌번호
+  ORDER_ID: 2,            // 주문번호
+  ORIGINAL_ORDER_ID: 3,   // 원주문번호
+  SIDE_CODE: 4,           // 매도매수구분코드
+  SYMBOL: 7,              // 종목코드
+  EXEC_QTY: 8,            // 체결수량
+  EXEC_PRICE: 9,          // 체결단가
+  EXEC_TIME: 10,          // 체결시각
+  REJECT_FLAG: 11,        // 거부플래그
+  EXEC_FLAG: 12,          // 체결여부
+  ACCEPT_FLAG: 13,        // 접수플래그
+  ORDER_QTY: 15,          // 주문수량
 } as const;
 
 export function classifyAggressor(

@@ -53,7 +53,16 @@ export interface PositionContextV191 {
 
 export class PositionStateMachine {
   /**
-   * Evaluate canonical V19.1 position state transitions with Hysteresis & Multi-Factor Profit Hold
+   * Monotonic trailing stop floor invariant helper: Trailing floor can ONLY stay flat or move up, never down.
+   */
+  public static updateTrailingFloor(currentFloor: number | null, candidateFloor: number | null): number | null {
+    if (candidateFloor == null || candidateFloor <= 0) return currentFloor;
+    if (currentFloor == null || currentFloor <= 0) return candidateFloor;
+    return Math.max(currentFloor, candidateFloor);
+  }
+
+  /**
+   * Evaluate canonical V20.1 position state transitions with Hysteresis, Multi-Evidence SELL_WATCH & Monotonic Trailing Floor
    */
   public static evaluateNextState(ctx: PositionContextV191): PositionState {
     const {

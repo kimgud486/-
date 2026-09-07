@@ -168,19 +168,131 @@ export interface UsScalperBrainResult {
 
 export class UsScalperSuperBrainEngine {
   /**
+   * Fail closed for incomplete data feed without creating fake fallback prices or scores
+   */
+  public static getIncompleteResult(tick?: Partial<UsStockMarketTick>): UsScalperBrainResult {
+    const symbol = tick?.symbol || "UNKNOWN";
+    const name = tick?.name || symbol;
+
+    const emptyScenario = {
+      id: "E" as const,
+      name: "Incomplete Data Feed (데이터 미흡)",
+      probabilityPct: 0,
+      triggerPrice: 0,
+      targetZoneMin: 0,
+      targetZoneMax: 0,
+      invalidationPrice: 0,
+      expectedDuration: "N/A",
+      riskLevel: "HIGH" as const
+    };
+
+    return {
+      symbol,
+      name,
+      price: 0,
+      timestamp: new Date().toISOString(),
+      marketSession: tick?.marketSession || "CLOSED",
+      metaScalperScore: 0,
+      opportunityRank: 999,
+      aiState: "NO_SETUP",
+      stateBadge: "⛔ 데이터 미흡 (INCOMPLETE)",
+      confidenceScore: 0,
+      expectedValueEv: 0,
+      riskRewardRatio: 0,
+      entryZone: {
+        min: 0,
+        max: 0,
+        recommended: 0,
+        invalidationStopLoss: 0,
+        target1: 0,
+        target2: 0,
+        target3: 0
+      },
+      futurePath: {
+        primaryScenario: emptyScenario,
+        secondaryScenario: emptyScenario,
+        failureScenario: emptyScenario,
+        scenarios: [emptyScenario],
+        multiHorizon: [],
+        priceDistribution: { p10: 0, p25: 0, median: 0, p75: 0, p90: 0 },
+        expectedHigh: 0,
+        expectedLow: 0,
+        expectedRange: "N/A"
+      },
+      independentSellEngine: {
+        sellScore: 0,
+        topRiskPct: 0,
+        exhaustionPct: 0,
+        fakeoutPct: 0,
+        profitGivebackPct: 0,
+        sellWatch: "데이터 미흡",
+        reduceZone: "데이터 미흡",
+        exitTrigger: 0,
+        emergencyExit: 0,
+        status: "HOLD"
+      },
+      agentVotes: {
+        bullishCount: 0,
+        neutralCount: 0,
+        bearishCount: 0,
+        vetoCount: 1,
+        vetoAgentNames: ["Data Integrity Shield"],
+        votes: []
+      },
+      scores: {
+        marketRegime: 0,
+        scannerMomentum: 0,
+        catalystPower: 0,
+        microstructureTape: 0,
+        vwapStructure: 0,
+        squeezePotential: 0,
+        relativeStrength: 0,
+        optionsFlowPower: 0
+      },
+      risks: {
+        fakeoutRisk: 100,
+        exhaustionChaseRisk: 100,
+        haltRisk: "EXTREME",
+        dilutionOfferingRisk: 100,
+        spreadLiquidityRisk: 100
+      },
+      flowIntelligence: {
+        primaryDriver: "PARABOLIC_CHOP",
+        squeezeStage: "S0_DORMANT",
+        squeezeScore: 0,
+        floatTurnoverRatio: 0,
+        orderBookImbalanceObi: 0,
+        buyerTapeAggression: 0,
+        absorptionState: "BALANCED"
+      },
+      agentReports: [],
+      prescriptions: {
+        action: "NO_ENTRY",
+        koreanInstruction: "실시간 시세 데이터 미수신 또는 무효 가격으로 인해 스캘핑 분석을 수행할 수 없습니다 (Fail-Closed).",
+        warningNotice: "⛔ 실시간 시세 데이터 미흡"
+      },
+      masterFormattedOutputText: `[AISTOCK V20.1 US SCALPER DATA INCOMPLETE]\n종목: ${name} (${symbol})\n상태: 데이터 미흡으로 분석 불가 (Fail-Closed)`
+    };
+  }
+
+  /**
    * Run comprehensive 30+ Agent US Scalper AI Analysis
    */
   public static evaluate(tick: UsStockMarketTick): UsScalperBrainResult {
-    const price = tick.price || 100;
-    const changeRate = tick.changeRate || 0;
-    const rvol = Math.max(0.1, tick.rvol || 1.0);
-    const floatM = tick.floatSharesM || 15.0;
-    const shortPct = tick.shortInterestPct || 8.0;
-    const spreadPct = tick.ask > 0 && tick.bid > 0 ? ((tick.ask - tick.bid) / tick.price) * 100 : 0.2;
+    if (!tick || typeof tick.price !== "number" || isNaN(tick.price) || tick.price <= 0) {
+      return UsScalperSuperBrainEngine.getIncompleteResult(tick);
+    }
+
+    const price = tick.price;
+    const changeRate = tick.changeRate ?? 0;
+    const rvol = tick.rvol ?? 0;
+    const floatM = tick.floatSharesM ?? 0;
+    const shortPct = tick.shortInterestPct ?? 0;
+    const spreadPct = tick.ask > 0 && tick.bid > 0 ? ((tick.ask - tick.bid) / tick.price) * 100 : 0;
     
     // Dynamic VWAP calculation if missing
-    const calculatedVwap = tick.vwap || (tick.high + tick.low + tick.price) / 3;
-    const distFromVwapPct = ((price - calculatedVwap) / calculatedVwap) * 100;
+    const calculatedVwap = tick.vwap && tick.vwap > 0 ? tick.vwap : (tick.high && tick.low ? (tick.high + tick.low + tick.price) / 3 : price);
+    const distFromVwapPct = calculatedVwap > 0 ? ((price - calculatedVwap) / calculatedVwap) * 100 : 0;
 
     // 1. Market Regime Brain
     const isMarketBull = tick.spyTrend === "BULL" && tick.qqqTrend === "BULL";

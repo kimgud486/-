@@ -193,7 +193,7 @@ export class KISRealtimeStreamBus {
    */
   public static parseExecutionNotice(rawData: string[], decryptedPayload?: string): KISExecutionNotice | null {
     const fields = decryptedPayload ? decryptedPayload.split("|") : rawData;
-    if (!fields || fields.length <= H0STCNI0.REMAINING_QTY) return null;
+    if (!fields || fields.length <= H0STCNI0.ORDER_QTY) return null;
 
     const accountNo = fields[H0STCNI0.ACCOUNT_NO] || "";
     const orderId = fields[H0STCNI0.ORDER_ID] || "";
@@ -201,7 +201,8 @@ export class KISRealtimeStreamBus {
     const sideCode = fields[H0STCNI0.SIDE_CODE] || "02"; // 01: SELL, 02: BUY
     const execQty = parseFloat(fields[H0STCNI0.EXEC_QTY]) || 0;
     const execPrice = parseFloat(fields[H0STCNI0.EXEC_PRICE]) || 0;
-    const remainingQty = parseFloat(fields[H0STCNI0.REMAINING_QTY]) || 0;
+    const orderQty = parseFloat(fields[H0STCNI0.ORDER_QTY]) || 0;
+    const remainingQty = Math.max(0, orderQty - execQty);
 
     if (!symbol || execQty <= 0) return null;
 

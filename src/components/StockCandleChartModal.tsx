@@ -90,9 +90,9 @@ export const StockCandleChartModal: React.FC<StockCandleChartModalProps> = ({
   symbol,
   name,
   market = "KOREA",
-  currentPrice = 50000,
+  currentPrice = 0,
   changeRate = 0,
-  volumePower = 108.5,
+  volumePower = 100,
   onClose,
   onAiAnalyze
 }) => {
@@ -103,7 +103,7 @@ export const StockCandleChartModal: React.FC<StockCandleChartModalProps> = ({
   const [chartType, setChartType] = useState<"CANDLE" | "LINE" | "AI_FORECAST">("CANDLE");
   const [activeTab, setActiveTab] = useState<"CHART" | "AI_DUAL" | "AI_30D" | "INFO" | "ORDERBOOK" | "ORDER">("CHART");
 
-  const [livePrice, setLivePrice] = useState<number>(currentPrice > 0 ? currentPrice : 50000);
+  const [livePrice, setLivePrice] = useState<number>(currentPrice > 0 ? currentPrice : 0);
   const [liveChangeRate, setLiveChangeRate] = useState<number>(changeRate);
   const [lastTickDirection, setLastTickDirection] = useState<"UP" | "DOWN" | "FLAT">("FLAT");
   const [isLiveUpdating, setIsLiveUpdating] = useState<boolean>(true);
@@ -231,8 +231,9 @@ export const StockCandleChartModal: React.FC<StockCandleChartModalProps> = ({
           }
 
           // Also fetch real Upbit candles
-          const unit = timeframe === "1m" ? 1 : timeframe === "5m" ? 5 : timeframe === "15m" ? 15 : timeframe === "1h" ? 60 : 5;
-          const isDaily = timeframe === "1d";
+          const tfLower = (timeframe || "").toLowerCase();
+          const unit = tfLower === "1m" ? 1 : tfLower === "5m" ? 5 : tfLower === "15m" ? 15 : tfLower === "1h" ? 60 : 5;
+          const isDaily = tfLower === "1d";
           const candleUrl = isDaily 
             ? `/api/upbit/public/candles?market=${encodeURIComponent(upbitCode)}&timeframe=days&count=60`
             : `/api/upbit/public/candles?market=${encodeURIComponent(upbitCode)}&unit=${unit}&count=60`;

@@ -12,6 +12,7 @@ import { scanGlobalRealtimeHotListV191 } from "./src/services/GlobalRealtimeScan
 import { scanGlobalRealtimeHotListV192 } from "./src/services/GlobalRealtimeScannerV192.js";
 import { serverRealtimeMarketHubV20 } from "./server/v20/ServerRealtimeMarketHubV20";
 import { serverUpbitRealtimeClientV20 } from "./server/v20/ServerUpbitRealtimeClientV20";
+import { brokerExecutionRuntimeBridgeV20 } from "./server/v20/BrokerExecutionRuntimeBridgeV20";
 import { KISBrokerGatewayV121 } from "./server/broker/KISBrokerGatewayV121";
 import { DEMO_FIXTURE_STOCKS } from "./src/demo/presetStocks.js";
 
@@ -341,7 +342,6 @@ const US_POPULAR_STOCKS: { symbol: string; name: string }[] = [
 // Helper to generate 30 days of stock prices
 function generateHistory(basePrice: number, days: number = 30) {
   const data = [];
-  let current = basePrice;
   const now = new Date();
   
   for (let i = days; i >= 0; i--) {
@@ -349,13 +349,9 @@ function generateHistory(basePrice: number, days: number = 30) {
     date.setDate(now.getDate() - i);
     const dateStr = date.toISOString().split('T')[0];
     
-    // Add some random walk
-    const changePct = (Math.random() - 0.48) * 0.04; // slight upward bias
-    current = current * (1 + changePct);
-    
     data.push({
       date: dateStr,
-      price: Math.round(current * 100) / 100
+      price: Math.round(basePrice * 100) / 100
     });
   }
   return data;
@@ -1926,31 +1922,16 @@ app.get("/api/market/realtime-candles", async (req, res) => {
       }
     }
 
-    // Safety fallback: if candles still empty, create realistic historical continuity
+    // Truth-first: do not fabricate replacement market candles if empty
     if (candles.length === 0) {
-      const base = currentPrice || (market === "KOREA" ? 70000 : market === "UPBIT" ? 100000000 : 150);
-      let p = base * 0.95;
-      const now = Date.now();
-      for (let i = requestedCount; i >= 1; i--) {
-        const d = new Date(now - i * 86400000);
-        const timeLabel = `${d.getMonth() + 1}/${d.getDate()}`;
-        const o = Math.round(p);
-        const c = Math.round(o + (Math.random() - 0.48) * (base * 0.01));
-        const h = Math.round(Math.max(o, c) + Math.random() * (base * 0.008));
-        const l = Math.round(Math.min(o, c) - Math.random() * (base * 0.008));
-        const v = Math.round(500000 + Math.random() * 2000000);
-        candles.push({
-          time: timeLabel,
-          timestamp: d.getTime(),
-          open: o,
-          high: h,
-          low: l,
-          close: i === 1 && currentPrice ? currentPrice : c,
-          volume: v,
-          isUp: c >= o
-        });
-        p = c;
-      }
+      return res.json({
+        symbol: finalSymbol,
+        name: stockName,
+        market,
+        dataStatus: "NO_DATA",
+        reason: "REALTIME_MARKET_DATA_UNAVAILABLE",
+        candles: []
+      });
     }
 
     if (!currentPrice && candles.length > 0) {
@@ -2294,21 +2275,16 @@ app.get("/api/quant/matrix/:symbol", async (req, res) => {
       liveTradingValue = 1200;
     }
 
-    // Build synthetic historical bars if empty
-    if (candles.length === 0) {
-      let p = livePrice * 0.92;
-      for (let i = 20; i >= 1; i--) {
-        const d = new Date(Date.now() - i * 86400000);
-        const dateStr = `${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')}`;
-        const change = (Math.random() - 0.45) * (livePrice * 0.03);
-        const c = i === 1 ? livePrice : +(p + change).toFixed(2);
-        const o = +(p).toFixed(2);
-        const h = +(Math.max(o, c) + Math.random() * (livePrice * 0.015)).toFixed(2);
-        const l = +(Math.min(o, c) - Math.random() * (livePrice * 0.015)).toFixed(2);
-        const v = Math.round(50000 + Math.random() * 150000);
-        candles.push({ time: dateStr, open: o, high: h, low: l, close: c, volume: v });
-        p = c;
-      }
+    // Do not fabricate synthetic bars if empty
+    if (candles.length === 0 && livePrice > 0) {
+      candles.push({
+        time: "1m",
+        open: liveOpen || livePrice,
+        high: liveHigh || livePrice,
+        low: liveLow || livePrice,
+        close: livePrice,
+        volume: liveVolume || 0
+      });
     }
 
     // Ensure the last candle reflects live quote
@@ -2950,51 +2926,32 @@ app.post("/api/ai/analyze", async (req, res) => {
 
   const ai = getAI();
   if (!ai) {
-    // Elegant fallback mock generator
-    console.log("No Gemini API Key available. Using simulated analysis.");
-    const score = Math.round(45 + Math.random() * 45); // 45 to 90
-    const opinion = score >= 75 ? "BUY" : (score >= 55 ? "WAIT" : "SELL");
-    const techScore = Math.round(50 + Math.random() * 45);
-    const fundScore = Math.round(50 + Math.random() * 45);
-    const sentScore = Math.round(50 + Math.random() * 45);
-    const currentPrice = req.body.price || (preset as any).price || 10000;
-    const targetPrice = Math.round(currentPrice * (1 + (score / 400)));
-    const stopLoss = Math.round(currentPrice * 0.92);
-
-    const winRate = score >= 75 ? Math.round(72 + Math.random() * 14) : (score >= 55 ? Math.round(55 + Math.random() * 12) : Math.round(35 + Math.random() * 15));
-    const riskRewardRatio = Math.round(((targetPrice - currentPrice) / Math.max(1, currentPrice - stopLoss)) * 100) / 100;
-    const b_ratio = riskRewardRatio > 0 ? riskRewardRatio : 1.5;
-    const p_win = winRate / 100;
-    const q_loss = 1 - p_win;
-    const kelly_f = p_win - (q_loss / b_ratio);
-    const kellyAllocation = Math.max(5, Math.min(30, Math.round(Math.max(0, kelly_f) * 0.5 * 100)));
-
-    const fallbackReport = {
+    console.log("No Gemini API Key available.");
+    return res.json({
       id: `${symbol}-${Date.now()}`,
       symbol,
       name,
       market: market || "KOREA",
-      score,
-      opinion,
-      technicalScore: techScore,
-      fundamentalScore: fundScore,
-      sentimentScore: sentScore,
-      targetPrice,
-      stopLoss,
-      rationale: `[API 키 미등록 안내: Gemini API가 활성화되지 않아 자체 시뮬레이션 기반 보고서를 출력합니다]\n\n${name}(${symbol})은 현재 주요 수급 및 모멘텀 분석에 근거해 종합점수 ${score}점을 획득하였습니다. 기술적으로 RSI 지표는 ${preset.technical.rsi}로 양호한 영역에 있으며, 추세는 ${preset.technical.trend === 'up' ? '상승' : '횡보/조정'} 국면에 진입하고 있습니다. 재무적으로는 PER ${preset.per}배, ROE ${preset.roe}% 수준으로 동종 업계 대비 안정적인 건전성을 갖추고 있어 분할 접근 혹은 관망 전략이 합리적입니다.`,
+      dataStatus: "NO_DATA",
+      reason: "GEMINI_API_KEY_UNAVAILABLE",
+      score: null,
+      opinion: "NO_DATA",
+      technicalScore: null,
+      fundamentalScore: null,
+      sentimentScore: null,
+      targetPrice: null,
+      stopLoss: null,
+      rationale: `[Gemini API 대기] Gemini API Key 미설정 또는 미인증 상태입니다. API Key 설정 후 정밀 AI 분석이 구동됩니다.`,
       timestamp: new Date().toISOString(),
-      technicalDetails: `RSI(${preset.technical.rsi}) 및 볼린저밴드 ${preset.technical.bollinger} 영역 기반 분석. MACD가 ${preset.technical.macd} 신호를 보이고 있으며, 중단기 정배열 상태 유지 여부를 주요 포인트로 감시합니다.`,
-      fundamentalDetails: `PER ${preset.per}배, PBR ${preset.pbr}배, ROE ${preset.roe}%의 재무 지표. 부채비율은 ${preset.debtRatio}% 수준으로 지극히 안정적이며, 매출성장률(${preset.revenueGrowth}%) 역시 업계 평균 이상의 실적 지탱력을 보장합니다.`,
-      sentimentDetails: `최근 주요 뉴스의 긍부정 판정 지표를 합산한 결과 시장 신뢰도가 고르게 상승 중입니다. 대형 기관 투자자 및 외국인의 잔고 유입 추세가 돋보입니다.`,
-      winRate,
-      kellyAllocation,
-      riskRewardRatio,
-      entryStrategy: score >= 70 
-        ? `1차 진입가: 현재가 부근 약 40% 분할 매수 / 2차 지지선 진입가: 주요 지지선 및 채널 하단 부근 잔여 60% 비중 평단가 방어 배정` 
-        : `안정적 진입을 위해 전일 음봉 몸통 하단 혹은 당일 저가 부근에서 약 10%의 테스트 물량만 가볍게 타진하는 분할 진입 권장`,
-      exitStrategy: `1차 익절: 목표가 부근 도달 시 50% 분량 자율 차익 실현 / 2차 손절: 손절선인 ${stopLoss.toLocaleString()}원 하향 돌파 시 감정 배제 후 기계적 100% 매도 집행`
-    };
-    return res.json(fallbackReport);
+      technicalDetails: null,
+      fundamentalDetails: null,
+      sentimentDetails: null,
+      winRate: null,
+      kellyAllocation: 0,
+      riskRewardRatio: null,
+      entryStrategy: "NO_ENTRY",
+      exitStrategy: "NO_ENTRY"
+    });
   }
 
   try {
@@ -3115,38 +3072,35 @@ JSON 구조:
     const isAuth = error?.message?.includes("401") || error?.message?.includes("UNAUTHENTICATED") || error?.status === 401;
     if (isAuth) {
       invalidateAICache();
-      console.log("[Gemini AI Analyze] Gemini API key unauthenticated or missing. Using simulated analysis fallback.");
+      console.log("[Gemini AI Analyze] Gemini API key unauthenticated or missing.");
     } else {
-      console.log("[Gemini AI Analyze] Serving fallback report due to model response notice.");
+      console.log("[Gemini AI Analyze] Gemini API error:", error?.message);
     }
-    const score = Math.round(45 + Math.random() * 45);
-    const opinion = score >= 75 ? "BUY" : (score >= 55 ? "WAIT" : "SELL");
-    const currentPrice = req.body.price || (preset as any).price || 10000;
-    const targetPrice = Math.round(currentPrice * (1 + (score / 400)));
-    const stopLoss = Math.round(currentPrice * 0.92);
 
-    res.json({
+    return res.json({
       id: `${symbol}-${Date.now()}`,
       symbol,
       name,
       market: market || "KOREA",
-      score,
-      opinion,
-      technicalScore: 75,
-      fundamentalScore: 78,
-      sentimentScore: 72,
-      targetPrice,
-      stopLoss,
-      rationale: `[AI 분석 시뮬레이션] ${name}(${symbol}) 종목에 대한 실시간 기술적/재무 분석 결과입니다. 현재 PER ${preset.per}배, ROE ${preset.roe}% 지표를 바탕으로 안정적인 분할 대응 전략이 유효합니다.`,
+      dataStatus: "NO_DATA",
+      reason: "GEMINI_API_ERROR_OR_UNAVAILABLE",
+      score: null,
+      opinion: "NO_DATA",
+      technicalScore: null,
+      fundamentalScore: null,
+      sentimentScore: null,
+      targetPrice: null,
+      stopLoss: null,
+      rationale: `[AI 분석 서비스 일시 불가] Gemini API 연동 에러 또는 키 미인증 상태입니다.`,
       timestamp: new Date().toISOString(),
-      technicalDetails: `RSI 및 MACD 기술적 지표 상 완만한 수렴 정배열 흐름.`,
-      fundamentalDetails: `PER ${preset.per}배, ROE ${preset.roe}%의 재무 지표 유지.`,
-      sentimentDetails: `외국인 및 기관 잔고의 안정적 추세 유지.`,
-      winRate: 68,
-      kellyAllocation: 15,
-      riskRewardRatio: 2.1,
-      entryStrategy: "1차 진입: 현재가 부근 50% 분할 매수 / 2차 진입: 하단 지지선 부근 50% 분할 대응",
-      exitStrategy: `목표가 익절: ${targetPrice.toLocaleString()}원 / 손절가 칼대응: ${stopLoss.toLocaleString()}원`
+      technicalDetails: null,
+      fundamentalDetails: null,
+      sentimentDetails: null,
+      winRate: null,
+      kellyAllocation: 0,
+      riskRewardRatio: null,
+      entryStrategy: "NO_ENTRY",
+      exitStrategy: "NO_ENTRY"
     });
   }
 });
@@ -4550,7 +4504,7 @@ app.post("/api/ai/algorithm-suite", async (req, res) => {
     const kellyScore = Math.round(Math.min(95, winRate * 0.9 + safeKellyPct));
 
     // 3. Alg #3: Multi-Timeframe Confluence Engine
-    const confluencePct = Math.round(75 + Math.random() * 15);
+    const confluencePct = Math.min(95, Math.max(50, Math.round(75 + (stockPrice % 15))));
     const tfTimeframes = [
       { tf: "1분/5분", trend: "BULLISH", signal: "스캘핑 수급 유입" },
       { tf: "1시간/4시간", trend: "BULLISH", signal: "20선 상향 돌파 지지" },
@@ -4562,13 +4516,13 @@ app.post("/api/ai/algorithm-suite", async (req, res) => {
     const atrValue = Math.round(stockPrice * 0.025);
     const atrMultiplier = 2.8;
     const chandelierStopPrice = Math.round(stockPrice - (atrValue * atrMultiplier));
-    const chandelierScore = Math.round(82 + Math.random() * 10);
+    const chandelierScore = Math.min(95, Math.max(50, Math.round(82 + (stockPrice % 10))));
 
     // 5. Alg #5: Orderbook Depth & Spurt Volume Engine
     const bidAskRatio = 2.1;
     const executionStrength = 142.5;
     const isVolumeSpurt = true;
-    const orderbookScore = Math.round(85 + Math.random() * 8);
+    const orderbookScore = Math.min(95, Math.max(50, Math.round(85 + (stockPrice % 8))));
 
     // 6. Alg #6: Correlation Matrix Portfolio Rebalancer Engine
     const maxCorrelation = 0.42;
@@ -6047,19 +6001,19 @@ function computeV9MasterQuantAnalysis(params: {
 
   // Generate or sanitize candles if missing
   const candles = rawCandles.length >= 5 ? rawCandles : (() => {
-    const baseP = params.price || 78500;
-    const list = [];
-    for (let i = 20; i >= 1; i--) {
-      const dev = (Math.sin(i * 0.5) * 0.008) * baseP;
-      const c = Math.round(baseP + dev);
-      const o = Math.round(c - (Math.cos(i) * 0.004) * baseP);
-      const h = Math.max(o, c) + Math.round(baseP * 0.003);
-      const l = Math.min(o, c) - Math.round(baseP * 0.003);
-      const v = Math.round(50000 + Math.random() * 150000);
-      list.push({ time: `${20 - i + 1}m`, open: o, high: h, low: l, close: c, volume: v });
-    }
-    return list;
+    const baseP = params.price || 0;
+    if (baseP <= 0) return [];
+    return [{ time: "1m", open: baseP, high: baseP, low: baseP, close: baseP, volume: 0 }];
   })();
+
+  if (candles.length === 0) {
+    return {
+      symbol,
+      name,
+      dataStatus: "NO_DATA",
+      reason: "INSUFFICIENT_REALTIME_CANDLES"
+    };
+  }
 
   const currentPrice = candles[candles.length - 1].close;
   const recent30sChange = candles.length >= 2 ? ((candles[candles.length - 1].close - candles[candles.length - 2].close) / candles[candles.length - 2].close) * 100 : 0;
@@ -6501,7 +6455,18 @@ app.post("/api/backtest", (req, res) => {
   const sellTrades = trades.filter(t => t.side === 'SELL');
   const winTrades = sellTrades.filter(t => t.profit && t.profit > 0);
   const calculatedWinRate = sellTrades.length > 0 ? Math.round((winTrades.length / sellTrades.length) * 100) : (usePatternFilter ? 88 : 52);
-  const mdd = -1 * (3.2 + Math.random() * 4.0);
+  let maxPeak = initial;
+  let minMddPct = 0;
+  for (const pt of equityCurve) {
+    if (pt.value > maxPeak) {
+      maxPeak = pt.value;
+    }
+    const dd = maxPeak > 0 ? ((pt.value - maxPeak) / maxPeak) * 100 : 0;
+    if (dd < minMddPct) {
+      minMddPct = dd;
+    }
+  }
+  const mdd = Math.round(minMddPct * 10) / 10;
   const sharpeRatio = Math.round((1.4 + (calculatedWinRate / 100) * 0.8) * 100) / 100;
 
   res.json({
@@ -10838,6 +10803,7 @@ async function startServer() {
 
   const httpServer = app.listen(PORT, "0.0.0.0", () => {
     console.log(`Server running on port ${PORT}`);
+    brokerExecutionRuntimeBridgeV20.startBridge();
   });
 
   httpServer.on("error", (err) => {
