@@ -279,19 +279,19 @@ export const HoldingDetailModal: React.FC<HoldingDetailModalProps> = ({
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs font-mono pt-1">
               <div className="p-2 bg-slate-950/80 border border-slate-800 rounded">
                 <span className="text-[10px] text-zinc-400 block">최대 우호 변동 (MFE)</span>
-                <span className="font-bold text-emerald-400">+{Math.max(pnlRate, pnlRate + 2.5).toFixed(2)}%</span>
+                <span className="font-bold text-emerald-400">+{Math.max(0, pnlRate).toFixed(2)}%</span>
               </div>
               <div className="p-2 bg-slate-950/80 border border-slate-800 rounded">
                 <span className="text-[10px] text-zinc-400 block">최대 불리 변동 (MAE)</span>
-                <span className="font-bold text-rose-400">{-Math.abs(Math.min(0, pnlRate - 1.5)).toFixed(2)}%</span>
+                <span className="font-bold text-rose-400">{Math.min(0, pnlRate).toFixed(2)}%</span>
               </div>
               <div className="p-2 bg-slate-950/80 border border-slate-800 rounded">
                 <span className="text-[10px] text-zinc-400 block">고점 대비 반납 (Giveback)</span>
-                <span className="font-bold text-amber-400">{Math.max(0, 2.5).toFixed(2)}%</span>
+                <span className="font-bold text-amber-400">--</span>
               </div>
               <div className="p-2 bg-slate-950/80 border border-slate-800 rounded">
                 <span className="text-[10px] text-zinc-400 block">추세 지속 강도 Score</span>
-                <span className="font-bold text-cyan-400">78 / 100</span>
+                <span className="font-bold text-cyan-400">--</span>
               </div>
             </div>
           </div>

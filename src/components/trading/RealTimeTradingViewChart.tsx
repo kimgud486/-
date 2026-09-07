@@ -90,7 +90,7 @@ export const RealTimeTradingViewChart: React.FC<RealTimeTradingViewChartProps> =
   const [tradingState, setTradingState] = useState<TradingState>("NO_TRADE");
   const [currentPrice, setCurrentPrice] = useState<number>(initialPrice);
   const [trailingExitPrice, setTrailingExitPrice] = useState<number>(0);
-  const [aiConfidence, setAiConfidence] = useState<number>(78);
+  const [aiConfidence, setAiConfidence] = useState<number>(0);
   const [lastForecast, setLastForecast] = useState<ForecastPoint[]>([]);
   const [activeIndicators, setActiveIndicators] = useState({
     ema: true,
@@ -305,13 +305,14 @@ export const RealTimeTradingViewChart: React.FC<RealTimeTradingViewChartProps> =
       trailingExitRef.current = res.trailingFloor;
       setTrailingExitPrice(res.trailingFloor);
 
+      const activeQty = entryPriceRef.current > 0 ? 1 : 0;
       const bridge = ExitDecisionBridgeV138.resolve({
         adaptive: res,
         feedVerified: executionFeedValid,
         indicatorsReady: indicators.indicatorsReady === true,
         completedBar: closedCandle.isClosed === true,
-        currentPositionQty: 10,
-        brokerHealthy: true,
+        currentPositionQty: activeQty,
+        brokerHealthy: executionFeedValid,
         heartbeatHealthy: true
       });
 
@@ -335,7 +336,7 @@ export const RealTimeTradingViewChart: React.FC<RealTimeTradingViewChartProps> =
         symbol,
         market: market === "US" ? "US" : "KOREA",
         entryPrice: entryPriceRef.current,
-        qty: 10,
+        qty: activeQty,
         highestPriceSinceBuy: highestPriceRef.current,
         trailingFloor: res.trailingFloor,
         lastState: bridge.action,

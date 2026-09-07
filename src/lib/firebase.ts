@@ -19,13 +19,13 @@ try {
 
 const auth = getAuth(app);
 
-// Connection test as required by Firebase skill
+// Connection test with silent fallback for offline/sandboxed environments
 async function testConnection() {
   try {
     await getDocFromServer(doc(db, "test", "connection"));
   } catch (error) {
-    if (error instanceof Error && (error.message.includes("offline") || error.message.includes("unavailable"))) {
-      console.warn("Firestore connection check notice:", error.message);
+    if (error instanceof Error) {
+      console.warn("Firestore connection notice (operating with local/offline fallback):", error.message);
     }
   }
 }

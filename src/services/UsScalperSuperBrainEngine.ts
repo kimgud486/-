@@ -286,13 +286,14 @@ export class UsScalperSuperBrainEngine {
     const price = tick.price;
     const changeRate = tick.changeRate ?? 0;
     const rvol = tick.rvol ?? 0;
-    const floatM = tick.floatSharesM ?? 0;
-    const shortPct = tick.shortInterestPct ?? 0;
+    const floatM = tick.floatSharesM ?? null;
+    const shortPct = tick.shortInterestPct ?? null;
     const spreadPct = tick.ask > 0 && tick.bid > 0 ? ((tick.ask - tick.bid) / tick.price) * 100 : 0;
     
-    // Dynamic VWAP calculation if missing
-    const calculatedVwap = tick.vwap && tick.vwap > 0 ? tick.vwap : (tick.high && tick.low ? (tick.high + tick.low + tick.price) / 3 : price);
-    const distFromVwapPct = calculatedVwap > 0 ? ((price - calculatedVwap) / calculatedVwap) * 100 : 0;
+    // Strict Truth: No synthetic substitutes for missing VWAP
+    const vwap = (tick.vwap && tick.vwap > 0) ? tick.vwap : null;
+    const calculatedVwap = vwap || price;
+    const distFromVwapPct = vwap ? ((price - vwap) / vwap) * 100 : null;
 
     // 1. Market Regime Brain
     const isMarketBull = tick.spyTrend === "BULL" && tick.qqqTrend === "BULL";
@@ -315,10 +316,10 @@ export class UsScalperSuperBrainEngine {
       catalystScore = 65;
     }
 
-    // 3. Float & Squeeze Brain
-    const isLowFloat = floatM < 10.0;
-    const isUltraLowFloat = floatM < 3.5;
-    const isHighShort = shortPct > 20.0;
+    // 3. Float & Squeeze Brain (Truth-First: Only evaluate squeeze if real float/short metrics exist)
+    const isLowFloat = floatM !== null && floatM < 10.0;
+    const isUltraLowFloat = floatM !== null && floatM < 3.5;
+    const isHighShort = shortPct !== null && shortPct > 20.0;
     
     let squeezeScore = 20;
     let squeezeStage: SqueezeStage = "S0_DORMANT";
@@ -334,17 +335,20 @@ export class UsScalperSuperBrainEngine {
       squeezeStage = "S1_PRESSURE_BUILD";
     }
 
-    // 4. Microstructure & Order Book Imbalance (OBI)
-    const totalDepth = (tick.bidSize || 100) + (tick.askSize || 100);
-    const obiPct = totalDepth > 0 ? (((tick.bidSize || 100) - (tick.askSize || 100)) / totalDepth) * 100 : 10;
+    // 4. Microstructure & Order Book Imbalance (OBI) - No synthetic depth fabrication
+    const hasOrderbook = typeof tick.bidSize === "number" && typeof tick.askSize === "number" && (tick.bidSize > 0 || tick.askSize > 0);
+    const totalDepth = hasOrderbook ? (tick.bidSize + tick.askSize) : 0;
+    const obiPct = (hasOrderbook && totalDepth > 0) ? (((tick.bidSize - tick.askSize) / totalDepth) * 100) : 0;
     const buyerTapeAggression = Math.min(100, Math.max(0, Math.round(50 + obiPct * 0.4 + (changeRate > 0 ? 15 : -15))));
 
     // 5. Momentum Acceleration & VWAP Structure
     let vwapScore = 70;
-    if (price > calculatedVwap) {
-      vwapScore = distFromVwapPct < 3.0 ? 95 : distFromVwapPct < 8.0 ? 82 : 45;
-    } else {
-      vwapScore = distFromVwapPct > -2.0 ? 55 : 20;
+    if (vwap && distFromVwapPct !== null) {
+      if (price > vwap) {
+        vwapScore = distFromVwapPct < 3.0 ? 95 : distFromVwapPct < 8.0 ? 82 : 45;
+      } else {
+        vwapScore = distFromVwapPct > -2.0 ? 55 : 20;
+      }
     }
 
     // 6. Fakeout & Exhaustion Risk Shields

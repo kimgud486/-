@@ -417,21 +417,7 @@ export const StockCandleChartModal: React.FC<StockCandleChartModalProps> = ({
     }
 
     if (results.length === 0) {
-      if (last.close >= last.open) {
-        results.push({
-          name: "우상향 정배열 형성",
-          type: "bullish",
-          confidence: 82,
-          description: "단기 이평선 상단 지지 형성하며 우상향 파동 지속"
-        });
-      } else {
-        results.push({
-          name: "하락 조정 수급 테스트",
-          type: "bearish",
-          confidence: 80,
-          description: "하락 지지선 수급 테스트 진행 중, 분할 진입 타점 대기"
-        });
-      }
+      // Data Truth: Do not inject artificial patterns when none are detected
     }
 
     return results;
@@ -450,12 +436,39 @@ export const StockCandleChartModal: React.FC<StockCandleChartModalProps> = ({
     const isBull = finalProb >= 58;
     const isBear = finalProb <= 42;
 
-    const curr = livePrice || 50000;
-    const target1 = isBull ? Math.round(curr * 1.035) : Math.round(curr * 0.98);
-    const target2 = isBull ? Math.round(curr * 1.075) : Math.round(curr * 0.95);
-    const stopLoss = Math.round(curr * 0.94);
-    const entryMin = Math.round(curr * 0.985);
-    const entryMax = Math.round(curr * 1.005);
+    const curr = livePrice || 0;
+    if (curr <= 0) {
+      return {
+        probabilityPct: 0,
+        direction: "WAIT" as const,
+        target1: 0,
+        target2: 0,
+        stopLoss: 0,
+        entryMin: 0,
+        entryMax: 0,
+        riskRewardRatio: "N/A",
+        aiGrade: "NO_DATA"
+      };
+    }
+
+    // Pivot-based dynamic levels derived from candle OHLC structure (no fixed % multipliers)
+    const historical = candleData.filter(c => !c.isForecast);
+    const last = historical[historical.length - 1] || { high: curr, low: curr, close: curr };
+    const h = last.high || curr;
+    const l = last.low || curr;
+    const c = last.close || curr;
+
+    const pivot = (h + l + c) / 3;
+    const r1 = Math.round((2 * pivot) - l);
+    const r2 = Math.round(pivot + (h - l));
+    const s1 = Math.round((2 * pivot) - h);
+    const s2 = Math.round(pivot - (h - l));
+
+    const target1 = isBull ? Math.max(curr, r1) : Math.min(curr, s1);
+    const target2 = isBull ? Math.max(target1, r2) : Math.min(target1, s2);
+    const stopLoss = isBull ? Math.min(curr, s1) : Math.max(curr, r1);
+    const entryMin = Math.min(curr, pivot);
+    const entryMax = curr;
 
     return {
       probabilityPct: parseFloat(finalProb.toFixed(1)),

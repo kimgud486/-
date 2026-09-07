@@ -32,7 +32,7 @@ export class ServerKISRealtimeClientV20 {
     if (this.ws) return;
 
     const domain = this.config.isPaper
-      ? "ops.koreainvestment.com:21000"
+      ? "ops.koreainvestment.com:31000"
       : "ops.koreainvestment.com:21000";
 
     const url = `ws://${domain}/tryitout/H0STCNT0`;
@@ -147,7 +147,7 @@ export class ServerKISRealtimeClientV20 {
         brokerExecutionTruthBusV20.publish(notice);
       }
     } else if (trId === "HDFSCNT0") {
-      const parsedOverseas = KISOverseasParserV20.parse(dataBody, "US");
+      const parsedOverseas = KISOverseasParserV20.parseHDFSCNT0(dataBody, false);
       if (parsedOverseas) {
         // Validated overseas tick
       }

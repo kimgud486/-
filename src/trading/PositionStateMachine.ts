@@ -136,7 +136,9 @@ export class PositionStateMachine {
         if (remainingPositionQty <= 0) return "CLOSED";
         if (isCatastrophicExit) return "SELL_PENDING";
 
-        if (exitEvidence && exitEvidence.exitRiskScore >= watchThreshold) {
+        // Multi-evidence gate: Require exitRiskScore >= watchThreshold AND at least 2 independent warning/structural evidences
+        const independentEvidences = exitEvidence ? (exitEvidence.structuralCount + exitEvidence.warningCount) : 0;
+        if (exitEvidence && exitEvidence.exitRiskScore >= watchThreshold && independentEvidences >= 2) {
           return "SELL_WATCH";
         }
         if (qualifiesForProfitHold) {
@@ -149,7 +151,9 @@ export class PositionStateMachine {
         if (remainingPositionQty <= 0) return "CLOSED";
         if (isCatastrophicExit) return "SELL_PENDING";
 
-        if (exitEvidence && exitEvidence.exitRiskScore >= watchThreshold) {
+        // Multi-evidence gate: Require exitRiskScore >= watchThreshold AND at least 2 independent warning/structural evidences
+        const independentEvidences = exitEvidence ? (exitEvidence.structuralCount + exitEvidence.warningCount) : 0;
+        if (exitEvidence && exitEvidence.exitRiskScore >= watchThreshold && independentEvidences >= 2) {
           return "SELL_WATCH";
         }
         if (!retainsProfitHold) {
@@ -162,8 +166,9 @@ export class PositionStateMachine {
         if (remainingPositionQty <= 0) return "CLOSED";
         if (isCatastrophicExit) return "SELL_PENDING";
 
-        // Hysteresis: Recovery requires exitRiskScore < recoveryThreshold (25), NOT just < watchThreshold (35)
-        if (exitEvidence && exitEvidence.exitRiskScore < recoveryThreshold) {
+        // Hysteresis & Reversibility: Recovery requires exitRiskScore < recoveryThreshold (25) AND evidence count < 2
+        const independentEvidences = exitEvidence ? (exitEvidence.structuralCount + exitEvidence.warningCount) : 0;
+        if (exitEvidence && (exitEvidence.exitRiskScore < recoveryThreshold || independentEvidences < 2)) {
           return retainsProfitHold ? "PROFIT_HOLD" : "HOLD";
         }
         return "SELL_WATCH";
