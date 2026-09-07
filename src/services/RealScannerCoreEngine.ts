@@ -298,7 +298,7 @@ export class RealScannerCoreEngine {
     const tradingAllowed = marketDataVerified && signal === "BUY_CANDIDATE";
 
     // Pre-Buy Projections (Not LIVE DEFENSE SELL)
-    const effectiveAtr = indicators.atr14 != null && indicators.atr14 > 0 ? indicators.atr14 : currentPrice * 0.015;
+    const effectiveAtr = indicators.atr14 != null && indicators.atr14 > 0 ? indicators.atr14 : 0;
 
     let proposedRiskFloor: number | null = null;
     let projectedSellLow: number | null = null;

@@ -1932,7 +1932,7 @@ app.get("/api/market/realtime-candles", async (req, res) => {
         const d = new Date(now - i * 86400000);
         const timeLabel = `${d.getMonth() + 1}/${d.getDate()}`;
         const o = Math.round(p);
-        const c = Math.round(o + (Math.random() - 0.48) * (base * 0.015));
+        const c = Math.round(o + (Math.random() - 0.48) * (base * 0.01));
         const h = Math.round(Math.max(o, c) + Math.random() * (base * 0.008));
         const l = Math.round(Math.min(o, c) - Math.random() * (base * 0.008));
         const v = Math.round(500000 + Math.random() * 2000000);
@@ -6120,7 +6120,7 @@ function computeV9MasterQuantAnalysis(params: {
   const entryLower = Math.round(triggerPrice * 0.993);
   const entryUpper = Math.round(triggerPrice * 1.004);
   const invalidationPrice = Math.round(lastSwingLow * 0.992);
-  const risk = Math.max(currentPrice * 0.015, triggerPrice - invalidationPrice);
+  const risk = Math.max(1, triggerPrice - invalidationPrice);
 
   const tp1 = Math.round(triggerPrice + (risk * 1.5));
   const tp2 = Math.round(triggerPrice + (risk * 2.8));

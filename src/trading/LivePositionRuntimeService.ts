@@ -291,11 +291,12 @@ export class LivePositionRuntimeService {
   }
 
   /**
-   * Fast-path tick monitor for immediate emergency/trailing floor breaches
+   * Fast-path tick monitor for immediate emergency/trailing floor breaches.
+   * Strictly requires a VerifiedExecutionTick (no raw numbers allowed).
    */
   public onVerifiedTick(
     positionId: string,
-    tickOrPrice: number | VerifiedExecutionTick
+    tick: VerifiedExecutionTick
   ): RuntimeEvaluationResult {
     const position = this.activePositions.get(positionId);
     if (!position) {
@@ -310,23 +311,21 @@ export class LivePositionRuntimeService {
       };
     }
 
-    let currentPrice: number;
-    if (typeof tickOrPrice === "number") {
-      currentPrice = tickOrPrice;
-    } else {
-      if (!VerifiedExecutionTickValidator.isValid(tickOrPrice, position.symbol)) {
-        return {
-          positionId,
-          symbol: position.symbol,
-          previousState: position.state,
-          nextState: position.state,
-          actionRequired: "NONE",
-          lifecycleOutput: null,
-          reason: `UNVERIFIED_OR_STALE_TICK: dataStatus=${tickOrPrice?.dataStatus}`
-        };
-      }
-      currentPrice = tickOrPrice.price;
+    try {
+      VerifiedExecutionTickValidator.validateForExecution(tick, position.symbol);
+    } catch (err: any) {
+      return {
+        positionId,
+        symbol: position.symbol,
+        previousState: position.state,
+        nextState: position.state,
+        actionRequired: "NONE",
+        lifecycleOutput: null,
+        reason: `EXECUTION_TICK_REJECTED: ${err.message || err}`
+      };
     }
+
+    const currentPrice = tick.price;
 
     // Compute unified execution floor: MAX(initialStopPrice, trailingFloor, defenseSellPrice)
     const executionFloor = Math.max(
@@ -349,7 +348,7 @@ export class LivePositionRuntimeService {
         nextState: "SELL_PENDING",
         actionRequired: "SUBMIT_SELL_ORDER",
         lifecycleOutput: null,
-        reason: `FAST_PATH_DEFENSE_BREACH: Tick ${currentPrice} <= Execution Floor ${executionFloor}`
+        reason: `FAST_PATH_DEFENSE_BREACH: Verified Tick ${currentPrice} <= Execution Floor ${executionFloor}`
       };
     }
 

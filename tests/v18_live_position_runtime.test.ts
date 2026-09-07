@@ -191,7 +191,20 @@ test("LivePositionRuntimeService - Fast-Path Tick Emergency Breach", () => {
   runtime.registerPosition(pos);
 
   // Tick price drops below trailing floor (108 <= 110)
-  const tickRes = runtime.onVerifiedTick("POS_004", 108);
+  const validTick = {
+    symbol: "BTC",
+    market: "CRYPTO" as const,
+    price: 108,
+    sourceTimestamp: Date.now(),
+    receivedAt: Date.now(),
+    ageMs: 10,
+    sequence: 1,
+    dataStatus: "REALTIME_VERIFIED" as const,
+    sessionStatus: "OPEN",
+    brokerHealth: "HEALTHY" as const
+  };
+
+  const tickRes = runtime.onVerifiedTick("POS_004", validTick);
 
   assert.equal(tickRes.nextState, "SELL_PENDING");
   assert.equal(tickRes.actionRequired, "SUBMIT_SELL_ORDER");

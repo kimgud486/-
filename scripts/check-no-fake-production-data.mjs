@@ -49,7 +49,15 @@ const forbidden = [
   /fakeRvol\b/,
   /generateSynthetic\b/,
   /simulatedFill\b/,
-  /mockPrice\b/
+  /mockPrice\b/,
+
+  // V19.1 Patterns
+  /1,250,400\s*주/,
+  /currentPrice\s*\*\s*0\.015/,
+  /validProjections\[0\]\s*\*\s*1\.0[12]/,
+  /rvol\s*\?\?\s*1\.0/,
+  /vwap\s*\?\?\s*price/,
+  /breakoutConfirmed:\s*true\b/
 ];
 
 const allowedFolders = [

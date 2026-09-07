@@ -332,7 +332,7 @@ export const GithubQuantPatternEngineHub: React.FC = () => {
         ? "BREAKOUT WATCH"
         : "REJECT";
 
-    const rvol = realScan.analysis.indicator.rvol ?? 1.0;
+    const rvol = realScan.analysis.indicator.rvol ?? 0;
     const vwapVal = realScan.analysis.indicator.vwap;
     const vwapPos = vwapVal && s.price ? Math.round((s.price / vwapVal) * 100) : 50;
     const trendQuality = realScan.analysis.structure.trend === "UP" ? 85 : realScan.analysis.structure.trend === "DOWN" ? 25 : 50;

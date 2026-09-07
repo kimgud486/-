@@ -56,7 +56,7 @@ export class DynamicExitEngineV138 {
     // 1. Monotonic Ratchet Trailing Floor Calculation
     // Never allow trailing floor to move downward
     let calculatedFloor = previousTrailingFloor;
-    const atr = indicators.atr14 || currentPrice * 0.015;
+    const atr = indicators.atr14 ?? 0;
 
     if (currentPrice > entryPrice) {
       // Ratchet floor upward as highest price expands

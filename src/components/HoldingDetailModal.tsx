@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { StockPosition } from "../types";
 import { useModalScrollLock } from "../hooks/useModalScrollLock";
+import { realCandleStore } from "../services/RealCandleStore";
+import { realtimeMarketFeedService } from "../services/realtimeMarketFeedService";
 import { 
   X, 
   TrendingUp, 
@@ -45,12 +47,18 @@ export const HoldingDetailModal: React.FC<HoldingDetailModalProps> = ({
 }) => {
   const [livePrice, setLivePrice] = useState<number>(position?.currentPrice || 0);
   const [priceFlash, setPriceFlash] = useState<"up" | "down" | null>(null);
-  const [volume24h, setVolume24h] = useState<string>("1,250,400 주 / 154.2억원");
+  const [volume24h, setVolume24h] = useState<string>("실시간 수급 수집 중...");
 
   // Real-time ticking price synchronization
   useEffect(() => {
     if (position) {
       setLivePrice(position.currentPrice || 0);
+      const quote = realtimeMarketFeedService.getQuote(position.symbol);
+      if (quote?.volume) {
+        setVolume24h(`${quote.volume.toLocaleString()} 주 / 실시간 수급`);
+      } else {
+        setVolume24h("수급 데이터 수집 중");
+      }
     }
   }, [position?.symbol, position?.currentPrice]);
 
@@ -70,65 +78,38 @@ export const HoldingDetailModal: React.FC<HoldingDetailModalProps> = ({
     return `₩${Math.round(val).toLocaleString()}원`;
   };
 
-  // Generate 5-minute real-time chart data up to the current wall clock minute
+  // Map real 5-minute candles from store
   const chartData = useMemo(() => {
     if (!position) return [];
-    const data = [];
-    const now = new Date();
-    const current5MinMs = Math.floor(now.getTime() / (5 * 60 * 1000)) * (5 * 60 * 1000);
+    const cached = realCandleStore.getCachedCandles(position.symbol, "5m");
+    if (!cached || cached.length === 0) return [];
 
-    const format5MinLabel = (d: Date) => {
-      const h = String(d.getHours()).padStart(2, "0");
-      const m = String(d.getMinutes()).padStart(2, "0");
-      return `${h}:${m}`;
-    };
+    return cached.slice(-30).map((c, idx, arr) => {
+      const dt = new Date(c.timestamp);
+      const timeStr = `${String(dt.getHours()).padStart(2, "0")}:${String(dt.getMinutes()).padStart(2, "0")}`;
 
-    const baseP = position.avgPrice > 0 ? position.avgPrice : livePrice;
-    const startP = isPositive ? baseP * 0.95 : baseP * 1.04;
-    const priceDiff = livePrice - startP;
+      let ma5 = null;
+      if (idx >= 4) {
+        const sum = arr.slice(idx - 4, idx + 1).reduce((s, x) => s + x.close, 0);
+        ma5 = Math.round(sum / 5);
+      }
 
-    // 16 past 5-minute candle points leading up to current clock
-    for (let i = 15; i >= 0; i--) {
-      const dt = new Date(current5MinMs - i * 5 * 60 * 1000);
-      const timeStr = format5MinLabel(dt);
-      
-      const progress = (15 - i) / 15;
-      const noise = (Math.sin(i * 1.5) * 0.008) * livePrice;
-      const currentP = i === 0 ? livePrice : Math.round(startP + priceDiff * progress + noise);
-      
-      const ma5 = Math.round(currentP * (1 + Math.sin(i) * 0.003));
-      const ma20 = Math.round(currentP * (1 + Math.cos(i) * 0.005));
-      const vol = Math.floor(20000 + Math.abs(Math.sin(i * 2.1)) * 80000);
+      let ma20 = null;
+      if (idx >= 19) {
+        const sum = arr.slice(idx - 19, idx + 1).reduce((s, x) => s + x.close, 0);
+        ma20 = Math.round(sum / 20);
+      }
 
-      data.push({
+      return {
         time: timeStr,
-        price: currentP,
+        price: c.close,
         ma5,
         ma20,
-        volume: vol,
+        volume: c.volume,
         isFuture: false
-      });
-    }
-
-    // 6 future AI 5-minute prediction points
-    let predP = livePrice;
-    for (let i = 1; i <= 6; i++) {
-      const futureDt = new Date(current5MinMs + i * 5 * 60 * 1000);
-      const timeStr = `${format5MinLabel(futureDt)} (예측)`;
-      const multiplier = isPositive ? 1.004 : 0.996;
-      predP = Math.round(predP * multiplier);
-
-      data.push({
-        time: timeStr,
-        price: null,
-        predPrice: predP,
-        volume: null,
-        isFuture: true
-      });
-    }
-
-    return data;
-  }, [position?.symbol, position?.avgPrice, livePrice, isPositive]);
+      };
+    });
+  }, [position?.symbol, livePrice]);
 
   useModalScrollLock(Boolean(position));
 

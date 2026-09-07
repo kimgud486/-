@@ -152,7 +152,7 @@ export class UsRealtimeScanner {
     const results: HotListItemV188[] = [];
 
     for (const stock of usStocks) {
-      const exchange: UsExchange = US_EXCHANGE_MAP[stock.symbol] || "NASDAQ";
+      const exchange: UsExchange | string = US_EXCHANGE_MAP[stock.symbol] || "UNKNOWN";
       if (exchangeFilter !== "ALL" && exchange !== exchangeFilter) {
         continue;
       }
@@ -249,10 +249,10 @@ export class UsRealtimeScanner {
         setupScore: score,
         dataStatus,
         metrics: {
-          rvol: rvol ?? 1.0,
-          vwap: vwap ?? price,
+          rvol: rvol ?? null,
+          vwap: vwap ?? null,
           rs15m: +changePct.toFixed(1),
-          breakoutConfirmed: vwap != null ? price > vwap : true,
+          breakoutConfirmed: vwap != null ? price > vwap : null,
           chaseRisk,
           exhaustionRisk
         }
@@ -356,10 +356,10 @@ export class KoreaRealtimeScanner {
         setupScore: score,
         dataStatus,
         metrics: {
-          rvol: rvol ?? 1.0,
-          vwap: vwap ?? price,
+          rvol: rvol ?? null,
+          vwap: vwap ?? null,
           rs15m: +changePct.toFixed(1),
-          breakoutConfirmed: vwap != null ? price >= vwap : true,
+          breakoutConfirmed: vwap != null ? price >= vwap : null,
           chaseRisk,
           exhaustionRisk
         }
@@ -462,10 +462,10 @@ export class UpbitRealtimeScanner {
         setupScore: score,
         dataStatus,
         metrics: {
-          rvol: rvol ?? 1.0,
-          vwap: vwap ?? price,
+          rvol: rvol ?? null,
+          vwap: vwap ?? null,
           rs15m: +changePct.toFixed(1),
-          breakoutConfirmed: vwap != null ? price >= vwap : true,
+          breakoutConfirmed: vwap != null ? price >= vwap : null,
           chaseRisk,
           exhaustionRisk
         }

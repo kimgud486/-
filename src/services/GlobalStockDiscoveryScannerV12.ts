@@ -58,7 +58,7 @@ export class DefaultMarketDiscoveryProvider implements MarketDiscoveryProvider {
         price: price,
         changeRate: stock.changeRate || 0,
         volume: parsedVol,
-        rvol: stock.rvol ?? 1.0,
+        rvol: stock.rvol ?? 0,
         sma5: undefined,
         sma20: undefined,
         sma60: undefined,

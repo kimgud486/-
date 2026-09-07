@@ -135,13 +135,14 @@ export class DynamicSellZoneEngine {
     continuationScore = Math.max(0, Math.min(100, continuationScore - exitRiskScore * 0.3));
     continuationScore = +continuationScore.toFixed(0);
 
-    // 3. Multi-Projection EXPECTED SELL Zone
-    const effectiveAtr = atr14 != null && atr14 > 0 ? atr14 : currentPrice * 0.015;
+    // 3. Multi-Projection EXPECTED SELL Zone (Strict Data Truth - No Synthetic Fallbacks)
     const projections: number[] = [];
 
-    // Projection 1: ATR Expansion Projection
-    const atrMult = continuationScore >= 70 ? 2.5 : continuationScore >= 50 ? 1.8 : 1.2;
-    projections.push(currentPrice + effectiveAtr * atrMult);
+    // Projection 1: ATR Expansion Projection (Requires valid ATR)
+    if (atr14 != null && atr14 > 0) {
+      const atrMult = continuationScore >= 70 ? 2.5 : continuationScore >= 50 ? 1.8 : 1.2;
+      projections.push(currentPrice + atr14 * atrMult);
+    }
 
     // Projection 2: Swing High Measured Move
     if (lastSwingHigh != null && lastSwingLow != null && lastSwingHigh > lastSwingLow) {
@@ -149,11 +150,13 @@ export class DynamicSellZoneEngine {
       projections.push(lastSwingHigh + swingRange * 0.382);
     }
 
-    // Projection 3: Volatility & RVOL Expansion
-    const rvolMult = Math.min(3.0, Math.max(1.0, rvol || 1.2));
-    projections.push(currentPrice * (1 + 0.015 * rvolMult));
+    // Projection 3: Volatility & RVOL Expansion (Requires valid RVOL)
+    if (rvol != null && rvol > 0) {
+      const rvolMult = Math.min(3.0, Math.max(1.0, rvol));
+      projections.push(currentPrice * (1 + 0.015 * rvolMult));
+    }
 
-    // Projection 4: VWAP/EMA Continuation Anchor
+    // Projection 4: VWAP Continuation Anchor (Requires valid VWAP)
     if (vwap != null && vwap > 0) {
       projections.push(vwap * 1.035);
     }
@@ -175,11 +178,8 @@ export class DynamicSellZoneEngine {
       expectedSellLow = +validProjections[0].toFixed(2);
       expectedSellMid = +((validProjections[0] + validProjections[1]) / 2).toFixed(2);
       expectedSellHigh = +validProjections[1].toFixed(2);
-    } else if (validProjections.length === 1) {
-      expectedSellLow = +validProjections[0].toFixed(2);
-      expectedSellMid = +(validProjections[0] * 1.01).toFixed(2);
-      expectedSellHigh = +(validProjections[0] * 1.02).toFixed(2);
     }
+    // Single projection or no projections -> NO_DATA / null zone (no fake 1.01/1.02 targets)
 
     const estimatedUpsidePct = expectedSellMid != null
       ? +(((expectedSellMid - currentPrice) / currentPrice) * 100).toFixed(2)
