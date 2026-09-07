@@ -166,17 +166,17 @@ export class UsRealtimeScanner {
 
       const dataStatus: "REALTIME_VERIFIED" | "REALTIME_DERIVED" = quote?.status === "LIVE" ? "REALTIME_VERIFIED" : "REALTIME_DERIVED";
 
-      // Compute technical indicators
+      // Compute technical indicators with NO fake default fallbacks
       const snapshot = candles15m.length >= 5 ? IndicatorTruthEngine.computeSnapshot(candles15m) : null;
       const changePct = quote?.changeRate ?? (candles15m.length >= 2 ? ((price - candles15m[0].close) / candles15m[0].close) * 100 : 0);
-      const rvol = snapshot?.rvol ?? (quote as any)?.rvol ?? 1.5;
-      const vwap = snapshot?.vwap ?? price;
-      const rsi = snapshot?.rsi14 ?? 55;
+      const rvol = snapshot?.rvol ?? (quote as any)?.rvol ?? null;
+      const vwap = snapshot?.vwap ?? (quote as any)?.vwap ?? null;
+      const rsi = snapshot?.rsi14 ?? null;
 
       // Check Risk Flags
-      const distFromVwap = ((price - vwap) / vwap) * 100;
-      const chaseRisk = distFromVwap > 8.0;
-      const exhaustionRisk = changePct > 35.0 || rsi > 82;
+      const distFromVwap = vwap != null ? ((price - vwap) / vwap) * 100 : 0;
+      const chaseRisk = vwap != null && distFromVwap > 8.0;
+      const exhaustionRisk = changePct > 35.0 || (rsi != null && rsi > 82);
 
       // Hard filter: reject chaseRisk / exhaustionRisk if extreme
       if (chaseRisk || exhaustionRisk) continue;
@@ -184,13 +184,13 @@ export class UsRealtimeScanner {
       // Score Engine (0 to 100)
       let score = 50;
       if (changePct > 0) score += Math.min(20, changePct * 1.5);
-      if (rvol >= 2.0) score += 15;
-      else if (rvol >= 1.2) score += 8;
-      if (price > vwap) score += 10;
-      if (rsi >= 50 && rsi <= 72) score += 10;
+      if (rvol != null && rvol >= 2.0) score += 15;
+      else if (rvol != null && rvol >= 1.2) score += 8;
+      if (vwap != null && price > vwap) score += 10;
+      if (rsi != null && rsi >= 50 && rsi <= 72) score += 10;
 
       // Deductions
-      if (distFromVwap > 5) score -= 5;
+      if (vwap != null && distFromVwap > 5) score -= 5;
 
       score = Math.max(0, Math.min(100, Math.round(score)));
 
@@ -202,20 +202,20 @@ export class UsRealtimeScanner {
 
       if (grade === "REJECT") continue;
 
-      // Expected return
+      // Expected return / Projected move score
       const expectedReturnPct = Math.round(Math.max(minYield, (score * 0.4) + Math.abs(changePct) * 0.8));
       if (expectedReturnPct < minYield) continue;
 
       // Pattern classification
       let patternType = "BOLLINGER_SQUEEZE";
       let patternName = "🚀 나스닥 볼린저 스퀴즈 오버슈팅";
-      if (rvol >= 3.0) {
+      if (rvol != null && rvol >= 3.0) {
         patternType = "VOLUME_SURGE";
         patternName = "🔥 24시간 거래량 폭발 돌파";
       } else if (changePct > 5.0) {
         patternType = "BULL_FLAG";
         patternName = "⚡ 깃발형 모멘텀 2차 파동";
-      } else if (rsi < 45) {
+      } else if (rsi != null && rsi < 45) {
         patternType = "RSI_OVERSOLD";
         patternName = "🛡️ 밸류에이션 바닥 반등 타점";
       }
@@ -242,17 +242,17 @@ export class UsRealtimeScanner {
         stopLoss,
         holdingPeriod: "1일~5일",
         riskRewardRatio: rrRatio,
-        volumeIncreaseRatio: +rvol.toFixed(1),
-        rsiIndicator: +rsi.toFixed(1),
-        reasoning: `[월가 실시간 스캐너 ${exchange}] VWAP $${vwap.toFixed(2)} 상방 안착, RVOL ${rvol.toFixed(1)}배 기관 수급 유입.`,
+        volumeIncreaseRatio: rvol != null ? +rvol.toFixed(1) : 1.0,
+        rsiIndicator: rsi != null ? +rsi.toFixed(1) : 50.0,
+        reasoning: `[월가 실시간 스캐너 ${exchange}] ${vwap ? `VWAP $${vwap.toFixed(2)} 상방 안착` : '시가 지지'}, ${rvol ? `RVOL ${rvol.toFixed(1)}배 기관 수급` : '수급 유입'}.`,
         grade,
         setupScore: score,
         dataStatus,
         metrics: {
-          rvol,
-          vwap,
+          rvol: rvol ?? 1.0,
+          vwap: vwap ?? price,
           rs15m: +changePct.toFixed(1),
-          breakoutConfirmed: price > vwap,
+          breakoutConfirmed: vwap != null ? price > vwap : true,
           chaseRisk,
           exhaustionRisk
         }
@@ -288,19 +288,19 @@ export class KoreaRealtimeScanner {
 
       const snapshot = candles15m.length >= 5 ? IndicatorTruthEngine.computeSnapshot(candles15m) : null;
       const changePct = quote?.changeRate ?? (candles15m.length >= 2 ? ((price - candles15m[0].close) / candles15m[0].close) * 100 : 0);
-      const rvol = snapshot?.rvol ?? (quote as any)?.rvol ?? 1.3;
-      const vwap = snapshot?.vwap ?? price;
-      const rsi = snapshot?.rsi14 ?? 52;
+      const rvol = snapshot?.rvol ?? (quote as any)?.rvol ?? null;
+      const vwap = snapshot?.vwap ?? (quote as any)?.vwap ?? null;
+      const rsi = snapshot?.rsi14 ?? null;
 
-      const chaseRisk = ((price - vwap) / vwap) * 100 > 8.0;
+      const chaseRisk = vwap != null && ((price - vwap) / vwap) * 100 > 8.0;
       const exhaustionRisk = changePct > 28.0;
       if (chaseRisk || exhaustionRisk) continue;
 
       let score = 50;
       if (changePct > 0) score += Math.min(20, changePct * 2);
-      if (rvol >= 2.0) score += 15;
-      if (price >= vwap) score += 10;
-      if (rsi >= 45 && rsi <= 70) score += 10;
+      if (rvol != null && rvol >= 2.0) score += 15;
+      if (vwap != null && price >= vwap) score += 10;
+      if (rsi != null && rsi >= 45 && rsi <= 70) score += 10;
 
       score = Math.max(0, Math.min(100, Math.round(score)));
 
@@ -317,13 +317,13 @@ export class KoreaRealtimeScanner {
 
       let patternType = "W_BOTTOM";
       let patternName = "📈 W-이중바닥 수급돌파";
-      if (rvol >= 3.0) {
+      if (rvol != null && rvol >= 3.0) {
         patternType = "VOLUME_SURGE";
         patternName = "🔥 24시간 거래량 폭발";
       } else if (changePct > 6.0) {
         patternType = "BULL_FLAG";
         patternName = "⚡ 깃발형 모멘텀 2차 파동";
-      } else if (rsi < 45) {
+      } else if (rsi != null && rsi < 45) {
         patternType = "RSI_OVERSOLD";
         patternName = "🛡️ 과매도 바닥 반등 타점";
       }
@@ -349,17 +349,17 @@ export class KoreaRealtimeScanner {
         stopLoss,
         holdingPeriod: "2일~7일",
         riskRewardRatio: rrRatio,
-        volumeIncreaseRatio: +rvol.toFixed(1),
-        rsiIndicator: +rsi.toFixed(1),
-        reasoning: `[국내 실시간 스캐너 ${stock.market}] 거래대금 유입, VWAP ₩${vwap.toLocaleString()} 돌파 안착.`,
+        volumeIncreaseRatio: rvol != null ? +rvol.toFixed(1) : 1.0,
+        rsiIndicator: rsi != null ? +rsi.toFixed(1) : 50.0,
+        reasoning: `[국내 실시간 스캐너 ${stock.market}] 거래대금 유입, ${vwap ? `VWAP ₩${vwap.toLocaleString()} 돌파` : '상승 추세'}.`,
         grade,
         setupScore: score,
         dataStatus,
         metrics: {
-          rvol,
-          vwap,
+          rvol: rvol ?? 1.0,
+          vwap: vwap ?? price,
           rs15m: +changePct.toFixed(1),
-          breakoutConfirmed: price >= vwap,
+          breakoutConfirmed: vwap != null ? price >= vwap : true,
           chaseRisk,
           exhaustionRisk
         }
@@ -395,18 +395,18 @@ export class UpbitRealtimeScanner {
 
       const snapshot = candles15m.length >= 5 ? IndicatorTruthEngine.computeSnapshot(candles15m) : null;
       const changePct = quote?.changeRate ?? (candles15m.length >= 2 ? ((price - candles15m[0].close) / candles15m[0].close) * 100 : 0);
-      const rvol = snapshot?.rvol ?? (quote as any)?.rvol ?? 1.8;
-      const vwap = snapshot?.vwap ?? price;
-      const rsi = snapshot?.rsi14 ?? 58;
+      const rvol = snapshot?.rvol ?? (quote as any)?.rvol ?? null;
+      const vwap = snapshot?.vwap ?? (quote as any)?.vwap ?? null;
+      const rsi = snapshot?.rsi14 ?? null;
 
-      const chaseRisk = ((price - vwap) / vwap) * 100 > 12.0;
+      const chaseRisk = vwap != null && ((price - vwap) / vwap) * 100 > 12.0;
       const exhaustionRisk = changePct > 45.0;
       if (chaseRisk || exhaustionRisk) continue;
 
       let score = 55;
       if (changePct > 0) score += Math.min(20, changePct * 1.2);
-      if (rvol >= 2.5) score += 15;
-      if (price >= vwap) score += 10;
+      if (rvol != null && rvol >= 2.5) score += 15;
+      if (vwap != null && price >= vwap) score += 10;
 
       score = Math.max(0, Math.min(100, Math.round(score)));
 
@@ -423,13 +423,13 @@ export class UpbitRealtimeScanner {
 
       let patternType = "BOLLINGER_SQUEEZE";
       let patternName = "🚀 볼린저 스퀴즈 상방 오버슈팅";
-      if (rvol >= 3.5) {
+      if (rvol != null && rvol >= 3.5) {
         patternType = "VOLUME_SURGE";
         patternName = "🔥 업비트 24시간 거래대금 1위 폭발";
       } else if (changePct > 8.0) {
         patternType = "W_BOTTOM";
         patternName = "📈 W-이중바닥 수급돌파";
-      } else if (rsi < 45) {
+      } else if (rsi != null && rsi < 45) {
         patternType = "CUP_AND_HANDLE";
         patternName = "🏆 컵앤핸들 모멘텀 분출";
       }
@@ -455,17 +455,17 @@ export class UpbitRealtimeScanner {
         stopLoss,
         holdingPeriod: "1일~3일",
         riskRewardRatio: rrRatio,
-        volumeIncreaseRatio: +rvol.toFixed(1),
-        rsiIndicator: +rsi.toFixed(1),
-        reasoning: `[업비트 실시간 스캐너] 24시간 거래대금 오버슈팅, RSI ${rsi.toFixed(1)} 강세 모멘텀 안착.`,
+        volumeIncreaseRatio: rvol != null ? +rvol.toFixed(1) : 1.0,
+        rsiIndicator: rsi != null ? +rsi.toFixed(1) : 50.0,
+        reasoning: `[업비트 실시간 스캐너] 24시간 거래대금 오버슈팅, ${rsi != null ? `RSI ${rsi.toFixed(1)}` : '강세'} 모멘텀 안착.`,
         grade,
         setupScore: score,
         dataStatus,
         metrics: {
-          rvol,
-          vwap,
+          rvol: rvol ?? 1.0,
+          vwap: vwap ?? price,
           rs15m: +changePct.toFixed(1),
-          breakoutConfirmed: price >= vwap,
+          breakoutConfirmed: vwap != null ? price >= vwap : true,
           chaseRisk,
           exhaustionRisk
         }

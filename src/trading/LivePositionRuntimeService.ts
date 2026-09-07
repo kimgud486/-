@@ -12,6 +12,7 @@ import { CandlePatternEngine } from "../services/CandlePatternEngine";
 import { ExitEvidence } from "../services/ExitEvidenceEngine";
 import { IndicatorHistoryEngine } from "../services/IndicatorHistoryEngine";
 import { DynamicSellZoneEngine } from "../services/DynamicSellZoneEngine";
+import { VerifiedExecutionTick, VerifiedExecutionTickValidator } from "../realtime/VerifiedExecutionTick";
 
 export interface VerifiedMarketSnapshot {
   symbol: string;
@@ -292,7 +293,10 @@ export class LivePositionRuntimeService {
   /**
    * Fast-path tick monitor for immediate emergency/trailing floor breaches
    */
-  public onVerifiedTick(positionId: string, currentPrice: number): RuntimeEvaluationResult {
+  public onVerifiedTick(
+    positionId: string,
+    tickOrPrice: number | VerifiedExecutionTick
+  ): RuntimeEvaluationResult {
     const position = this.activePositions.get(positionId);
     if (!position) {
       return {
@@ -306,14 +310,34 @@ export class LivePositionRuntimeService {
       };
     }
 
-    // Fast-path breach check
-    const isHardStopBreached = PositionLifecycleOrchestrator.checkFastPathHardStop(
-      currentPrice,
-      position.initialStopPrice,
-      position.trailingFloor
+    let currentPrice: number;
+    if (typeof tickOrPrice === "number") {
+      currentPrice = tickOrPrice;
+    } else {
+      if (!VerifiedExecutionTickValidator.isValid(tickOrPrice, position.symbol)) {
+        return {
+          positionId,
+          symbol: position.symbol,
+          previousState: position.state,
+          nextState: position.state,
+          actionRequired: "NONE",
+          lifecycleOutput: null,
+          reason: `UNVERIFIED_OR_STALE_TICK: dataStatus=${tickOrPrice?.dataStatus}`
+        };
+      }
+      currentPrice = tickOrPrice.price;
+    }
+
+    // Compute unified execution floor: MAX(initialStopPrice, trailingFloor, defenseSellPrice)
+    const executionFloor = Math.max(
+      position.initialStopPrice ?? -Infinity,
+      position.trailingFloor ?? -Infinity,
+      position.defenseSellPrice ?? -Infinity
     );
 
-    if (isHardStopBreached && (position.state === "HOLD" || position.state === "PROFIT_HOLD" || position.state === "SELL_WATCH")) {
+    const isBreached = Number.isFinite(executionFloor) && currentPrice <= executionFloor;
+
+    if (isBreached && (position.state === "HOLD" || position.state === "PROFIT_HOLD" || position.state === "SELL_WATCH")) {
       const previousState = position.state;
       position.state = "SELL_PENDING";
       position.updatedAt = Date.now();
@@ -325,7 +349,7 @@ export class LivePositionRuntimeService {
         nextState: "SELL_PENDING",
         actionRequired: "SUBMIT_SELL_ORDER",
         lifecycleOutput: null,
-        reason: `FAST_PATH_STOP_BREACH: Tick ${currentPrice} <= Stop Floor ${position.trailingFloor || position.initialStopPrice}`
+        reason: `FAST_PATH_DEFENSE_BREACH: Tick ${currentPrice} <= Execution Floor ${executionFloor}`
       };
     }
 

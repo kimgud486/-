@@ -135,10 +135,14 @@ export class PositionLifecycleOrchestrator {
   public static checkFastPathHardStop(
     currentPrice: number,
     initialStopPrice: number | null,
-    trailingFloorPrice: number | null
+    trailingFloorPrice: number | null,
+    defenseSellPrice: number | null = null
   ): boolean {
-    if (initialStopPrice != null && currentPrice <= initialStopPrice) return true;
-    if (trailingFloorPrice != null && currentPrice <= trailingFloorPrice) return true;
-    return false;
+    const executionFloor = Math.max(
+      initialStopPrice ?? -Infinity,
+      trailingFloorPrice ?? -Infinity,
+      defenseSellPrice ?? -Infinity
+    );
+    return Number.isFinite(executionFloor) && currentPrice <= executionFloor;
   }
 }

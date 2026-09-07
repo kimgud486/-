@@ -5268,7 +5268,7 @@ app.post("/api/ai/jarvis-v4-engine", async (req, res) => {
   }
 });
 
-// AI Real-time Volatility & High-Yield Hot List Endpoint (AISTOCK V18.8)
+// AI Real-time Volatility & High-Yield Hot List Endpoint (AISTOCK V19.0)
 app.post("/api/ai/hot-list", async (req, res) => {
   try {
     const { 
@@ -5278,70 +5278,7 @@ app.post("/api/ai/hot-list", async (req, res) => {
       minYield = 15 
     } = req.body || {};
 
-    const ai = getAI();
-
-    if (ai) {
-      try {
-        const systemPrompt = `You are the AI Real-time Hot List Engine for AISTOCK 24.5 V18.8.
-Your mission: Analyze live market momentum, high 24h volatility, and technical patterns to recommend high-yield alpha trade opportunities across South Korea (KIS), US Stocks (NASDAQ/NYSE/AMEX), and Upbit Crypto.
-
-[CONSTRAINTS]
-- Filter strictly according to requested market filter: '${marketFilter}' and exchange filter: '${exchangeFilter}'.
-- Focus on HIGH-VOLATILITY and HIGH-YIELD PATTERNS (+15% to +65%+ expected returns).
-- Return a valid JSON object matching this schema:
-{
-  "scanTimestamp": "string",
-  "scannedTotal": number,
-  "filteredCount": number,
-  "dataStatus": "REALTIME_VERIFIED",
-  "marketCounts": { "KOREA": number, "US": number, "UPBIT": number },
-  "hotItems": [
-    {
-      "symbol": "string",
-      "name": "string",
-      "market": "KOREA | US | BTC",
-      "exchange": "NASDAQ | NYSE | AMEX",
-      "currentPrice": number,
-      "priceChange24hPct": number,
-      "volatilityScore": number,
-      "aiMatchScore": number,
-      "expectedReturnPct": number,
-      "patternType": "BOLLINGER_SQUEEZE | W_BOTTOM | BULL_FLAG | VOLUME_SURGE | CUP_AND_HANDLE | RSI_OVERSOLD",
-      "patternName": "string",
-      "targetPrice": number,
-      "stopLoss": number,
-      "holdingPeriod": "string",
-      "riskRewardRatio": "string",
-      "volumeIncreaseRatio": number,
-      "rsiIndicator": number,
-      "reasoning": "string"
-    }
-  ]
-}`;
-
-        const response = await ai.models.generateContent({
-          model: "gemini-2.5-flash",
-          contents: `Filter market: ${marketFilter}, Exchange: ${exchangeFilter}, Pattern: ${patternFilter}, Min Yield: +${minYield}%. Provide verified top breakout items.`,
-          config: {
-            systemInstruction: systemPrompt,
-            responseMimeType: "application/json",
-            temperature: 0.35
-          }
-        });
-
-        const text = typeof (response as any).text === "function" ? (response as any).text() : (response as any).text;
-        if (text) {
-          const parsed = JSON.parse(text);
-          if (parsed && Array.isArray(parsed.hotItems) && parsed.hotItems.length > 0) {
-            return res.json(parsed);
-          }
-        }
-      } catch (aiErr: any) {
-        console.log("[AI Hot List] Gemini call skipped or failed. Utilizing V18.8 Global Realtime Scanner Engine.");
-      }
-    }
-
-    // AISTOCK V18.8 Global Realtime Scanner Engine Call
+    // 1. ALWAYS run verified real-time scanner FIRST
     const scanResult = scanGlobalRealtimeHotList({
       marketFilter,
       exchangeFilter,
@@ -5349,9 +5286,62 @@ Your mission: Analyze live market momentum, high 24h volatility, and technical p
       minYield
     });
 
+    // 2. If candidates exist, use AI ONLY to enrich reasoning/risk interpretation for verified items
+    const ai = getAI();
+    if (ai && scanResult && scanResult.hotItems && scanResult.hotItems.length > 0) {
+      try {
+        const candidateSummary = scanResult.hotItems.map(item => ({
+          symbol: item.symbol,
+          name: item.name,
+          market: item.market,
+          price: item.currentPrice,
+          changePct: item.priceChange24hPct,
+          pattern: item.patternName,
+          rvol: item.volumeIncreaseRatio,
+          rsi: item.rsiIndicator
+        }));
+
+        const systemPrompt = `You are the AI Real-time Analysis Assistant for AISTOCK V19.0.
+Your task: Analyze the provided verified real-time scanner candidates. For each candidate symbol, generate an enriched, professional 1-sentence Korean trading rationale focusing on catalyst, VWAP/RVOL structure, and key risk.
+
+CRITICAL RULES:
+- Return JSON strictly matching: { "explanations": { "<symbol>": "Korean explanation text..." } }
+- Do NOT invent, add, or alter any symbols, prices, or technical values.
+- Respect the provided candidates strictly.`;
+
+        const response = await ai.models.generateContent({
+          model: "gemini-2.5-flash",
+          contents: `Verified Candidates: ${JSON.stringify(candidateSummary)}`,
+          config: {
+            systemInstruction: systemPrompt,
+            responseMimeType: "application/json",
+            temperature: 0.2
+          }
+        });
+
+        const text = typeof (response as any).text === "function" ? (response as any).text() : (response as any).text;
+        if (text) {
+          const parsed = JSON.parse(text);
+          if (parsed && parsed.explanations && typeof parsed.explanations === "object") {
+            scanResult.hotItems = scanResult.hotItems.map(item => {
+              if (parsed.explanations[item.symbol]) {
+                return {
+                  ...item,
+                  reasoning: parsed.explanations[item.symbol]
+                };
+              }
+              return item;
+            });
+          }
+        }
+      } catch (aiErr: any) {
+        console.log("[AI Hot List] Gemini reasoning enrichment skipped. Returning verified scanner result directly.");
+      }
+    }
+
     return res.json(scanResult);
   } catch (err: any) {
-    return res.status(500).json({ error: err.message || "Hot list service error" });
+    return res.status(500).json({ error: err.message || "AISTOCK V19.0 Scanner error" });
   }
 });
 
