@@ -105,10 +105,7 @@ export class AutonomousExecutionEngineV11 {
     this.notify();
   }
 
-  /**
-   * Called by the existing 실행모드 LIVE button.
-   * LIVE is not entered until a real server-side KIS account query succeeds.
-   */
+  /** Existing 실행모드 LIVE button enters here. */
   public setTradingMode(mode: TradingMode, enableLiveDualLock = false): void {
     if (mode !== "LIVE") {
       this.kisAdapter.setExecutionMode(mode, false);
@@ -128,7 +125,7 @@ export class AutonomousExecutionEngineV11 {
 
     if (this.liveActivationInProgress) return;
     this.liveActivationInProgress = true;
-    this.addLog("INFO", "🔐 LIVE 실계좌 검증 시작", "KIS OAuth/실계좌 잔고 조회를 확인합니다.");
+    this.addLog("INFO", "🔐 LIVE 실계좌 검증 시작", "KIS OAuth/실계좌 잔고/서버 LIVE 게이트를 확인합니다.");
 
     void (async () => {
       try {
@@ -149,7 +146,6 @@ export class AutonomousExecutionEngineV11 {
 
         this.kisAdapter.setExecutionMode("LIVE", true);
         this.lastKnownBalance = await this.kisAdapter.getBalance();
-
         if (!this.lastKnownBalance || this.lastKnownBalance.buyingPower <= 0) {
           await this.kisAdapter.deactivateLiveSession();
           this.kisAdapter.setExecutionMode("PAPER", false);
@@ -208,7 +204,7 @@ export class AutonomousExecutionEngineV11 {
     const smStatus = this.stateMachine.getStatus();
     if (smStatus.currentState === "LOCKED") return;
 
-    // The legacy fallback below fabricates EMA/VWAP/volume. Never use it in LIVE.
+    // Legacy fallback fabricates EMA/VWAP/volume. Never use it in LIVE.
     if (smStatus.mode !== "LIVE" && smStatus.currentState === "LONG" && smStatus.activePosition) {
       await this.evaluateAdaptiveExit(smStatus.activePosition);
     }
@@ -248,6 +244,22 @@ export class AutonomousExecutionEngineV11 {
       }
       if (!this.lastKnownBalance || this.lastKnownBalance.buyingPower <= 0) {
         return { accepted: false, message: "실계좌 주문가능금액이 확인되지 않았습니다." };
+      }
+
+      // The current console contains a hard-coded Samsung test BUY trigger.
+      // It is useful in PAPER only and must never become a real-money signal.
+      const isLegacyUiTestCandidate =
+        candidate.symbol === "005930" &&
+        candidate.name === "삼성전자" &&
+        candidate.price === 74800 &&
+        candidate.scannerScore === 92 &&
+        candidate.unifiedShape === "Upward Expansion" &&
+        candidate.rvol === 3.4 &&
+        candidate.executionPower === 152;
+
+      if (isLegacyUiTestCandidate) {
+        this.addLog("RISK_REJECT", "⛔ LIVE 테스트 주문 차단", "하드코딩된 UI 테스트 BUY는 PAPER 전용입니다.");
+        return { accepted: false, message: "LIVE에서는 하드코딩된 테스트 BUY를 실행할 수 없습니다." };
       }
     }
 
@@ -296,9 +308,7 @@ export class AutonomousExecutionEngineV11 {
     }
 
     const transition = this.stateMachine.transitionToBuyPending(signal);
-    if (!transition.success) {
-      return { accepted: false, message: transition.reason };
-    }
+    if (!transition.success) return { accepted: false, message: transition.reason };
 
     const req: KISOrderRequest = {
       symbol: candidate.symbol,
@@ -375,14 +385,11 @@ export class AutonomousExecutionEngineV11 {
       this.confirmBuy(result, candidate, requestedQty);
       return;
     }
-
     if (result.status === "REJECTED" || result.status === "CANCELLED") {
       this.stateMachine.rejectBuyPending(result.message);
       this.addLog("RISK_REJECT", "LIVE BUY 미체결 종료", result.message);
       return;
     }
-
-    // Partial/unknown exposure can exist. Freeze new orders until reconciliation.
     this.stateMachine.triggerLock(`ODNO ${orderId} 체결 상태 불확실. 계좌 대조 전 신규 주문 금지.`);
     this.addLog("EMERGENCY", "🚨 LIVE BUY 체결상태 불확실", result.message);
   }
@@ -390,7 +397,6 @@ export class AutonomousExecutionEngineV11 {
   public async evaluateAdaptiveExit(position: PositionContext): Promise<void> {
     if (this.stateMachine.getStatus().mode === "LIVE") return;
 
-    // Legacy PAPER-only fallback. LIVE requires provider-derived completed bars.
     const bar: MarketBarSnapshot = {
       open: position.currentPrice,
       high: Math.max(position.highPriceSinceBuy, position.currentPrice),
@@ -419,9 +425,7 @@ export class AutonomousExecutionEngineV11 {
       bar.close <= 0 ||
       !Number.isFinite(bar.volume) ||
       bar.volume < 0
-    ) {
-      return;
-    }
+    ) return;
 
     this.stateMachine.updatePositionPrice(bar.close);
     const pos = {
@@ -511,13 +515,11 @@ export class AutonomousExecutionEngineV11 {
       this.confirmSell(result, position, reason);
       return;
     }
-
     if (result.status === "REJECTED" || result.status === "CANCELLED") {
       this.stateMachine.rejectSellPending(result.message);
       this.addLog("RISK_REJECT", "LIVE SELL 미체결 종료", result.message);
       return;
     }
-
     this.stateMachine.triggerLock(`SELL ODNO ${orderId} 체결 상태 불확실. 계좌 대조 필요.`);
     this.addLog("EMERGENCY", "🚨 LIVE SELL 체결상태 불확실", result.message);
   }
