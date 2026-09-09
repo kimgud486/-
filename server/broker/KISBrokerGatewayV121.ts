@@ -1,6 +1,6 @@
 // AISTOCK v12.1 compatibility gateway backed by V12.3 fill/balance truth.
-// Domestic LIVE order dispatch is overridden here so server.ts automatically
-// uses the current KIS cash-order contract without changing its import path.
+// Domestic LIVE dispatch is overridden here so server.ts uses the current KIS
+// cash-order contract while retaining V12.3 OAuth, fill and balance engines.
 
 import {
   KISBrokerGatewayV123,
@@ -41,7 +41,7 @@ export class KISBrokerGatewayV121 {
 
   /**
    * Real LIVE order dispatch used by /api/broker/v12/order.
-   * Fail closed unless the operator explicitly enabled server-side LIVE.
+   * Fail closed unless server LIVE, OAuth, real quote and notional checks pass.
    */
   public async executeOrder(req: KISOrderRequest): Promise<KISOrderGatewayResponse> {
     const timestamp = new Date().toLocaleTimeString("ko-KR");
@@ -107,6 +107,39 @@ export class KISBrokerGatewayV121 {
       );
     }
 
+    // Server-side quote truth check. Never trust a browser/test price for LIVE sizing.
+    const livePrice = await this.getDomesticCurrentPrice(req.symbol, token);
+    if (!livePrice || livePrice <= 0) {
+      return this.reject(
+        req,
+        trId,
+        "⛔ KIS 현재가 검증 실패. 실제 주문을 전송하지 않았습니다.",
+        timestamp
+      );
+    }
+
+    const clientPrice = Number(req.price || 0);
+    const maxDeviation = this.safePositiveNumber(process.env.AISTOCK_MAX_LIVE_PRICE_DEVIATION, 0.03);
+    if (clientPrice <= 0 || Math.abs(clientPrice - livePrice) / livePrice > maxDeviation) {
+      return this.reject(
+        req,
+        trId,
+        `⛔ LIVE 가격 검증 실패. client=${clientPrice} / KIS=${livePrice} / 허용오차=${(maxDeviation * 100).toFixed(1)}%`,
+        timestamp
+      );
+    }
+
+    const maxOrderKRW = this.safePositiveNumber(process.env.AISTOCK_MAX_LIVE_ORDER_KRW, 5_000_000);
+    const liveNotional = livePrice * req.qty;
+    if (liveNotional > maxOrderKRW) {
+      return this.reject(
+        req,
+        trId,
+        `⛔ 서버 단일주문 한도 초과. ${Math.round(liveNotional).toLocaleString()}원 > ${Math.round(maxOrderKRW).toLocaleString()}원`,
+        timestamp
+      );
+    }
+
     const isMarketOrder = req.orderType === "MARKET";
     const payload = {
       CANO: this.accountNo,
@@ -162,7 +195,7 @@ export class KISBrokerGatewayV121 {
         status: "PENDING",
         filledQty: 0,
         filledAvgPrice: 0,
-        message: `✅ KIS 주문 접수 ODNO:${orderNo} | 실제 체결 확인 대기`,
+        message: `✅ KIS 주문 접수 ODNO:${orderNo} | KIS현재가:${livePrice.toLocaleString()}원 | 실제 체결 확인 대기`,
         trId,
         timestamp
       };
@@ -196,10 +229,50 @@ export class KISBrokerGatewayV121 {
 
   public async getAccountBalance(market: "KOREA" | "US" = "KOREA", isPaper = false) {
     const result = await this.delegate.getAccountBalance(market, isPaper);
-    return {
-      ...result,
-      liveTradingAllowed: process.env.AISTOCK_ALLOW_LIVE_TRADING === "true"
-    };
+    const liveTradingAllowed = process.env.AISTOCK_ALLOW_LIVE_TRADING === "true";
+
+    // LIVE button account preflight must also prove that the server order gate is enabled.
+    if (!isPaper && market === "KOREA" && result.success && !liveTradingAllowed) {
+      return {
+        ...result,
+        success: false,
+        liveTradingAllowed,
+        message: "⛔ KIS 실계좌 연결은 확인됐지만 서버 LIVE 게이트가 잠겨 있습니다. AISTOCK_ALLOW_LIVE_TRADING=true가 필요합니다."
+      };
+    }
+
+    return { ...result, liveTradingAllowed };
+  }
+
+  private async getDomesticCurrentPrice(symbol: string, token: string): Promise<number | null> {
+    try {
+      const qs = new URLSearchParams({
+        FID_COND_MRKT_DIV_CODE: "J",
+        FID_INPUT_ISCD: symbol
+      });
+      const res = await fetch(`${KIS_REAL_REST_DOMAIN}/uapi/domestic-stock/v1/quotations/inquire-price?${qs.toString()}`, {
+        method: "GET",
+        headers: {
+          "content-type": "application/json",
+          authorization: `Bearer ${token}`,
+          appkey: this.appKey,
+          appsecret: this.appSecret,
+          tr_id: "FHKST01010100",
+          custtype: "P"
+        }
+      });
+      if (!res.ok) return null;
+      const data = await res.json();
+      const price = Number(data?.output?.stck_prpr || data?.output?.STCK_PRPR || 0);
+      return Number.isFinite(price) && price > 0 ? price : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  private safePositiveNumber(raw: string | undefined, fallback: number): number {
+    const value = Number(raw);
+    return Number.isFinite(value) && value > 0 ? value : fallback;
   }
 
   private reject(
