@@ -1,14 +1,13 @@
 // ----------------------------------------------------------------------
-// KIS EXECUTION NOTICE PARSER V20 (AISTOCK FINAL RC)
-// Parses encrypted/decrypted KIS account execution notices
-// H0STCNI0 (Domestic) & H0GSCNI0 (Overseas)
+// KIS EXECUTION NOTICE PARSER V20 (AISTOCK RC6)
+// Parses decrypted KIS account execution notices with deterministic dedup IDs
 // ----------------------------------------------------------------------
 
 import crypto from "crypto";
 import { H0STCNI0, H0GSCNI0 } from "../../src/services/KISRealtimeFieldSchema";
 
 export interface ParsedExecutionNotice {
-  rawTrId: "H0STCNI0" | "H0GSCNI0" | string;
+  rawTrId: string;
   noticeId: string;
   accountNo: string;
   orderId: string;
@@ -25,54 +24,68 @@ export interface ParsedExecutionNotice {
   rawFields: string[];
 }
 
+const DOMESTIC_EXECUTION_IDS = new Set(["H0STCNI0", "H0STCNI9"]);
+const OVERSEAS_EXECUTION_IDS = new Set(["H0GSCNI0", "H0GSCNI9"]);
+
 export class KISExecutionNoticeParserV20 {
-  /**
-   * Decrypt AES-256-CBC encrypted payload from KIS WS if encrypted
-   */
-  public static decryptPayload(encryptedBase64: string, keyHex: string, ivHex: string): string {
+  public static decryptPayload(encryptedBase64: string, keyText: string, ivText: string): string {
     try {
-      const key = Buffer.from(keyHex, "utf8");
-      const iv = Buffer.from(ivHex, "utf8");
+      const key = Buffer.from(keyText, "utf8");
+      const iv = Buffer.from(ivText, "utf8");
       const decipher = crypto.createDecipheriv("aes-256-cbc", key, iv);
       let decrypted = decipher.update(encryptedBase64, "base64", "utf8");
       decrypted += decipher.final("utf8");
       return decrypted;
-    } catch (err) {
-      console.error("[KISExecutionNoticeParserV20] Decryption failed:", err);
+    } catch (_) {
+      // Returning the original payload lets parse() fail closed if it is not valid caret data.
       return encryptedBase64;
     }
   }
 
-  /**
-   * Parse KIS execution notice payload string
-   */
   public static parse(trId: string, rawData: string): ParsedExecutionNotice | null {
     if (!rawData) return null;
 
+    const isDomestic = DOMESTIC_EXECUTION_IDS.has(trId);
+    const isOverseas = OVERSEAS_EXECUTION_IDS.has(trId);
+    if (!isDomestic && !isOverseas) return null;
+
     const fields = rawData.split("^");
     if (fields.length < 10) return null;
-
-    const isDomestic = trId === "H0STCNI0";
     const schema = isDomestic ? H0STCNI0 : H0GSCNI0;
 
-    const accountNo = fields[schema.ACCOUNT_NO] || "";
-    const orderId = fields[schema.ORDER_ID] || "";
-    const originalOrderId = fields[schema.ORIGINAL_ORDER_ID] || "";
-    const symbol = fields[schema.SYMBOL] || "";
-    const sideCode = fields[schema.SIDE_CODE] || "";
-    
-    // Side code '01' is sell, '02' is buy in KIS domestic; or 'SELL'/'BUY'
-    const side: "BUY" | "SELL" = sideCode === "01" ? "SELL" : "BUY";
+    const accountNo = String(fields[schema.ACCOUNT_NO] || "").trim();
+    const orderId = String(fields[schema.ORDER_ID] || "").trim();
+    const originalOrderId = String(fields[schema.ORIGINAL_ORDER_ID] || "").trim();
+    const symbol = String(fields[schema.SYMBOL] || "").trim().toUpperCase();
+    const sideCode = String(fields[schema.SIDE_CODE] || "").trim();
+    if (!orderId || !symbol || (sideCode !== "01" && sideCode !== "02")) return null;
 
-    const execQty = parseFloat(fields[schema.EXEC_QTY] || "0") || 0;
-    const execPrice = parseFloat(fields[schema.EXEC_PRICE] || "0") || 0;
-    const orderQty = parseFloat(fields[schema.ORDER_QTY] || "0") || 0;
-    const execFlag = fields[schema.EXEC_FLAG] || "1";
-    
-    // execFlag === '1' or '2' means execution confirmed, or execQty > 0
-    const isExecuted = (execFlag === "1" || execFlag === "2" || execQty > 0) && execQty > 0;
-    const execTime = fields[schema.EXEC_TIME] || "";
-    const noticeId = `notice_${trId}_${symbol}_${orderId}_${Date.now()}`;
+    const side: "BUY" | "SELL" = sideCode === "01" ? "SELL" : "BUY";
+    const execQty = Number(fields[schema.EXEC_QTY] || 0);
+    const execPrice = Number(fields[schema.EXEC_PRICE] || 0);
+    const orderQty = Number(fields[schema.ORDER_QTY] || 0);
+    const execFlag = String(fields[schema.EXEC_FLAG] || "").trim();
+    const execTime = String(fields[schema.EXEC_TIME] || "").trim();
+
+    // Project schema defines 1 as confirmed execution. Quantity alone must never promote a packet to a fill.
+    const isExecuted = execFlag === "1" && execQty > 0 && execPrice > 0;
+    const safeExecQty = Number.isFinite(execQty) && execQty > 0 ? execQty : 0;
+    const safeExecPrice = Number.isFinite(execPrice) && execPrice > 0 ? execPrice : 0;
+    const safeOrderQty = Number.isFinite(orderQty) && orderQty > 0 ? orderQty : 0;
+
+    // Deterministic across reconnect/replay so BrokerExecutionTruthBusV20 can deduplicate safely.
+    const noticeKey = [
+      trId,
+      accountNo,
+      orderId,
+      originalOrderId,
+      symbol,
+      side,
+      execTime,
+      safeExecQty,
+      safeExecPrice
+    ].join("|");
+    const noticeId = `kis_${crypto.createHash("sha256").update(noticeKey).digest("hex").slice(0, 32)}`;
 
     return {
       rawTrId: trId,
@@ -82,10 +95,10 @@ export class KISExecutionNoticeParserV20 {
       originalOrderId,
       symbol,
       side,
-      execQty,
-      execPrice,
-      orderQty,
-      remainingQty: Math.max(0, orderQty - execQty),
+      execQty: safeExecQty,
+      execPrice: safeExecPrice,
+      orderQty: safeOrderQty,
+      remainingQty: safeOrderQty > 0 ? Math.max(0, safeOrderQty - safeExecQty) : 0,
       isExecuted,
       execTime,
       timestamp: Date.now(),
