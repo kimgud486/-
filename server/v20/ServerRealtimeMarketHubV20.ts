@@ -13,6 +13,7 @@ export interface ServerMarketQuoteV20 {
   price: number;
   changeAmount: number;
   changePct: number;
+  /** Provider cumulative session/24h volume. Never summed into minute candles. */
   volume: number;
   tradeValue: number;
   askPrice?: number;
@@ -23,15 +24,24 @@ export interface ServerMarketQuoteV20 {
   sequence: number;
 }
 
+export interface ServerRealtimeHubStatusV20 {
+  quoteCount: number;
+  candleSymbolCount: number;
+  executionGradeCount: number;
+  staleQuoteCount: number;
+  lastQuoteAt: number | null;
+  sequence: number;
+}
+
+const QUOTE_FRESHNESS_MS = 15_000;
+
 export class ServerRealtimeMarketHubV20 {
   private static instance: ServerRealtimeMarketHubV20;
   private quotes: Map<string, ServerMarketQuoteV20> = new Map();
   private candleHistory: Map<string, Candle[]> = new Map();
   private sequenceCounter = 0;
 
-  private constructor() {
-    // Private constructor for singleton
-  }
+  private constructor() {}
 
   public static getInstance(): ServerRealtimeMarketHubV20 {
     if (!ServerRealtimeMarketHubV20.instance) {
@@ -52,22 +62,27 @@ export class ServerRealtimeMarketHubV20 {
     source: string,
     grade: DataGradeV20,
     askPrice?: number,
-    bidPrice?: number
+    bidPrice?: number,
+    /** Tick/execution volume only. Provider cumulative volume must not be passed here. */
+    incrementalVolume: number = 0
   ): ServerMarketQuoteV20 {
     const key = symbol.toUpperCase();
-    this.sequenceCounter++;
+    if (!key || !Number.isFinite(price) || price <= 0) {
+      throw new Error("INVALID_REALTIME_QUOTE");
+    }
 
+    this.sequenceCounter += 1;
     const quote: ServerMarketQuoteV20 = {
       symbol: key,
       name,
       market,
       price,
-      changeAmount,
-      changePct,
-      volume,
-      tradeValue,
-      askPrice,
-      bidPrice,
+      changeAmount: Number.isFinite(changeAmount) ? changeAmount : 0,
+      changePct: Number.isFinite(changePct) ? changePct : 0,
+      volume: Number.isFinite(volume) && volume >= 0 ? volume : 0,
+      tradeValue: Number.isFinite(tradeValue) && tradeValue >= 0 ? tradeValue : 0,
+      askPrice: Number.isFinite(askPrice) && Number(askPrice) > 0 ? askPrice : undefined,
+      bidPrice: Number.isFinite(bidPrice) && Number(bidPrice) > 0 ? bidPrice : undefined,
       source,
       grade,
       updatedAt: Date.now(),
@@ -75,8 +90,11 @@ export class ServerRealtimeMarketHubV20 {
     };
 
     this.quotes.set(key, quote);
-    this.updateCandleStore(key, price, volume);
-
+    this.updateCandleStore(
+      key,
+      price,
+      Number.isFinite(incrementalVolume) && incrementalVolume > 0 ? incrementalVolume : 0
+    );
     return quote;
   }
 
@@ -85,31 +103,56 @@ export class ServerRealtimeMarketHubV20 {
     const q = this.quotes.get(key) || this.quotes.get(key.replace("KRW-", ""));
     if (!q) return null;
 
-    // Freshness check (15 seconds cutoff)
-    if (Date.now() - q.updatedAt > 15000) {
-      return {
-        ...q,
-        grade: "DISPLAY_ONLY" // Stale data downgraded to DISPLAY_ONLY
-      };
+    if (Date.now() - q.updatedAt > QUOTE_FRESHNESS_MS) {
+      return { ...q, grade: "DISPLAY_ONLY" };
     }
+    return { ...q };
+  }
 
-    return q;
+  /** Returns snapshots. Stale quotes are downgraded to DISPLAY_ONLY. */
+  public getAllQuotes(): ServerMarketQuoteV20[] {
+    const now = Date.now();
+    return Array.from(this.quotes.values()).map(q => ({
+      ...q,
+      grade: now - q.updatedAt > QUOTE_FRESHNESS_MS ? "DISPLAY_ONLY" : q.grade
+    }));
   }
 
   public getCandles(symbol: string): Candle[] {
     const key = symbol.toUpperCase();
-    return this.candleHistory.get(key) || [];
+    return (this.candleHistory.get(key) || []).map(c => ({ ...c }));
   }
 
   public setCandles(symbol: string, candles: Candle[]): void {
     const key = symbol.toUpperCase();
-    this.candleHistory.set(key, candles);
+    this.candleHistory.set(key, candles.slice(-500).map(c => ({ ...c })));
   }
 
-  private updateCandleStore(symbol: string, price: number, volume: number): void {
+  public getStatus(): ServerRealtimeHubStatusV20 {
+    const now = Date.now();
+    const quotes = Array.from(this.quotes.values());
+    const fresh = quotes.filter(q => now - q.updatedAt <= QUOTE_FRESHNESS_MS);
+    return {
+      quoteCount: quotes.length,
+      candleSymbolCount: this.candleHistory.size,
+      executionGradeCount: fresh.filter(q => q.grade === "EXECUTION_GRADE").length,
+      staleQuoteCount: quotes.filter(q => now - q.updatedAt > QUOTE_FRESHNESS_MS).length,
+      lastQuoteAt: quotes.length ? Math.max(...quotes.map(q => q.updatedAt)) : null,
+      sequence: this.sequenceCounter
+    };
+  }
+
+  /** Test/recovery helper. Never used to synthesize production data. */
+  public clear(): void {
+    this.quotes.clear();
+    this.candleHistory.clear();
+    this.sequenceCounter = 0;
+  }
+
+  private updateCandleStore(symbol: string, price: number, incrementalVolume: number): void {
     const candles = this.candleHistory.get(symbol) || [];
     const now = Date.now();
-    const minuteTs = Math.floor(now / 60000) * 60000;
+    const minuteTs = Math.floor(now / 60_000) * 60_000;
 
     if (candles.length === 0) {
       candles.push({
@@ -118,7 +161,7 @@ export class ServerRealtimeMarketHubV20 {
         high: price,
         low: price,
         close: price,
-        volume: volume
+        volume: incrementalVolume
       });
     } else {
       const last = candles[candles.length - 1];
@@ -128,7 +171,7 @@ export class ServerRealtimeMarketHubV20 {
         last.high = Math.max(last.high, price);
         last.low = Math.min(last.low, price);
         last.close = price;
-        last.volume += volume;
+        last.volume += incrementalVolume;
       } else if (minuteTs > lastTs) {
         candles.push({
           timestamp: minuteTs,
@@ -136,11 +179,9 @@ export class ServerRealtimeMarketHubV20 {
           high: price,
           low: price,
           close: price,
-          volume: volume
+          volume: incrementalVolume
         });
-        if (candles.length > 200) {
-          candles.shift();
-        }
+        if (candles.length > 500) candles.shift();
       }
     }
 
