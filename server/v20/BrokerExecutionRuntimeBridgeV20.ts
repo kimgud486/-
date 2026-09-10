@@ -1,11 +1,12 @@
 // ----------------------------------------------------------------------
-// BROKER EXECUTION RUNTIME BRIDGE V20 (AISTOCK FINAL RC)
-// Connects BrokerExecutionTruthBusV20 to LivePositionRuntimeService
+// BROKER EXECUTION RUNTIME BRIDGE V20 (AISTOCK RC6)
+// Connects provider runtime + BrokerExecutionTruthBusV20 to LivePositionRuntimeService
 // ----------------------------------------------------------------------
 
 import { brokerExecutionTruthBusV20 } from "./BrokerExecutionTruthBusV20";
 import { ParsedExecutionNotice } from "./KISExecutionNoticeParserV20";
 import { livePositionRuntimeService, BrokerExecutionNotice } from "../../src/trading/LivePositionRuntimeService";
+import { serverRealtimeRuntimeV20 } from "./ServerRealtimeRuntimeV20";
 
 export class BrokerExecutionRuntimeBridgeV20 {
   private static instance: BrokerExecutionRuntimeBridgeV20;
@@ -22,7 +23,10 @@ export class BrokerExecutionRuntimeBridgeV20 {
   }
 
   public registerOrderToPosition(orderId: string, positionId: string): void {
-    this.orderToPositionMap.set(orderId, positionId);
+    const order = orderId.trim();
+    const position = positionId.trim();
+    if (!order || !position) return;
+    this.orderToPositionMap.set(order, position);
   }
 
   public startBridge(): void {
@@ -32,7 +36,10 @@ export class BrokerExecutionRuntimeBridgeV20 {
       this.routeNoticeToRuntime(notice);
     });
 
-    console.log("[BrokerExecutionRuntimeBridgeV20] Started bridge listening for broker fills.");
+    // Provider startup is owned by the server bridge so server.ts cannot import a client and forget to connect it.
+    void serverRealtimeRuntimeV20.start().catch(err => {
+      console.error("[BrokerExecutionRuntimeBridgeV20] Realtime provider startup failed:", err);
+    });
   }
 
   public stopBridge(): void {
@@ -40,26 +47,20 @@ export class BrokerExecutionRuntimeBridgeV20 {
       this.unsubscribe();
       this.unsubscribe = null;
     }
+    serverRealtimeRuntimeV20.stop();
   }
 
   public routeNoticeToRuntime(parsed: ParsedExecutionNotice): boolean {
-    if (!parsed || parsed.execQty <= 0) return false;
+    if (!parsed?.isExecuted || parsed.execQty <= 0 || parsed.execPrice <= 0) return false;
 
-    // Find positionId by orderId or symbol
     let positionId = this.orderToPositionMap.get(parsed.orderId);
-
     if (!positionId) {
       const allPositions = livePositionRuntimeService.getAllPositions();
-      const match = allPositions.find((p) => p.symbol === parsed.symbol && p.state !== "CLOSED");
-      if (match) {
-        positionId = match.positionId;
-      }
+      const match = allPositions.find(p => p.symbol === parsed.symbol && p.state !== "CLOSED");
+      if (match) positionId = match.positionId;
     }
 
-    if (!positionId) {
-      console.warn(`[BrokerExecutionRuntimeBridgeV20] No active position found for symbol ${parsed.symbol}`);
-      return false;
-    }
+    if (!positionId) return false;
 
     const runtimeNotice: BrokerExecutionNotice = {
       noticeId: parsed.noticeId,
@@ -72,8 +73,16 @@ export class BrokerExecutionRuntimeBridgeV20 {
     };
 
     const newState = livePositionRuntimeService.onBrokerExecutionNotice(positionId, runtimeNotice);
-    console.log(`[BrokerExecutionRuntimeBridgeV20] Routed execution fill to position ${positionId}. Next state: ${newState}`);
+    if (newState === "CLOSED") this.orderToPositionMap.delete(parsed.orderId);
     return true;
+  }
+
+  public getStatus() {
+    return {
+      listeningForFills: Boolean(this.unsubscribe),
+      mappedOrders: this.orderToPositionMap.size,
+      realtime: serverRealtimeRuntimeV20.getStatus()
+    };
   }
 }
 
