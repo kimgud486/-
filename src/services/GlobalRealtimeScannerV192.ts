@@ -1,14 +1,14 @@
 // ----------------------------------------------------------------------
-// AISTOCK GLOBAL REALTIME SCANNER V19.2 (TRUTH-FIRST UNIFIED)
-// Real Data Only - Zero Synthetic Fallback - Provenance & Evidence Driven
+// AISTOCK GLOBAL REALTIME SCANNER V19.2 COMPATIBILITY FACADE (RC6)
+// Browser keeps the existing public API; Node/server delegates to Server V20 hub.
 // ----------------------------------------------------------------------
 
 import { getAllStocks, LiveStockItem } from "../data/stockUniverse";
-import { realtimeMarketFeedService, LiveMarketQuote, requireLiveData } from "./realtimeMarketFeedService";
+import { realtimeMarketFeedService, requireLiveData } from "./realtimeMarketFeedService";
 import { realCandleStore } from "./RealCandleStore";
 import { IndicatorTruthEngine } from "./IndicatorTruthEngine";
-import { PatternTruthEngineV192, PatternTruthResultV192 } from "./PatternTruthEngineV192";
-import { Candle } from "./StructureBrain";
+import { PatternTruthEngineV192 } from "./PatternTruthEngineV192";
+import type { Candle } from "./StructureBrain";
 
 export type UsExchange = "NASDAQ" | "NYSE" | "AMEX" | "UNKNOWN";
 
@@ -35,8 +35,8 @@ export interface HotListItemV192 {
   currentPrice: number;
   priceChange24hPct: number;
   volatilityScore: number;
-  aiMatchScore: number; // Equal to setupScore
-  expectedReturnPct: number | null; // ATR 2R Planning Objective (null if no ATR)
+  aiMatchScore: number;
+  expectedReturnPct: number | null;
   planningObjectiveNote: string;
   patternType: string;
   patternName: string;
@@ -60,11 +60,7 @@ export interface ScanResultV192 {
   scannedTotal: number;
   filteredCount: number;
   dataStatus: "REALTIME_VERIFIED" | "STALE" | "NO_DATA";
-  marketCounts: {
-    KOREA: number;
-    US: number;
-    UPBIT: number;
-  };
+  marketCounts: { KOREA: number; US: number; UPBIT: number };
   hotItems: HotListItemV192[];
 }
 
@@ -77,13 +73,7 @@ const US_EXCHANGE_MAP: Record<string, UsExchange> = {
   LLY: "NYSE", NVO: "NYSE", SPY: "AMEX"
 };
 
-/**
- * Universal V19.2 Stock Scanner Logic with Strict Real-Data Integrity
- */
 export class GlobalRealtimeScannerV192 {
-  /**
-   * Normalize market input string (BTC/CRYPTO -> UPBIT)
-   */
   public static normalizeMarketInput(marketInput?: string): "ALL" | "KOREA" | "US" | "UPBIT" {
     if (!marketInput || marketInput === "ALL") return "ALL";
     const u = marketInput.toUpperCase();
@@ -93,9 +83,7 @@ export class GlobalRealtimeScannerV192 {
     return "ALL";
   }
 
-  /**
-   * Scan market with strict live data requirement and PatternTruthEngineV192
-   */
+  /** Browser-only compatibility scanner using verified browser quotes/candles. */
   public static scanMarket(
     stocks: LiveStockItem[],
     marketType: "KOREA" | "US" | "UPBIT",
@@ -110,36 +98,20 @@ export class GlobalRealtimeScannerV192 {
     const patternFilter = options?.patternFilter || "ALL";
     const minObjectivePct = options?.minObjectivePct ?? 0;
     const minSetupScore = options?.minSetupScore ?? 50;
-
     const results: HotListItemV192[] = [];
     let scannedCount = 0;
 
     for (const stock of stocks) {
-      scannedCount++;
-
-      // Unknown US exchange stays UNKNOWN (not forced to NASDAQ!)
-      const exchange: UsExchange | string = marketType === "US" 
-        ? (US_EXCHANGE_MAP[stock.symbol] || "UNKNOWN") 
+      scannedCount += 1;
+      const exchange: UsExchange | string = marketType === "US"
+        ? (US_EXCHANGE_MAP[stock.symbol] || "UNKNOWN")
         : marketType;
-
-      if (marketType === "US" && exchangeFilter !== "ALL" && exchange !== exchangeFilter) {
-        continue;
-      }
+      if (marketType === "US" && exchangeFilter !== "ALL" && exchange !== exchangeFilter) continue;
 
       const quote = realtimeMarketFeedService.getQuote(stock.symbol);
-
-      // DATA INTEGRITY GATE: Must satisfy requireLiveData(quote)
-      if (!requireLiveData(quote)) {
-        continue; // Skip non-live or unverified execution quotes
-      }
-
-      const price = quote!.price;
+      if (!requireLiveData(quote)) continue;
       const candles15m = realCandleStore.getCachedCandles(stock.symbol, "15m");
-
-      // Minimum 35 candles required for warm-up of indicators
-      if (!candles15m || candles15m.length < 35) {
-        continue;
-      }
+      if (!candles15m || candles15m.length < 35) continue;
 
       const rawCandles: Candle[] = candles15m.map(c => ({
         timestamp: c.timestamp,
@@ -149,127 +121,65 @@ export class GlobalRealtimeScannerV192 {
         close: c.close,
         volume: c.volume
       }));
-
       const snapshot = IndicatorTruthEngine.computeSnapshot(rawCandles);
-      const patternResults = PatternTruthEngineV192.evaluatePatterns(rawCandles);
+      const patterns = PatternTruthEngineV192.evaluatePatterns(rawCandles);
+      const bullishPatterns = patterns.filter(p => p.direction === "BULLISH");
+      if (patternFilter !== "ALL" && !patterns.some(p =>
+        p.patternId.toLowerCase() === patternFilter.toLowerCase() ||
+        p.patternName.toLowerCase().includes(patternFilter.toLowerCase())
+      )) continue;
 
-      const changePct = quote!.changeRate ?? ((price - candles15m[0].close) / candles15m[0].close) * 100;
+      const price = quote!.price;
+      const changePct = quote!.changeRate ?? 0;
       const rvol = snapshot.rvol;
       const vwap = snapshot.vwap;
       const rsi = snapshot.rsi14;
       const atr = snapshot.atr14;
-
-      // Filter pattern if specific pattern requested
-      const bullishPatterns = patternResults.filter(p => p.direction === "BULLISH");
-      if (patternFilter !== "ALL") {
-        const matchesPattern = patternResults.some(
-          p => p.patternId.toLowerCase() === patternFilter.toLowerCase() ||
-               p.patternName.toLowerCase().includes(patternFilter.toLowerCase())
-        );
-        if (!matchesPattern) continue;
-      }
-
-      // Risk Guards
-      const distFromVwap = vwap != null ? ((price - vwap) / vwap) * 100 : 0;
-      const chaseRisk = vwap != null && distFromVwap > 7.5;
-      const exhaustionRisk = Math.abs(changePct) > 30.0 || (rsi != null && rsi > 80);
-
+      const distFromVwap = vwap != null && vwap > 0 ? ((price - vwap) / vwap) * 100 : null;
+      const chaseRisk = distFromVwap != null ? distFromVwap > 7.5 : null;
+      const exhaustionRisk = Math.abs(changePct) > 30 || (rsi != null && rsi > 80);
       if (chaseRisk || exhaustionRisk) continue;
 
-      // Evidence-Driven Setup Score (0 to 100)
       let evidenceCount = 0;
+      let points = 0;
+      let possible = 0;
       const evidenceList: string[] = [];
-      let totalMaxPoints = 0;
-      let earnedPoints = 0;
-
-      // 1. Price Momentum (Max 20)
-      totalMaxPoints += 20;
-      if (changePct > 0) {
-        earnedPoints += Math.min(20, changePct * 2);
-        evidenceCount++;
-        evidenceList.push(`24h 변동률 +${changePct.toFixed(2)}% 모멘텀`);
+      if (Number.isFinite(changePct)) {
+        possible += 15;
+        if (changePct > 0) points += Math.min(15, changePct * 1.5);
+        evidenceCount += 1;
+        evidenceList.push(`변동률 ${changePct.toFixed(2)}%`);
       }
-
-      // 2. Relative Volume RVOL (Max 20)
       if (rvol != null) {
-        totalMaxPoints += 20;
-        if (rvol >= 2.0) {
-          earnedPoints += 20;
-          evidenceList.push(`RVOL ${rvol.toFixed(2)}배 강한 수급 급증`);
-        } else if (rvol >= 1.3) {
-          earnedPoints += 12;
-          evidenceList.push(`RVOL ${rvol.toFixed(2)}배 유효 수급`);
-        }
-        evidenceCount++;
+        possible += 25; evidenceCount += 1;
+        if (rvol >= 2) points += 25; else if (rvol >= 1.3) points += 15;
+        evidenceList.push(`RVOL ${rvol.toFixed(2)}`);
       }
-
-      // 3. VWAP Support/Breakout (Max 20)
       if (vwap != null) {
-        totalMaxPoints += 20;
-        if (price >= vwap) {
-          earnedPoints += 20;
-          evidenceList.push(`VWAP $${vwap.toFixed(2)} 지지선 상회`);
-        }
-        evidenceCount++;
+        possible += 20; evidenceCount += 1;
+        if (price >= vwap) points += 20;
+        evidenceList.push(`VWAP ${price >= vwap ? "상회" : "하회"}`);
       }
-
-      // 4. RSI Range (Max 20)
       if (rsi != null) {
-        totalMaxPoints += 20;
-        if (rsi >= 45 && rsi <= 72) {
-          earnedPoints += 20;
-          evidenceList.push(`RSI14 ${rsi.toFixed(1)} 적정 매수 범위`);
-        }
-        evidenceCount++;
+        possible += 15; evidenceCount += 1;
+        if (rsi >= 45 && rsi <= 72) points += 15;
+        evidenceList.push(`RSI14 ${rsi.toFixed(1)}`);
+      }
+      if (bullishPatterns.length) {
+        possible += 25; evidenceCount += 1;
+        points += Math.min(25, Math.round(bullishPatterns[0].confidence * 0.25));
+        evidenceList.push(...bullishPatterns[0].evidence.slice(0, 2));
       }
 
-      // 5. Verified Candlestick Pattern Evidence (Max 20)
-      if (bullishPatterns.length > 0) {
-        totalMaxPoints += 20;
-        const topPattern = bullishPatterns[0];
-        earnedPoints += Math.min(20, Math.round(topPattern.confidence * 0.2));
-        evidenceCount++;
-        evidenceList.push(...topPattern.evidence);
-      }
-
-      const coverageRatio = totalMaxPoints > 0 ? totalMaxPoints / 100 : 0;
-      const setupScore = totalMaxPoints > 0 ? Math.round((earnedPoints / totalMaxPoints) * 100) : 0;
-
+      const setupScore = possible > 0 ? Math.round((points / possible) * 100) : 0;
       if (setupScore < minSetupScore) continue;
+      const grade: HotListItemV192["grade"] = setupScore >= 85 ? "S" : setupScore >= 70 ? "A" : setupScore >= 55 ? "B" : "WATCH";
 
-      let grade: HotListItemV192["grade"] = "REJECT";
-      if (setupScore >= 85) grade = "S";
-      else if (setupScore >= 70) grade = "A";
-      else if (setupScore >= 55) grade = "B";
-      else if (setupScore >= 45) grade = "WATCH";
-
-      if (grade === "REJECT") continue;
-
-      // Planning Objective based ONLY on actual ATR (No fallback multiplier like price * 0.02!)
-      let stopLoss: number | null = null;
-      let targetPrice: number | null = null;
-      let planningYieldPct: number | null = null;
-      let rrRatio = "N/A";
-
-      if (atr != null && atr > 0) {
-        stopLoss = Math.round((price - atr * 1.5) * 100) / 100;
-        targetPrice = Math.round((price + atr * 3.0) * 100) / 100;
-        planningYieldPct = +(((targetPrice - price) / price) * 100).toFixed(1);
-        rrRatio = stopLoss < price ? "1 : " + ((targetPrice - price) / (price - stopLoss)).toFixed(1) : "1 : 2.0";
-      }
-
-      // If minObjectivePct filter is requested and ATR planning yield is insufficient or missing, skip
-      if (minObjectivePct > 0) {
-        if (planningYieldPct == null || planningYieldPct < minObjectivePct) {
-          continue;
-        }
-      }
-
+      const stopLoss = atr != null && atr > 0 ? price - atr * 1.5 : null;
+      const targetPrice = atr != null && atr > 0 ? price + atr * 3 : null;
+      const expectedReturnPct = targetPrice != null ? ((targetPrice - price) / price) * 100 : null;
+      if (minObjectivePct > 0 && (expectedReturnPct == null || expectedReturnPct < minObjectivePct)) continue;
       const topBull = bullishPatterns[0];
-      const patternType = topBull ? topBull.patternId : "TECHNICAL_SETUP";
-      const patternName = topBull ? topBull.patternName : "실시간 수급 변곡 패턴";
-
-      const reasoning = `[${marketType} 실시간 스캐너] ${evidenceList.slice(0, 3).join(", ")}.`;
 
       results.push({
         symbol: stock.symbol,
@@ -278,19 +188,20 @@ export class GlobalRealtimeScannerV192 {
         exchange,
         currentPrice: price,
         priceChange24hPct: +changePct.toFixed(2),
-        volatilityScore: Math.min(99, Math.round(Math.abs(changePct) * 3 + 50)),
+        volatilityScore: Math.min(100, Math.round(Math.abs(changePct) * 3)),
         aiMatchScore: setupScore,
-        expectedReturnPct: planningYieldPct,
-        planningObjectiveNote: atr != null ? "ATR 기반 2R 계획목표 (수익 보장 수치 아님)" : "ATR 미산출 (계획목표 미제공)",
-        patternType,
-        patternName,
-        targetPrice,
-        stopLoss,
-        holdingPeriod: "1일~5일",
-        riskRewardRatio: rrRatio,
+        expectedReturnPct: expectedReturnPct == null ? null : +expectedReturnPct.toFixed(2),
+        planningObjectiveNote: atr != null ? "실제 OHLCV ATR 기반 계획 목표" : "ATR 데이터 부족: 목표 미제공",
+        patternType: topBull?.patternId || "EVIDENCE_SETUP",
+        patternName: topBull?.patternName || "증거 기반 셋업",
+        targetPrice: targetPrice == null ? null : +targetPrice.toFixed(2),
+        stopLoss: stopLoss == null ? null : +stopLoss.toFixed(2),
+        holdingPeriod: "미정",
+        riskRewardRatio: stopLoss != null && targetPrice != null && price > stopLoss
+          ? `1 : ${((targetPrice - price) / (price - stopLoss)).toFixed(1)}` : "N/A",
         volumeIncreaseRatio: rvol,
         rsiIndicator: rsi,
-        reasoning,
+        reasoning: evidenceList.join(" · "),
         grade,
         setupScore,
         dataStatus: "REALTIME_VERIFIED",
@@ -308,7 +219,7 @@ export class GlobalRealtimeScannerV192 {
           breakoutConfirmed: vwap != null ? price >= vwap : null,
           chaseRisk,
           exhaustionRisk,
-          evidenceCoveragePct: Math.round(coverageRatio * 100)
+          evidenceCoveragePct: Math.round((possible / 100) * 100)
         }
       });
     }
@@ -318,9 +229,6 @@ export class GlobalRealtimeScannerV192 {
   }
 }
 
-/**
- * Top-level Scan Execution Function for AI Hot List V19.2
- */
 export async function scanGlobalRealtimeHotListV192(options?: {
   marketFilter?: "ALL" | "KOREA" | "US" | "UPBIT" | "BTC" | "CRYPTO";
   exchangeFilter?: string;
@@ -329,62 +237,48 @@ export async function scanGlobalRealtimeHotListV192(options?: {
   minObjectivePct?: number;
   minSetupScore?: number;
 }): Promise<ScanResultV192> {
+  // server.ts imports this legacy name. RC6 transparently routes Node execution to the V20 server hub.
+  if (typeof window === "undefined") {
+    const { scanServerGlobalRealtimeHotListV20 } = await import("../../server/v20/scanServerGlobalRealtimeHotListV20");
+    return scanServerGlobalRealtimeHotListV20(options);
+  }
+
   const normalizedMarket = GlobalRealtimeScannerV192.normalizeMarketInput(options?.marketFilter);
-  const exchangeFilter = options?.exchangeFilter || "ALL";
-  const patternFilter = options?.patternFilter || "ALL";
-  const minObjectivePct = options?.minObjectivePct ?? options?.minYield ?? 0;
-  const minSetupScore = options?.minSetupScore ?? 50;
-
   const allStocks = getAllStocks();
+  const scanOpts = {
+    exchangeFilter: options?.exchangeFilter || "ALL",
+    patternFilter: options?.patternFilter || "ALL",
+    minObjectivePct: options?.minObjectivePct ?? options?.minYield ?? 0,
+    minSetupScore: options?.minSetupScore ?? 50
+  };
+  const hotItems: HotListItemV192[] = [];
+  const marketCounts = { KOREA: 0, US: 0, UPBIT: 0 };
+  let scannedTotal = 0;
 
-  const krStocks = allStocks.filter(s => s.market === "KOSPI" || s.market === "KOSDAQ");
-  const usStocks = allStocks.filter(s => s.market === "US");
-  const upbitStocks = allStocks.filter(s => s.market === "UPBIT");
-
-  let hotItems: HotListItemV192[] = [];
-  let totalScanned = 0;
-
-  let krCount = 0;
-  let usCount = 0;
-  let upbitCount = 0;
-
-  const scanOpts = { exchangeFilter, patternFilter, minObjectivePct, minSetupScore };
+  const run = (market: "KOREA" | "US" | "UPBIT", stocks: LiveStockItem[]) => {
+    const res = GlobalRealtimeScannerV192.scanMarket(stocks, market, scanOpts);
+    hotItems.push(...res.items);
+    marketCounts[market] = res.scannedCount;
+    scannedTotal += res.scannedCount;
+  };
 
   if (normalizedMarket === "ALL" || normalizedMarket === "KOREA") {
-    const krRes = GlobalRealtimeScannerV192.scanMarket(krStocks, "KOREA", scanOpts);
-    hotItems.push(...krRes.items);
-    krCount = krRes.scannedCount;
-    totalScanned += krRes.scannedCount;
+    run("KOREA", allStocks.filter(s => s.market === "KOSPI" || s.market === "KOSDAQ"));
   }
-
   if (normalizedMarket === "ALL" || normalizedMarket === "US") {
-    const usRes = GlobalRealtimeScannerV192.scanMarket(usStocks, "US", scanOpts);
-    hotItems.push(...usRes.items);
-    usCount = usRes.scannedCount;
-    totalScanned += usRes.scannedCount;
+    run("US", allStocks.filter(s => s.market === "US"));
   }
-
   if (normalizedMarket === "ALL" || normalizedMarket === "UPBIT") {
-    const upbitRes = GlobalRealtimeScannerV192.scanMarket(upbitStocks, "UPBIT", scanOpts);
-    hotItems.push(...upbitRes.items);
-    upbitCount = upbitRes.scannedCount;
-    totalScanned += upbitRes.scannedCount;
+    run("UPBIT", allStocks.filter(s => s.market === "UPBIT"));
   }
 
   hotItems.sort((a, b) => b.setupScore - a.setupScore);
-
-  const dataStatus = hotItems.length > 0 ? "REALTIME_VERIFIED" : "NO_DATA";
-
   return {
     scanTimestamp: new Date().toLocaleTimeString("ko-KR"),
-    scannedTotal: totalScanned,
+    scannedTotal,
     filteredCount: hotItems.length,
-    dataStatus,
-    marketCounts: {
-      KOREA: krCount,
-      US: usCount,
-      UPBIT: upbitCount
-    },
+    dataStatus: hotItems.length ? "REALTIME_VERIFIED" : "NO_DATA",
+    marketCounts,
     hotItems
   };
 }
