@@ -1,12 +1,14 @@
 // ----------------------------------------------------------------------
-// SERVER KIS REALTIME CLIENT V20 (AISTOCK FINAL RC)
-// Upstream WebSocket client for KIS Domestic & Overseas Market Data + Fills
+// SERVER KIS REALTIME CLIENT V20 (AISTOCK RC6)
+// Upstream WebSocket client for KIS domestic/overseas market data + fills
 // ----------------------------------------------------------------------
 
 import WebSocket from "ws";
 import { KISExecutionNoticeParserV20 } from "./KISExecutionNoticeParserV20";
 import { brokerExecutionTruthBusV20 } from "./BrokerExecutionTruthBusV20";
 import { KISOverseasParserV20 } from "./KISOverseasParserV20";
+import { serverRealtimeMarketHubV20 } from "./ServerRealtimeMarketHubV20";
+import { H0STCNT0 } from "../../src/services/KISRealtimeFieldSchema";
 
 export interface KISRealtimeClientConfig {
   appKey: string;
@@ -14,151 +16,257 @@ export interface KISRealtimeClientConfig {
   approvalKey: string;
   htsId?: string;
   isPaper?: boolean;
+  overseasRealtimeEntitled?: boolean;
 }
+
+export interface KISRealtimeStatusV20 {
+  connected: boolean;
+  connecting: boolean;
+  paper: boolean;
+  subscriptions: string[];
+  lastMessageAt: number | null;
+  reconnectCount: number;
+  executionNoticeSubscribed: boolean;
+}
+
+type MarketTrId = "H0STCNT0" | "HDFSCNT0";
 
 export class ServerKISRealtimeClientV20 {
   private ws: WebSocket | null = null;
-  private config: KISRealtimeClientConfig;
-  private isConnected: boolean = false;
+  private readonly config: KISRealtimeClientConfig;
+  private isConnected = false;
+  /** Desired subscriptions survive disconnects and are replayed after reconnect. */
   private subscribedSymbols: Set<string> = new Set();
-  private secretKeyHex: string = "";
-  private secretIvHex: string = "";
+  private secretKeyHex = "";
+  private secretIvHex = "";
+  private reconnectTimer: NodeJS.Timeout | null = null;
+  private closedIntentionally = false;
+  private lastMessageAt: number | null = null;
+  private reconnectCount = 0;
+  private executionNoticeSubscribed = false;
 
   constructor(config: KISRealtimeClientConfig) {
     this.config = config;
   }
 
   public connect(): void {
-    if (this.ws) return;
+    if (this.ws && (this.ws.readyState === WebSocket.CONNECTING || this.ws.readyState === WebSocket.OPEN)) return;
 
+    this.closedIntentionally = false;
     const domain = this.config.isPaper
       ? "ops.koreainvestment.com:31000"
       : "ops.koreainvestment.com:21000";
-
     const url = `ws://${domain}/tryitout/H0STCNT0`;
 
     try {
       this.ws = new WebSocket(url);
-
       this.ws.on("open", () => {
         this.isConnected = true;
-        console.log("[ServerKISRealtimeClientV20] KIS WebSocket connected.");
-        if (this.config.htsId) {
-          this.subscribeExecutionNotice(this.config.htsId);
-        }
+        this.executionNoticeSubscribed = false;
+        this.flushSubscriptions();
+        if (this.config.htsId) this.subscribeExecutionNotice(this.config.htsId);
       });
 
       this.ws.on("message", (data: WebSocket.Data) => {
+        this.lastMessageAt = Date.now();
         this.handleMessage(data.toString());
       });
 
       this.ws.on("close", () => {
         this.isConnected = false;
+        this.executionNoticeSubscribed = false;
         this.ws = null;
-        console.log("[ServerKISRealtimeClientV20] KIS WebSocket closed.");
+        if (!this.closedIntentionally) this.scheduleReconnect();
       });
 
-      this.ws.on("error", (err) => {
-        console.error("[ServerKISRealtimeClientV20] KIS WebSocket error:", err);
+      this.ws.on("error", () => {
+        // close event owns reconnect scheduling
       });
-    } catch (err) {
-      console.error("[ServerKISRealtimeClientV20] Connection initialization failed:", err);
+    } catch (_) {
+      this.ws = null;
+      this.scheduleReconnect();
     }
   }
 
-  public subscribeSymbol(symbol: string, trId: "H0STCNT0" | "HDFSCNT0" = "H0STCNT0"): void {
-    if (!this.ws || !this.isConnected) return;
+  public subscribeSymbol(symbol: string, trId: MarketTrId = "H0STCNT0"): void {
+    const key = symbol.trim().toUpperCase();
+    if (!key) return;
+    this.subscribedSymbols.add(`${trId}:${key}`);
+    if (this.isConnected) this.sendSubscription(trId, key);
+  }
 
-    const req = {
-      header: {
-        approval_key: this.config.approvalKey,
-        custtype: "P",
-        tr_type: "1",
-        "content-type": "utf-8"
-      },
-      body: {
-        input: {
-          tr_id: trId,
-          tr_key: symbol
-        }
-      }
-    };
-
-    this.ws.send(JSON.stringify(req));
-    this.subscribedSymbols.add(`${trId}:${symbol}`);
+  public unsubscribeSymbol(symbol: string, trId: MarketTrId = "H0STCNT0"): void {
+    const key = symbol.trim().toUpperCase();
+    this.subscribedSymbols.delete(`${trId}:${key}`);
+    if (!this.ws || !this.isConnected || !key) return;
+    this.ws.send(JSON.stringify(this.subscriptionPayload(trId, key, "2")));
   }
 
   public subscribeExecutionNotice(htsId: string): void {
     if (!this.ws || !this.isConnected || !htsId) return;
+    const trId = this.config.isPaper ? "H0STCNI9" : "H0STCNI0";
+    this.ws.send(JSON.stringify(this.subscriptionPayload(trId, htsId, "1")));
+    this.executionNoticeSubscribed = true;
+  }
 
-    const req = {
+  public getStatus(): KISRealtimeStatusV20 {
+    return {
+      connected: this.isConnected && this.ws?.readyState === WebSocket.OPEN,
+      connecting: this.ws?.readyState === WebSocket.CONNECTING,
+      paper: Boolean(this.config.isPaper),
+      subscriptions: Array.from(this.subscribedSymbols),
+      lastMessageAt: this.lastMessageAt,
+      reconnectCount: this.reconnectCount,
+      executionNoticeSubscribed: this.executionNoticeSubscribed
+    };
+  }
+
+  private flushSubscriptions(): void {
+    for (const item of this.subscribedSymbols) {
+      const splitAt = item.indexOf(":");
+      const trId = item.slice(0, splitAt) as MarketTrId;
+      const key = item.slice(splitAt + 1);
+      if (key) this.sendSubscription(trId, key);
+    }
+  }
+
+  private sendSubscription(trId: MarketTrId, key: string): void {
+    if (!this.ws || !this.isConnected || this.ws.readyState !== WebSocket.OPEN) return;
+    this.ws.send(JSON.stringify(this.subscriptionPayload(trId, key, "1")));
+  }
+
+  private subscriptionPayload(trId: string, trKey: string, trType: "1" | "2") {
+    return {
       header: {
         approval_key: this.config.approvalKey,
         custtype: "P",
-        tr_type: "1",
+        tr_type: trType,
         "content-type": "utf-8"
       },
-      body: {
-        input: {
-          tr_id: "H0STCNI0",
-          tr_key: htsId
-        }
-      }
+      body: { input: { tr_id: trId, tr_key: trKey } }
     };
-
-    this.ws.send(JSON.stringify(req));
-    console.log(`[ServerKISRealtimeClientV20] Subscribed to execution notice H0STCNI0 for HTS ID: ${htsId}`);
   }
 
   private handleMessage(msg: string): void {
     if (!msg) return;
 
-    // JSON responses (handshake or AES key info)
     if (msg.startsWith("{")) {
       try {
         const parsed = JSON.parse(msg);
-        if (parsed.header && parsed.header.tr_id === "H0STCNI0" && parsed.body && parsed.body.output) {
-          if (parsed.body.output.key && parsed.body.output.iv) {
-            this.secretKeyHex = parsed.body.output.key;
-            this.secretIvHex = parsed.body.output.iv;
-            console.log("[ServerKISRealtimeClientV20] AES Key/IV received for execution notice.");
-          }
+        const jsonTrId = String(parsed?.header?.tr_id || "");
+        if (jsonTrId === "PINGPONG") {
+          try { this.ws?.pong(); } catch (_) {}
+          return;
         }
-      } catch (e) {
-        // Not JSON
+
+        const executionIds = new Set(["H0STCNI0", "H0STCNI9", "H0GSCNI0", "H0GSCNI9"]);
+        if (executionIds.has(jsonTrId) && parsed?.body?.output?.key && parsed?.body?.output?.iv) {
+          this.secretKeyHex = String(parsed.body.output.key);
+          this.secretIvHex = String(parsed.body.output.iv);
+        }
+      } catch (_) {
+        // Ignore malformed control packet.
       }
       return;
     }
 
-    // Pipe/Caret separated real-time feed data
     const parts = msg.split("|");
     if (parts.length < 4) return;
-
     const trId = parts[1];
-    const dataBody = parts[3];
+    const dataBody = parts.slice(3).join("|");
 
-    if (trId === "H0STCNI0" || trId === "H0GSCNI0") {
+    if (["H0STCNI0", "H0STCNI9", "H0GSCNI0", "H0GSCNI9"].includes(trId)) {
       let payload = dataBody;
       if (this.secretKeyHex && this.secretIvHex) {
         payload = KISExecutionNoticeParserV20.decryptPayload(dataBody, this.secretKeyHex, this.secretIvHex);
       }
       const notice = KISExecutionNoticeParserV20.parse(trId, payload);
-      if (notice && notice.isExecuted) {
-        brokerExecutionTruthBusV20.publish(notice);
-      }
-    } else if (trId === "HDFSCNT0") {
-      const parsedOverseas = KISOverseasParserV20.parseHDFSCNT0(dataBody, false);
-      if (parsedOverseas) {
-        // Validated overseas tick
-      }
+      if (notice?.isExecuted) brokerExecutionTruthBusV20.publish(notice);
+      return;
+    }
+
+    if (trId === "H0STCNT0") {
+      this.handleDomesticTrade(dataBody);
+      return;
+    }
+
+    if (trId === "HDFSCNT0") {
+      const tick = KISOverseasParserV20.parseHDFSCNT0(
+        dataBody,
+        Boolean(this.config.overseasRealtimeEntitled)
+      );
+      if (!tick) return;
+      serverRealtimeMarketHubV20.updateQuote(
+        tick.symbol,
+        tick.symbol,
+        "US",
+        tick.lastPrice,
+        0,
+        tick.ratePct,
+        tick.totalVolume,
+        tick.totalAmount,
+        "KIS_HDFSCNT0",
+        tick.grade,
+        tick.askPrice,
+        tick.bidPrice,
+        tick.executedVolume
+      );
     }
   }
 
+  private handleDomesticTrade(dataBody: string): void {
+    const f = dataBody.split("^");
+    if (f.length <= H0STCNT0.ACC_TRADE_VALUE) return;
+
+    const symbol = String(f[H0STCNT0.STOCK_CODE] || "").trim();
+    const price = Number(f[H0STCNT0.CURRENT_PRICE] || 0);
+    if (!symbol || !Number.isFinite(price) || price <= 0) return;
+
+    const changeAmount = Number(f[H0STCNT0.PRICE_CHANGE] || 0);
+    const changePct = Number(f[H0STCNT0.PRICE_CHANGE_RATE] || 0);
+    const executionVolume = Math.abs(Number(f[H0STCNT0.EXECUTION_VOLUME] || 0));
+    const cumulativeVolume = Number(f[H0STCNT0.ACC_VOLUME] || 0);
+    const cumulativeTradeValue = Number(f[H0STCNT0.ACC_TRADE_VALUE] || 0);
+    const ask = Number(f[H0STCNT0.ASK_PRICE1] || 0);
+    const bid = Number(f[H0STCNT0.BID_PRICE1] || 0);
+
+    serverRealtimeMarketHubV20.updateQuote(
+      symbol,
+      symbol,
+      "KOREA",
+      price,
+      changeAmount,
+      changePct,
+      cumulativeVolume,
+      cumulativeTradeValue,
+      "KIS_H0STCNT0",
+      "EXECUTION_GRADE",
+      ask,
+      bid,
+      executionVolume
+    );
+  }
+
+  private scheduleReconnect(): void {
+    if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
+    this.reconnectCount += 1;
+    this.reconnectTimer = setTimeout(() => {
+      this.reconnectTimer = null;
+      this.connect();
+    }, 5000);
+  }
+
   public disconnect(): void {
+    this.closedIntentionally = true;
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = null;
+    }
     if (this.ws) {
       this.ws.close();
       this.ws = null;
     }
     this.isConnected = false;
+    this.executionNoticeSubscribed = false;
   }
 }
