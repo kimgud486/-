@@ -35,7 +35,6 @@ export class ServerKISRealtimeClientV20 {
   private ws: WebSocket | null = null;
   private readonly config: KISRealtimeClientConfig;
   private isConnected = false;
-  /** Desired subscriptions survive disconnects and are replayed after reconnect. */
   private subscribedSymbols: Set<string> = new Set();
   private secretKeyHex = "";
   private secretIvHex = "";
@@ -51,7 +50,6 @@ export class ServerKISRealtimeClientV20 {
 
   public connect(): void {
     if (this.ws && (this.ws.readyState === WebSocket.CONNECTING || this.ws.readyState === WebSocket.OPEN)) return;
-
     this.closedIntentionally = false;
     const domain = this.config.isPaper
       ? "ops.koreainvestment.com:31000"
@@ -66,22 +64,17 @@ export class ServerKISRealtimeClientV20 {
         this.flushSubscriptions();
         if (this.config.htsId) this.subscribeExecutionNotice(this.config.htsId);
       });
-
       this.ws.on("message", (data: WebSocket.Data) => {
         this.lastMessageAt = Date.now();
         this.handleMessage(data.toString());
       });
-
       this.ws.on("close", () => {
         this.isConnected = false;
         this.executionNoticeSubscribed = false;
         this.ws = null;
         if (!this.closedIntentionally) this.scheduleReconnect();
       });
-
-      this.ws.on("error", () => {
-        // close event owns reconnect scheduling
-      });
+      this.ws.on("error", () => {});
     } catch (_) {
       this.ws = null;
       this.scheduleReconnect();
@@ -149,7 +142,6 @@ export class ServerKISRealtimeClientV20 {
 
   private handleMessage(msg: string): void {
     if (!msg) return;
-
     if (msg.startsWith("{")) {
       try {
         const parsed = JSON.parse(msg);
@@ -158,15 +150,12 @@ export class ServerKISRealtimeClientV20 {
           try { this.ws?.pong(); } catch (_) {}
           return;
         }
-
         const executionIds = new Set(["H0STCNI0", "H0STCNI9", "H0GSCNI0", "H0GSCNI9"]);
         if (executionIds.has(jsonTrId) && parsed?.body?.output?.key && parsed?.body?.output?.iv) {
           this.secretKeyHex = String(parsed.body.output.key);
           this.secretIvHex = String(parsed.body.output.iv);
         }
-      } catch (_) {
-        // Ignore malformed control packet.
-      }
+      } catch (_) {}
       return;
     }
 
@@ -191,10 +180,7 @@ export class ServerKISRealtimeClientV20 {
     }
 
     if (trId === "HDFSCNT0") {
-      const tick = KISOverseasParserV20.parseHDFSCNT0(
-        dataBody,
-        Boolean(this.config.overseasRealtimeEntitled)
-      );
+      const tick = KISOverseasParserV20.parseHDFSCNT0(dataBody, Boolean(this.config.overseasRealtimeEntitled));
       if (!tick) return;
       serverRealtimeMarketHubV20.updateQuote(
         tick.symbol,
@@ -218,17 +204,17 @@ export class ServerKISRealtimeClientV20 {
     const f = dataBody.split("^");
     if (f.length <= H0STCNT0.ACC_TRADE_VALUE) return;
 
-    const symbol = String(f[H0STCNT0.STOCK_CODE] || "").trim();
-    const price = Number(f[H0STCNT0.CURRENT_PRICE] || 0);
+    const symbol = String(f[H0STCNT0.SYMBOL] || "").trim();
+    const price = Number(f[H0STCNT0.PRICE] || 0);
     if (!symbol || !Number.isFinite(price) || price <= 0) return;
 
-    const changeAmount = Number(f[H0STCNT0.PRICE_CHANGE] || 0);
-    const changePct = Number(f[H0STCNT0.PRICE_CHANGE_RATE] || 0);
-    const executionVolume = Math.abs(Number(f[H0STCNT0.EXECUTION_VOLUME] || 0));
+    const changeAmount = Number(f[H0STCNT0.PRDY_CHANGE] || 0);
+    const changePct = Number(f[H0STCNT0.CHANGE_RATE] || 0);
+    const executionVolume = Math.abs(Number(f[H0STCNT0.TRADE_VOLUME] || 0));
     const cumulativeVolume = Number(f[H0STCNT0.ACC_VOLUME] || 0);
     const cumulativeTradeValue = Number(f[H0STCNT0.ACC_TRADE_VALUE] || 0);
-    const ask = Number(f[H0STCNT0.ASK_PRICE1] || 0);
-    const bid = Number(f[H0STCNT0.BID_PRICE1] || 0);
+    const ask = Number(f[H0STCNT0.ASK1] || 0);
+    const bid = Number(f[H0STCNT0.BID1] || 0);
 
     serverRealtimeMarketHubV20.updateQuote(
       symbol,
