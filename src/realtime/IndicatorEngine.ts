@@ -3,25 +3,26 @@ import type { LiveCandle, IndicatorSnapshot } from "./types";
 export class IndicatorEngine {
   /**
    * Calculates standard EMA series for an array of numbers.
+   * The returned array is aligned 1:1 with the source values.
    */
   public static calcEMASeries(values: number[], period: number): number[] {
-    if (values.length < period) return [];
-
-    const result: number[] = [];
-    const k = 2 / (period + 1);
-
-    const initialSMA = values.slice(0, period).reduce((a, b) => a + b, 0) / period;
-
-    for (let i = 0; i < period - 1; i++) {
-      result.push(Number.NaN);
+    if (!Number.isInteger(period) || period <= 0) {
+      return new Array<number>(values.length).fill(Number.NaN);
+    }
+    if (values.length < period) {
+      return new Array<number>(values.length).fill(Number.NaN);
     }
 
-    result.push(initialSMA);
+    const result = new Array<number>(values.length).fill(Number.NaN);
+    const k = 2 / (period + 1);
+    const initialSMA = values.slice(0, period).reduce((a, b) => a + b, 0) / period;
+
+    result[period - 1] = initialSMA;
     let ema = initialSMA;
 
     for (let i = period; i < values.length; i++) {
       ema = values[i] * k + ema * (1 - k);
-      result.push(ema);
+      result[i] = ema;
     }
 
     return result;
@@ -110,6 +111,144 @@ export class IndicatorEngine {
       const avgVol = baseline.reduce((sum, v) => sum + v, 0) / period;
       if (avgVol <= 0) continue;
       result[i] = Number((currentVol / avgVol).toFixed(2));
+    }
+
+    return result;
+  }
+
+  /**
+   * Wilder RSI series aligned to the source prices.
+   * Values before the first complete lookback window remain NaN.
+   */
+  public static calcRSISeries(prices: number[], period = 14): number[] {
+    const result = new Array<number>(prices.length).fill(Number.NaN);
+    if (!Number.isInteger(period) || period <= 0 || prices.length < period + 1) {
+      return result;
+    }
+
+    let gains = 0;
+    let losses = 0;
+
+    for (let i = 1; i <= period; i++) {
+      const diff = prices[i] - prices[i - 1];
+      if (diff >= 0) gains += diff;
+      else losses -= diff;
+    }
+
+    let avgGain = gains / period;
+    let avgLoss = losses / period;
+
+    const toRsi = (gain: number, loss: number) => {
+      if (loss === 0) return 100;
+      if (gain === 0) return 0;
+      const rs = gain / loss;
+      return Math.round((100 - 100 / (1 + rs)) * 100) / 100;
+    };
+
+    result[period] = toRsi(avgGain, avgLoss);
+
+    for (let i = period + 1; i < prices.length; i++) {
+      const diff = prices[i] - prices[i - 1];
+
+      if (diff >= 0) {
+        avgGain = (avgGain * (period - 1) + diff) / period;
+        avgLoss = (avgLoss * (period - 1)) / period;
+      } else {
+        avgGain = (avgGain * (period - 1)) / period;
+        avgLoss = (avgLoss * (period - 1) - diff) / period;
+      }
+
+      result[i] = toRsi(avgGain, avgLoss);
+    }
+
+    return result;
+  }
+
+  /**
+   * MACD (12/26/9 by default) series aligned to the source prices.
+   * `hist` is MACD - signal.
+   */
+  public static calcMACDSeries(
+    prices: number[],
+    fastPeriod = 12,
+    slowPeriod = 26,
+    signalPeriod = 9
+  ): { macd: number[]; signal: number[]; hist: number[] } {
+    const macd = new Array<number>(prices.length).fill(Number.NaN);
+    const signal = new Array<number>(prices.length).fill(Number.NaN);
+    const hist = new Array<number>(prices.length).fill(Number.NaN);
+
+    if (
+      !Number.isInteger(fastPeriod) ||
+      !Number.isInteger(slowPeriod) ||
+      !Number.isInteger(signalPeriod) ||
+      fastPeriod <= 0 ||
+      slowPeriod <= fastPeriod ||
+      signalPeriod <= 0 ||
+      prices.length < slowPeriod
+    ) {
+      return { macd, signal, hist };
+    }
+
+    const fast = this.calcEMASeries(prices, fastPeriod);
+    const slow = this.calcEMASeries(prices, slowPeriod);
+    const compactMacd: number[] = [];
+    const compactIndexes: number[] = [];
+
+    for (let i = slowPeriod - 1; i < prices.length; i++) {
+      if (!Number.isFinite(fast[i]) || !Number.isFinite(slow[i])) continue;
+      const value = fast[i] - slow[i];
+      macd[i] = Number(value.toFixed(4));
+      compactMacd.push(value);
+      compactIndexes.push(i);
+    }
+
+    const compactSignal = this.calcEMASeries(compactMacd, signalPeriod);
+
+    for (let i = 0; i < compactSignal.length; i++) {
+      const sourceIndex = compactIndexes[i];
+      const signalValue = compactSignal[i];
+      if (!Number.isFinite(signalValue) || sourceIndex === undefined) continue;
+
+      signal[sourceIndex] = Number(signalValue.toFixed(4));
+      const histValue = macd[sourceIndex] - signal[sourceIndex];
+      hist[sourceIndex] = Number(histValue.toFixed(4));
+    }
+
+    return { macd, signal, hist };
+  }
+
+  /**
+   * Wilder ATR series aligned to the candle array.
+   * The first valid value appears at candle index `period`.
+   */
+  public static calcATRSeries(candles: LiveCandle[], period = 14): number[] {
+    const result = new Array<number>(candles.length).fill(Number.NaN);
+    if (!Number.isInteger(period) || period <= 0 || candles.length < period + 1) {
+      return result;
+    }
+
+    const trueRanges = new Array<number>(candles.length).fill(Number.NaN);
+
+    for (let i = 1; i < candles.length; i++) {
+      const c = candles[i];
+      const prevClose = candles[i - 1].close;
+      trueRanges[i] = Math.max(
+        c.high - c.low,
+        Math.abs(c.high - prevClose),
+        Math.abs(c.low - prevClose)
+      );
+    }
+
+    let atr = trueRanges
+      .slice(1, period + 1)
+      .reduce((sum, value) => sum + value, 0) / period;
+
+    result[period] = Math.round(atr * 100) / 100;
+
+    for (let i = period + 1; i < candles.length; i++) {
+      atr = (atr * (period - 1) + trueRanges[i]) / period;
+      result[i] = Math.round(atr * 100) / 100;
     }
 
     return result;
@@ -257,91 +396,31 @@ export class IndicatorEngine {
   }
 
   public static calcRSI(prices: number[], period = 14): number {
-    if (prices.length < period + 1) return Number.NaN;
-
-    let gains = 0;
-    let losses = 0;
-    for (let i = 1; i <= period; i++) {
-      const diff = prices[i] - prices[i - 1];
-      if (diff >= 0) gains += diff;
-      else losses -= diff;
-    }
-
-    let avgGain = gains / period;
-    let avgLoss = losses / period;
-
-    for (let i = period + 1; i < prices.length; i++) {
-      const diff = prices[i] - prices[i - 1];
-      if (diff >= 0) {
-        avgGain = (avgGain * (period - 1) + diff) / period;
-        avgLoss = (avgLoss * (period - 1)) / period;
-      } else {
-        avgGain = (avgGain * (period - 1)) / period;
-        avgLoss = (avgLoss * (period - 1) - diff) / period;
-      }
-    }
-
-    if (avgLoss === 0) return 100;
-    const rs = avgGain / avgLoss;
-    return Math.round((100 - 100 / (1 + rs)) * 100) / 100;
+    const series = this.calcRSISeries(prices, period);
+    if (series.length === 0) return Number.NaN;
+    const value = series[series.length - 1];
+    return Number.isFinite(value) ? value : Number.NaN;
   }
 
   public static calcMACD(prices: number[]): { macd: number; signal: number; hist: number } {
-    if (prices.length < 35) {
+    const series = this.calcMACDSeries(prices, 12, 26, 9);
+    if (prices.length === 0) {
       return { macd: Number.NaN, signal: Number.NaN, hist: Number.NaN };
     }
 
-    const ema12Series = this.calcEMASeries(prices, 12);
-    const ema26Series = this.calcEMASeries(prices, 26);
-
-    const macdSeries: number[] = [];
-
-    for (let i = 25; i < prices.length; i++) {
-      const fast = ema12Series[i];
-      const slow = ema26Series[i];
-      if (Number.isFinite(fast) && Number.isFinite(slow)) {
-        macdSeries.push(fast - slow);
-      }
-    }
-
-    if (macdSeries.length < 9) {
-      return { macd: Number.NaN, signal: Number.NaN, hist: Number.NaN };
-    }
-
-    const signalSeries = this.calcEMASeries(macdSeries, 9);
-
-    const macd = macdSeries[macdSeries.length - 1];
-    const signal = signalSeries[signalSeries.length - 1];
-    const hist = macd - signal;
-
+    const last = prices.length - 1;
     return {
-      macd: Number.isFinite(macd) ? Number(macd.toFixed(4)) : Number.NaN,
-      signal: Number.isFinite(signal) ? Number(signal.toFixed(4)) : Number.NaN,
-      hist: Number.isFinite(hist) ? Number(hist.toFixed(4)) : Number.NaN
+      macd: Number.isFinite(series.macd[last]) ? series.macd[last] : Number.NaN,
+      signal: Number.isFinite(series.signal[last]) ? series.signal[last] : Number.NaN,
+      hist: Number.isFinite(series.hist[last]) ? series.hist[last] : Number.NaN
     };
   }
 
   public static calcATR(candles: LiveCandle[], period = 14): number {
-    if (candles.length < period + 1) return Number.NaN;
-
-    const trs: number[] = [];
-    for (let i = 1; i < candles.length; i++) {
-      const c = candles[i];
-      const prevClose = candles[i - 1].close;
-      const tr = Math.max(
-        c.high - c.low,
-        Math.abs(c.high - prevClose),
-        Math.abs(c.low - prevClose)
-      );
-      trs.push(tr);
-    }
-
-    let atr = trs.slice(0, period).reduce((a, b) => a + b, 0) / period;
-    for (let i = period; i < trs.length; i++) {
-      atr = (atr * (period - 1) + trs[i]) / period;
-    }
-
-    return Math.round(atr * 100) / 100;
+    const series = this.calcATRSeries(candles, period);
+    if (series.length === 0) return Number.NaN;
+    const value = series[series.length - 1];
+    return Number.isFinite(value) ? value : Number.NaN;
   }
 
   public static calculateSessionVWAP(
