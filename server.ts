@@ -1184,27 +1184,11 @@ app.get("/api/market/naver-batch", async (req, res) => {
     }
   } catch (err) {}
 
-  // Tier 3: Internal Universe fallback to ensure 100% endpoint reliability
-  const universeFallback = codeList.map((code) => {
-    const preset = DEMO_STOCKS.find((p) => p.symbol === code);
-    const pPrice = preset?.price || 50000;
-    return {
-      itemCode: code,
-      stockName: preset?.name || `종목_${code}`,
-      closePrice: String(pPrice),
-      closePriceRaw: String(pPrice),
-      compareToPreviousClosePrice: "500",
-      compareToPreviousClosePriceRaw: "500",
-      fluctuationsRatio: "1.00",
-      fluctuationsRatioRaw: "1.00",
-      compareToPreviousPrice: { code: "2", name: "RISING" },
-      stockExchangeType: { nameKor: "코스피" },
-      marketValueFull: "실시간 연동",
-      accumulatedTradingVolume: "1,000,000"
-    };
+  return res.status(503).json({
+    datas: [],
+    dataStatus: "NO_DATA",
+    message: "Realtime market providers unavailable. No synthetic fallback was generated."
   });
-
-  return res.json({ datas: universeFallback });
 });
 
 let cachedUpbitMarkets: { market: string; korean_name: string; english_name: string }[] = [];
@@ -1292,7 +1276,7 @@ app.get(["/api/stocks", "/api/stocks/search"], async (req, res) => {
       );
       return res.json(liveStocks);
     } catch (e) {
-      return res.json(DEMO_STOCKS);
+      return res.status(503).json([]);
     }
   }
 
@@ -1514,7 +1498,7 @@ app.get("/api/stocks/:symbol", async (req, res) => {
       symbol: resolvedSymbol,
       name: resolvedName,
       market: marketType,
-      price: marketType === "KOREA" ? 50000 : marketType === "BTC" ? 100000000 : 100,
+      price: 0,
       change: 0,
       changePct: 0,
       marketCap: "실시간 연동",
@@ -2829,7 +2813,10 @@ app.get("/api/realtime/market-close-prediction/:symbol", async (req, res) => {
   const { symbol } = req.params;
   try {
     const quote = await fetchAccurateKoreanQuote(symbol, symbol);
-    const basePrice = quote.price > 0 ? quote.price : 50000;
+    if (!quote.price || quote.price <= 0) {
+      return res.status(503).json({ success: false, dataStatus: "NO_DATA", message: "Verified quote unavailable" });
+    }
+    const basePrice = quote.price;
     const changePct = quote.changePct;
 
     // Technical calculations based on daily closed OHLCV
@@ -3460,78 +3447,29 @@ const autoTradeLogsStore: Array<{
   reasons: string[];
 }> = [];
 
-app.post("/api/autotrade/order", (req, res) => {
-  const payload = req.body as AutoTradeOrderRequest;
-  if (!payload || !payload.symbol || !payload.price) {
-    return res.status(400).json({ success: false, error: "Symbol and price are required for auto-trade order execution." });
-  }
-
-  const now = new Date();
-  const timeStr = now.toTimeString().split(" ")[0];
-  const qty = payload.quantity || Math.max(1, Math.floor(2000000 / payload.price));
-  const totalAmt = qty * payload.price;
-
-  // Validate Risk Ruleset
-  if (!payload.riskRulesetPassed || payload.masterScore < 80) {
-    const rejectedLog = {
-      id: `ord_rej_${Date.now()}`,
-      timestamp: timeStr,
-      symbol: payload.symbol,
-      name: payload.name || payload.symbol,
-      action: payload.action || 'BUY',
-      price: payload.price,
-      quantity: qty,
-      totalAmount: totalAmt,
-      masterScore: payload.masterScore || 0,
-      tier: payload.tier || 'BELOW_THRESHOLD',
-      status: 'REJECTED' as const,
-      brokerResponse: "🚨 리스크 관리 차단: 마스터 점수 80점 미만 또는 리스크 검증 실패로 주문 거부됨.",
-      reasons: payload.reasons || ["점수 미달"]
-    };
-    autoTradeLogsStore.unshift(rejectedLog);
-    return res.json({
-      success: false,
-      status: "REJECTED",
-      log: rejectedLog,
-      message: "주문이 리스크 게이트에 의해 차단되었습니다."
-    });
-  }
-
-  // Execute Simulated Order
-  const executedLog = {
-    id: `ord_exec_${Date.now()}`,
-    timestamp: timeStr,
-    symbol: payload.symbol,
-    name: payload.name || payload.symbol,
-    action: payload.action || 'BUY',
-    price: payload.price,
-    quantity: qty,
-    totalAmount: totalAmt,
-    masterScore: payload.masterScore,
-    tier: payload.tier || 'S_TIER',
-    status: 'EXECUTED' as const,
-    brokerResponse: `✅ [한국투자증권 REST API] 체결 완료 - 계좌 번호: 50123984-01 | 체결가: ${payload.price.toLocaleString()}원 | 수량: ${qty}주`,
-    reasons: payload.reasons || ["단일 뇌엔진 컨센서스 통과"]
-  };
-
-  autoTradeLogsStore.unshift(executedLog);
-  if (autoTradeLogsStore.length > 50) autoTradeLogsStore.pop();
-
-  return res.json({
-    success: true,
-    status: "EXECUTED",
-    log: executedLog,
-    message: "단일 마스터 뇌엔진 컨센서스 통과: 자율 주문이 성공적으로 체결되었습니다."
+app.post("/api/autotrade/order", (_req, res) => {
+  return res.status(410).json({
+    success: false,
+    status: "DISABLED_LEGACY_ENDPOINT",
+    message: "Legacy simulated auto-trade endpoint is disabled. Use /api/broker/v12/order after the verified LIVE gate."
   });
 });
 
-app.get("/api/autotrade/status", (req, res) => {
+app.get("/api/autotrade/status", (_req, res) => {
   return res.json({
-    active: true,
-    engineName: "Single Omni-Brain AI Master Intelligence Engine",
-    connectedBrokers: ["한국투자증권 (KIS)", "Upbit OpenAPI"],
-    totalExecutedOrders: autoTradeLogsStore.filter(l => l.status === 'EXECUTED').length,
-    logs: autoTradeLogsStore.slice(0, 20)
+    active: false,
+    legacyEndpointDisabled: true,
+    executionEndpoint: "/api/broker/v12/order",
+    runtime: brokerExecutionRuntimeBridgeV20.getStatus(),
+    message: "Legacy simulated execution is disabled. Runtime state is provider-derived."
+  });
+});
+
+app.get("/api/v20/realtime/status", (_req, res) => {
+  const status = brokerExecutionRuntimeBridgeV20.getStatus();
+  return res.json({
+    ...status,
+    timestamp: Date.now()
   });
 });
 
@@ -10827,7 +10765,7 @@ async function startServer() {
     const cachedList = Object.values(LIVE_PRICE_CACHE);
     ws.send(JSON.stringify({
       type: "TICKER_SNAPSHOT",
-      data: cachedList.length > 0 ? cachedList : DEMO_STOCKS,
+      data: cachedList,
       timestamp: Date.now()
     }));
 
