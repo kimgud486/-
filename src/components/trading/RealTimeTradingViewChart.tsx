@@ -52,7 +52,7 @@ export interface RealTimeTradingViewChartProps {
   className?: string;
 }
 
-const timeframeToMs = (tf: ChartTimeframe) => {
+const timeframeToMs = (tf: string) => {
   if (tf === "1m") return 60_000;
   if (tf === "3m") return 180_000;
   if (tf === "5m") return 300_000;
@@ -926,7 +926,8 @@ export const RealTimeTradingViewChart: React.FC<RealTimeTradingViewChartProps> =
       setCurrentPrice(tick.price);
       setLastTickTimeStr(new Date(tick.timestamp).toLocaleTimeString());
 
-      const res = aggregatorRef.current.update(tick);
+      const normalizedMarket = market === "UPBIT" || market === "CRYPTO" ? "CRYPTO" : market;
+      const res = aggregatorRef.current.update(tick, normalizedMarket);
       const time = res.candle.time as Time;
 
       candleSeriesRef.current?.update({
