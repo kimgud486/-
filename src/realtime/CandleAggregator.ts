@@ -74,12 +74,21 @@ export class CandleAggregator {
     }
   }
 
+  private static getTimeframeLabel(timeframe: Timeframe | number, fallback: Timeframe): Timeframe {
+    if (typeof timeframe === "string") return timeframe;
+    if (timeframe === 60_000) return "1m";
+    if (timeframe === 3 * 60_000) return "3m";
+    if (timeframe === 5 * 60_000) return "5m";
+    if (timeframe === 15 * 60_000) return "15m";
+    if (timeframe === 60 * 60_000) return "60m";
+    if (timeframe === 24 * 60 * 60_000) return "1D";
+    return fallback;
+  }
+
   public reset(timeframe?: Timeframe | number): void {
     if (timeframe !== undefined) {
       this.timeframeMs = CandleAggregator.getTimeframeMs(timeframe);
-      if (typeof timeframe === "string") {
-        this.timeframe = timeframe;
-      }
+      this.timeframe = CandleAggregator.getTimeframeLabel(timeframe, this.timeframe);
     }
     this.currentCandle = null;
     this.currentSlotMs = 0;
