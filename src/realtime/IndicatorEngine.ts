@@ -3,25 +3,252 @@ import type { LiveCandle, IndicatorSnapshot } from "./types";
 export class IndicatorEngine {
   /**
    * Calculates standard EMA series for an array of numbers.
+   * The returned array is aligned 1:1 with the source values.
    */
   public static calcEMASeries(values: number[], period: number): number[] {
-    if (values.length < period) return [];
-
-    const result: number[] = [];
-    const k = 2 / (period + 1);
-
-    const initialSMA = values.slice(0, period).reduce((a, b) => a + b, 0) / period;
-
-    for (let i = 0; i < period - 1; i++) {
-      result.push(Number.NaN);
+    if (!Number.isInteger(period) || period <= 0) {
+      return new Array<number>(values.length).fill(Number.NaN);
+    }
+    if (values.length < period) {
+      return new Array<number>(values.length).fill(Number.NaN);
     }
 
-    result.push(initialSMA);
+    const result = new Array<number>(values.length).fill(Number.NaN);
+    const k = 2 / (period + 1);
+    const initialSMA = values.slice(0, period).reduce((a, b) => a + b, 0) / period;
+
+    result[period - 1] = initialSMA;
     let ema = initialSMA;
 
     for (let i = period; i < values.length; i++) {
       ema = values[i] * k + ema * (1 - k);
-      result.push(ema);
+      result[i] = ema;
+    }
+
+    return result;
+  }
+
+  /**
+   * Session-aware VWAP series.
+   *
+   * Important chart truth rule:
+   * - Historical VWAP and live VWAP must use the SAME calculation.
+   * - VWAP resets when the session key changes.
+   * - No close-price fallback is injected when a session has no valid volume yet.
+   */
+  public static calculateSessionVWAPSeries(
+    candles: LiveCandle[],
+    getSessionKey?: (c: LiveCandle) => string
+  ): number[] {
+    if (!candles || candles.length === 0) return [];
+
+    const defaultKeyFn = (c: LiveCandle) => {
+      if (c.sessionKey) return c.sessionKey;
+      const tsMs = c.time > 1e11 ? c.time : c.time * 1000;
+      const date = new Date(tsMs);
+      return `${date.getUTCFullYear()}-${date.getUTCMonth() + 1}-${date.getUTCDate()}`;
+    };
+
+    const keyFn = getSessionKey || defaultKeyFn;
+    const result: number[] = [];
+
+    let currentSession = "";
+    let cumulativeVolume = 0;
+    let cumulativePV = 0;
+
+    for (const candle of candles) {
+      const key = keyFn(candle);
+      if (key !== currentSession) {
+        currentSession = key;
+        cumulativeVolume = 0;
+        cumulativePV = 0;
+      }
+
+      if (
+        Number.isFinite(candle.high) &&
+        Number.isFinite(candle.low) &&
+        Number.isFinite(candle.close) &&
+        Number.isFinite(candle.volume) &&
+        candle.volume > 0
+      ) {
+        const typical = (candle.high + candle.low + candle.close) / 3;
+        cumulativeVolume += candle.volume;
+        cumulativePV += typical * candle.volume;
+      }
+
+      result.push(
+        cumulativeVolume > 0
+          ? Math.round((cumulativePV / cumulativeVolume) * 100) / 100
+          : Number.NaN
+      );
+    }
+
+    return result;
+  }
+
+  /**
+   * Relative-volume series using the PREVIOUS `period` bars as the baseline.
+   * The current bar is excluded from its own baseline so a volume spike does not
+   * dilute itself.
+   */
+  public static calcRVOLSeries(candles: LiveCandle[], period = 20): number[] {
+    if (!candles || candles.length === 0) return [];
+    const result = new Array<number>(candles.length).fill(Number.NaN);
+    if (!Number.isInteger(period) || period <= 0) return result;
+
+    for (let i = period; i < candles.length; i++) {
+      const currentVol = Number(candles[i]?.volume ?? 0);
+      const baseline = candles.slice(i - period, i).map(c => Number(c?.volume ?? 0));
+
+      if (
+        !Number.isFinite(currentVol) ||
+        currentVol < 0 ||
+        baseline.some(v => !Number.isFinite(v) || v < 0)
+      ) {
+        continue;
+      }
+
+      const avgVol = baseline.reduce((sum, v) => sum + v, 0) / period;
+      if (avgVol <= 0) continue;
+      result[i] = Number((currentVol / avgVol).toFixed(2));
+    }
+
+    return result;
+  }
+
+  /**
+   * Wilder RSI series aligned to the source prices.
+   * Values before the first complete lookback window remain NaN.
+   */
+  public static calcRSISeries(prices: number[], period = 14): number[] {
+    const result = new Array<number>(prices.length).fill(Number.NaN);
+    if (!Number.isInteger(period) || period <= 0 || prices.length < period + 1) {
+      return result;
+    }
+
+    let gains = 0;
+    let losses = 0;
+
+    for (let i = 1; i <= period; i++) {
+      const diff = prices[i] - prices[i - 1];
+      if (diff >= 0) gains += diff;
+      else losses -= diff;
+    }
+
+    let avgGain = gains / period;
+    let avgLoss = losses / period;
+
+    const toRsi = (gain: number, loss: number) => {
+      if (loss === 0) return 100;
+      if (gain === 0) return 0;
+      const rs = gain / loss;
+      return Math.round((100 - 100 / (1 + rs)) * 100) / 100;
+    };
+
+    result[period] = toRsi(avgGain, avgLoss);
+
+    for (let i = period + 1; i < prices.length; i++) {
+      const diff = prices[i] - prices[i - 1];
+
+      if (diff >= 0) {
+        avgGain = (avgGain * (period - 1) + diff) / period;
+        avgLoss = (avgLoss * (period - 1)) / period;
+      } else {
+        avgGain = (avgGain * (period - 1)) / period;
+        avgLoss = (avgLoss * (period - 1) - diff) / period;
+      }
+
+      result[i] = toRsi(avgGain, avgLoss);
+    }
+
+    return result;
+  }
+
+  /**
+   * MACD (12/26/9 by default) series aligned to the source prices.
+   * `hist` is MACD - signal.
+   */
+  public static calcMACDSeries(
+    prices: number[],
+    fastPeriod = 12,
+    slowPeriod = 26,
+    signalPeriod = 9
+  ): { macd: number[]; signal: number[]; hist: number[] } {
+    const macd = new Array<number>(prices.length).fill(Number.NaN);
+    const signal = new Array<number>(prices.length).fill(Number.NaN);
+    const hist = new Array<number>(prices.length).fill(Number.NaN);
+
+    if (
+      !Number.isInteger(fastPeriod) ||
+      !Number.isInteger(slowPeriod) ||
+      !Number.isInteger(signalPeriod) ||
+      fastPeriod <= 0 ||
+      slowPeriod <= fastPeriod ||
+      signalPeriod <= 0 ||
+      prices.length < slowPeriod
+    ) {
+      return { macd, signal, hist };
+    }
+
+    const fast = this.calcEMASeries(prices, fastPeriod);
+    const slow = this.calcEMASeries(prices, slowPeriod);
+    const compactMacd: number[] = [];
+    const compactIndexes: number[] = [];
+
+    for (let i = slowPeriod - 1; i < prices.length; i++) {
+      if (!Number.isFinite(fast[i]) || !Number.isFinite(slow[i])) continue;
+      const value = fast[i] - slow[i];
+      macd[i] = Number(value.toFixed(4));
+      compactMacd.push(value);
+      compactIndexes.push(i);
+    }
+
+    const compactSignal = this.calcEMASeries(compactMacd, signalPeriod);
+
+    for (let i = 0; i < compactSignal.length; i++) {
+      const sourceIndex = compactIndexes[i];
+      const signalValue = compactSignal[i];
+      if (!Number.isFinite(signalValue) || sourceIndex === undefined) continue;
+
+      signal[sourceIndex] = Number(signalValue.toFixed(4));
+      const histValue = macd[sourceIndex] - signal[sourceIndex];
+      hist[sourceIndex] = Number(histValue.toFixed(4));
+    }
+
+    return { macd, signal, hist };
+  }
+
+  /**
+   * Wilder ATR series aligned to the candle array.
+   * The first valid value appears at candle index `period`.
+   */
+  public static calcATRSeries(candles: LiveCandle[], period = 14): number[] {
+    const result = new Array<number>(candles.length).fill(Number.NaN);
+    if (!Number.isInteger(period) || period <= 0 || candles.length < period + 1) {
+      return result;
+    }
+
+    const trueRanges = new Array<number>(candles.length).fill(Number.NaN);
+
+    for (let i = 1; i < candles.length; i++) {
+      const c = candles[i];
+      const prevClose = candles[i - 1].close;
+      trueRanges[i] = Math.max(
+        c.high - c.low,
+        Math.abs(c.high - prevClose),
+        Math.abs(c.low - prevClose)
+      );
+    }
+
+    let atr = trueRanges
+      .slice(1, period + 1)
+      .reduce((sum, value) => sum + value, 0) / period;
+
+    result[period] = Math.round(atr * 100) / 100;
+
+    for (let i = period + 1; i < candles.length; i++) {
+      atr = (atr * (period - 1) + trueRanges[i]) / period;
+      result[i] = Math.round(atr * 100) / 100;
     }
 
     return result;
@@ -57,7 +284,6 @@ export class IndicatorEngine {
     }
 
     const closes = candles.map((c) => c.close);
-    const lastClose = closes[closes.length - 1];
 
     // EMA calculations
     const ema9 = this.calcEMA(closes, 9);
@@ -67,8 +293,9 @@ export class IndicatorEngine {
     // EMA 200 with strict warm-up validation (must have >= 200 bars)
     const ema200 = closes.length >= 200 ? this.calcEMA(closes, 200) : Number.NaN;
 
-    // Session VWAP (resets at each new session key)
-    const vwap = this.calculateSessionVWAP(candles, getSessionKey);
+    // Session VWAP. This is the exact same series that the chart can render.
+    const vwapSeries = this.calculateSessionVWAPSeries(candles, getSessionKey);
+    const vwap = vwapSeries[vwapSeries.length - 1] ?? Number.NaN;
 
     // RSI (14 Wilder)
     const rsi14 = this.calcRSI(closes, 14);
@@ -79,7 +306,12 @@ export class IndicatorEngine {
     // ATR (14 Wilder)
     const atr14 = this.calcATR(candles, 14);
 
-    // RVOL V2: Exclude current active/closed bar from baseline denominator
+    // RVOL: previous 20 completed bars form the baseline; current bar is excluded.
+    const rvolSeries = this.calcRVOLSeries(candles, 20);
+    const lastRvol = rvolSeries[rvolSeries.length - 1];
+    const rvol = Number.isFinite(lastRvol) ? lastRvol : 1.0;
+
+    // Existing time-of-day normalization is retained only as a secondary context value.
     const completedCandles = candles.slice(0, candles.length - 1);
     const recent20 = completedCandles.slice(-20);
     const avgVol =
@@ -87,9 +319,7 @@ export class IndicatorEngine {
         ? recent20.reduce((a, b) => a + (b.volume || 0), 0) / recent20.length
         : 0;
     const currentVol = candles[candles.length - 1].volume || 0;
-    const rvol = avgVol > 0 ? Number((currentVol / avgVol).toFixed(2)) : 1.0;
 
-    // RVOL V3: Time-of-Day (TOD) normalized RVOL
     const lastTime = candles[candles.length - 1].time || (candles[candles.length - 1] as any).timestamp;
     let todWeight = 1.0;
     if (lastTime) {
@@ -166,130 +396,40 @@ export class IndicatorEngine {
   }
 
   public static calcRSI(prices: number[], period = 14): number {
-    if (prices.length < period + 1) return Number.NaN;
-
-    let gains = 0;
-    let losses = 0;
-    for (let i = 1; i <= period; i++) {
-      const diff = prices[i] - prices[i - 1];
-      if (diff >= 0) gains += diff;
-      else losses -= diff;
-    }
-
-    let avgGain = gains / period;
-    let avgLoss = losses / period;
-
-    for (let i = period + 1; i < prices.length; i++) {
-      const diff = prices[i] - prices[i - 1];
-      if (diff >= 0) {
-        avgGain = (avgGain * (period - 1) + diff) / period;
-        avgLoss = (avgLoss * (period - 1)) / period;
-      } else {
-        avgGain = (avgGain * (period - 1)) / period;
-        avgLoss = (avgLoss * (period - 1) - diff) / period;
-      }
-    }
-
-    if (avgLoss === 0) return 100;
-    const rs = avgGain / avgLoss;
-    return Math.round((100 - 100 / (1 + rs)) * 100) / 100;
+    const series = this.calcRSISeries(prices, period);
+    if (series.length === 0) return Number.NaN;
+    const value = series[series.length - 1];
+    return Number.isFinite(value) ? value : Number.NaN;
   }
 
   public static calcMACD(prices: number[]): { macd: number; signal: number; hist: number } {
-    if (prices.length < 35) {
+    const series = this.calcMACDSeries(prices, 12, 26, 9);
+    if (prices.length === 0) {
       return { macd: Number.NaN, signal: Number.NaN, hist: Number.NaN };
     }
 
-    const ema12Series = this.calcEMASeries(prices, 12);
-    const ema26Series = this.calcEMASeries(prices, 26);
-
-    const macdSeries: number[] = [];
-
-    for (let i = 25; i < prices.length; i++) {
-      const fast = ema12Series[i];
-      const slow = ema26Series[i];
-      if (Number.isFinite(fast) && Number.isFinite(slow)) {
-        macdSeries.push(fast - slow);
-      }
-    }
-
-    if (macdSeries.length < 9) {
-      return { macd: Number.NaN, signal: Number.NaN, hist: Number.NaN };
-    }
-
-    const signalSeries = this.calcEMASeries(macdSeries, 9);
-
-    const macd = macdSeries[macdSeries.length - 1];
-    const signal = signalSeries[signalSeries.length - 1];
-    const hist = macd - signal;
-
+    const last = prices.length - 1;
     return {
-      macd: Number.isFinite(macd) ? Number(macd.toFixed(4)) : Number.NaN,
-      signal: Number.isFinite(signal) ? Number(signal.toFixed(4)) : Number.NaN,
-      hist: Number.isFinite(hist) ? Number(hist.toFixed(4)) : Number.NaN
+      macd: Number.isFinite(series.macd[last]) ? series.macd[last] : Number.NaN,
+      signal: Number.isFinite(series.signal[last]) ? series.signal[last] : Number.NaN,
+      hist: Number.isFinite(series.hist[last]) ? series.hist[last] : Number.NaN
     };
   }
 
   public static calcATR(candles: LiveCandle[], period = 14): number {
-    if (candles.length < period + 1) return Number.NaN;
-
-    const trs: number[] = [];
-    for (let i = 1; i < candles.length; i++) {
-      const c = candles[i];
-      const prevClose = candles[i - 1].close;
-      const tr = Math.max(
-        c.high - c.low,
-        Math.abs(c.high - prevClose),
-        Math.abs(c.low - prevClose)
-      );
-      trs.push(tr);
-    }
-
-    let atr = trs.slice(0, period).reduce((a, b) => a + b, 0) / period;
-    for (let i = period; i < trs.length; i++) {
-      atr = (atr * (period - 1) + trs[i]) / period;
-    }
-
-    return Math.round(atr * 100) / 100;
+    const series = this.calcATRSeries(candles, period);
+    if (series.length === 0) return Number.NaN;
+    const value = series[series.length - 1];
+    return Number.isFinite(value) ? value : Number.NaN;
   }
 
   public static calculateSessionVWAP(
     candles: LiveCandle[],
     getSessionKey?: (c: LiveCandle) => string
   ): number {
-    if (!candles || candles.length === 0) return Number.NaN;
-
-    let session = "";
-    let cumulativeVolume = 0;
-    let cumulativePV = 0;
-
-    const defaultKeyFn = (c: LiveCandle) => {
-      if (c.sessionKey) return c.sessionKey;
-      const tsMs = c.time > 1e11 ? c.time : c.time * 1000;
-      const date = new Date(tsMs);
-      return `${date.getUTCFullYear()}-${date.getUTCMonth() + 1}-${date.getUTCDate()}`;
-    };
-
-    const keyFn = getSessionKey || defaultKeyFn;
-
-    for (const candle of candles) {
-      const key = keyFn(candle);
-
-      if (key !== session) {
-        session = key;
-        cumulativeVolume = 0;
-        cumulativePV = 0;
-      }
-
-      if (candle.volume > 0 && Number.isFinite(candle.volume)) {
-        const typical = (candle.high + candle.low + candle.close) / 3;
-        cumulativeVolume += candle.volume;
-        cumulativePV += typical * candle.volume;
-      }
-    }
-
-    return cumulativeVolume > 0
-      ? Math.round((cumulativePV / cumulativeVolume) * 100) / 100
-      : candles[candles.length - 1].close;
+    const series = this.calculateSessionVWAPSeries(candles, getSessionKey);
+    if (series.length === 0) return Number.NaN;
+    const value = series[series.length - 1];
+    return Number.isFinite(value) ? value : Number.NaN;
   }
 }

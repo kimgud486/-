@@ -10,22 +10,11 @@ import {
   ISeriesApi,
   Time
 } from "lightweight-charts";
-import { 
-  Sparkles, 
-  Activity, 
-  Zap, 
-  ShieldCheck, 
-  TrendingUp, 
-  TrendingDown, 
-  Clock, 
-  Sliders, 
-  Maximize2,
-  RefreshCw,
-  Eye,
-  AlertTriangle,
-  ArrowUpRight,
-  ArrowDownRight,
-  ShieldAlert
+import {
+  Sparkles,
+  Activity,
+  ShieldCheck,
+  Maximize2
 } from "lucide-react";
 import { runPredictionPipeline } from "../../prediction";
 import { globalOnlineEnsembleWeightEngine } from "../../prediction/OnlineEnsembleWeightEngine";
@@ -33,31 +22,51 @@ import type { LiveTick, LiveCandle, IndicatorSnapshot, TradingState, ForecastPoi
 import { CandleAggregator } from "../../realtime/CandleAggregator";
 import { IndicatorEngine } from "../../realtime/IndicatorEngine";
 import { MarketStructureEngine } from "../../realtime/MarketStructureEngine";
-import { decideTradingState, calculateDynamicTrailingExit } from "../../realtime/TradingStateMachine";
+import { decideTradingState } from "../../realtime/TradingStateMachine";
 import { AdaptiveTrailingExitEngineV137 } from "../../services/v13_7/AdaptiveTrailingExitEngineV137";
 import { ExitDecisionBridgeV138 } from "../../services/v13_8/ExitDecisionBridgeV138";
 import { PositionTrailingStateStoreV138 } from "../../services/v13_8/PositionTrailingStateStoreV138";
 import { generateForecastPath } from "../../realtime/ForecastPathEngine";
 import { realTimeMarketFeedManager } from "../../realtime/RealTimeMarketFeedService";
 
+type ChartTimeframe = "1m" | "3m" | "5m" | "15m" | "1D";
+
+interface InitialCandle {
+  time: number | string;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  volume: number;
+}
+
 export interface RealTimeTradingViewChartProps {
   symbol: string;
   name: string;
   market?: "KOREA" | "US" | "UPBIT" | "CRYPTO";
   initialPrice: number;
-  initialCandles?: Array<{
-    time: number | string;
-    open: number;
-    high: number;
-    low: number;
-    close: number;
-    volume: number;
-  }>;
+  initialCandles?: InitialCandle[];
   isWhiteTheme?: boolean;
-  timeframe?: "1m" | "3m" | "5m" | "15m" | "1D";
+  timeframe?: ChartTimeframe;
   onStateChange?: (state: TradingState, confidence: number) => void;
   className?: string;
 }
+
+const timeframeToMs = (tf: string) => {
+  if (tf === "1m") return 60_000;
+  if (tf === "3m") return 180_000;
+  if (tf === "5m") return 300_000;
+  if (tf === "15m") return 900_000;
+  return 86_400_000;
+};
+
+const mergeFormingCandle = (history: LiveCandle[], candle: LiveCandle, maxBars = 600): LiveCandle[] => {
+  const previous = history[history.length - 1];
+  const next = previous && previous.time === candle.time
+    ? [...history.slice(0, -1), candle]
+    : [...history, candle];
+  return next.slice(-maxBars);
+};
 
 export const RealTimeTradingViewChart: React.FC<RealTimeTradingViewChartProps> = ({
   symbol,
@@ -73,7 +82,6 @@ export const RealTimeTradingViewChart: React.FC<RealTimeTradingViewChartProps> =
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
 
-  // Series references
   const candleSeriesRef = useRef<ISeriesApi<"Candlestick"> | null>(null);
   const volumeSeriesRef = useRef<ISeriesApi<"Histogram"> | null>(null);
   const ema9SeriesRef = useRef<ISeriesApi<"Line"> | null>(null);
@@ -83,25 +91,35 @@ export const RealTimeTradingViewChart: React.FC<RealTimeTradingViewChartProps> =
   const bullForecastSeriesRef = useRef<ISeriesApi<"Line"> | null>(null);
   const bearForecastSeriesRef = useRef<ISeriesApi<"Line"> | null>(null);
   const trailingExitSeriesRef = useRef<ISeriesApi<"Line"> | null>(null);
+  const rsiSeriesRef = useRef<ISeriesApi<"Line"> | null>(null);
+  const macdSeriesRef = useRef<ISeriesApi<"Line"> | null>(null);
+  const macdSignalSeriesRef = useRef<ISeriesApi<"Line"> | null>(null);
+  const macdHistogramSeriesRef = useRef<ISeriesApi<"Histogram"> | null>(null);
+  const atrSeriesRef = useRef<ISeriesApi<"Line"> | null>(null);
   const markersRef = useRef<any>(null);
 
-  // Current states
-  const [selectedTf, setSelectedTf] = useState<"1m" | "3m" | "5m" | "15m" | "1D">(timeframe);
+  const [selectedTf, setSelectedTf] = useState<ChartTimeframe>(timeframe);
   const [tradingState, setTradingState] = useState<TradingState>("NO_TRADE");
   const [currentPrice, setCurrentPrice] = useState<number>(initialPrice);
   const [trailingExitPrice, setTrailingExitPrice] = useState<number>(0);
   const [aiConfidence, setAiConfidence] = useState<number>(0);
   const [lastForecast, setLastForecast] = useState<ForecastPoint[]>([]);
+  const [indicatorSnapshot, setIndicatorSnapshot] = useState<IndicatorSnapshot | null>(null);
+  const [lastTickTimeStr, setLastTickTimeStr] = useState<string>("");
+  const [localSeedCandles, setLocalSeedCandles] = useState<InitialCandle[] | null>(null);
+  const [isTimeframeLoading, setIsTimeframeLoading] = useState<boolean>(false);
+  const [hasRealChartData, setHasRealChartData] = useState<boolean>(initialCandles.length > 0);
   const [activeIndicators, setActiveIndicators] = useState({
     ema: true,
     vwap: true,
     forecast: true,
     trailing: true,
-    volume: true
+    volume: true,
+    rsi: true,
+    macd: true,
+    atr: true
   });
-  const [lastTickTimeStr, setLastTickTimeStr] = useState<string>("");
 
-  // Keep internal candle history and aggregator
   const historyRef = useRef<LiveCandle[]>([]);
   const aggregatorRef = useRef<CandleAggregator>(
     new CandleAggregator((timeframe as any) || "1m")
@@ -111,10 +129,23 @@ export const RealTimeTradingViewChart: React.FC<RealTimeTradingViewChartProps> =
   const previousTrailingFloorRef = useRef<number>(0);
   const trailingExitRef = useRef<number>(0);
   const tradingStateRef = useRef<TradingState>("NO_TRADE");
+  const selectedTfRef = useRef<ChartTimeframe>(timeframe);
+  const timeframeRequestRef = useRef<number>(0);
+  const lastIndicatorPreviewAtRef = useRef<number>(0);
 
-  // Restore persisted position trailing state on mount
+  useEffect(() => {
+    setSelectedTf(timeframe);
+    selectedTfRef.current = timeframe;
+    setLocalSeedCandles(null);
+    setIsTimeframeLoading(false);
+    setHasRealChartData(initialCandles.length > 0);
+    historyRef.current = [];
+    aggregatorRef.current.reset(timeframeToMs(timeframe));
+  }, [timeframe, symbol]);
+
   useEffect(() => {
     let active = true;
+
     PositionTrailingStateStoreV138.getState(symbol).then((persisted) => {
       if (active && persisted && persisted.highestPriceSinceBuy > 0) {
         entryPriceRef.current = persisted.entryPrice;
@@ -130,31 +161,109 @@ export const RealTimeTradingViewChart: React.FC<RealTimeTradingViewChartProps> =
         }
       }
     });
+
     return () => {
       active = false;
     };
   }, [symbol]);
 
-  // Format price helper based on market
+  useEffect(() => {
+    if (Number.isFinite(initialPrice) && initialPrice > 0) {
+      setCurrentPrice(initialPrice);
+    }
+  }, [initialPrice, symbol]);
+
   const formatDisplayPrice = useCallback((p: number) => {
-    if (market === "US") return `$${(p ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-    return `₩${Math.round(p).toLocaleString()}`;
+    if (market === "US") {
+      return `$${(p ?? 0).toLocaleString(undefined, {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+      })}`;
+    }
+
+    if (market === "UPBIT" || market === "CRYPTO") {
+      if (Math.abs(p) < 1) return `₩${Number(p ?? 0).toFixed(6)}`;
+      if (Math.abs(p) < 100) return `₩${Number(p ?? 0).toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
+    }
+
+    return `₩${Math.round(p ?? 0).toLocaleString()}`;
   }, [market]);
 
-  // Handle timeframe change
-  const handleTimeframeChange = (tf: "1m" | "3m" | "5m" | "15m" | "1D") => {
+  const handleTimeframeChange = async (tf: ChartTimeframe) => {
+    if (tf === selectedTfRef.current || isTimeframeLoading) return;
+
+    const previousTf = selectedTfRef.current;
+    const requestId = timeframeRequestRef.current + 1;
+    timeframeRequestRef.current = requestId;
+
     setSelectedTf(tf);
-    const ms = tf === "1m" ? 60_000 : tf === "3m" ? 180_000 : tf === "5m" ? 300_000 : tf === "15m" ? 900_000 : 86_400_000;
-    historyRef.current = [];
-    aggregatorRef.current.reset(ms);
+    selectedTfRef.current = tf;
+    setIsTimeframeLoading(true);
+    aggregatorRef.current.reset(timeframeToMs(tf));
+
+    try {
+      const apiTf = tf === "1D" ? "D" : tf;
+      const response = await fetch(
+        `/api/market/realtime-candles?symbol=${encodeURIComponent(symbol)}&timeframe=${encodeURIComponent(apiTf)}&count=240`
+      );
+
+      if (!response.ok) {
+        throw new Error(`TIMEFRAME_FETCH_${response.status}`);
+      }
+
+      const payload = await response.json();
+      if (requestId !== timeframeRequestRef.current) return;
+
+      if (Array.isArray(payload?.candles) && payload.candles.length > 0) {
+        setLocalSeedCandles(payload.candles);
+        setHasRealChartData(true);
+
+        if (Number.isFinite(payload.currentPrice) && payload.currentPrice > 0) {
+          setCurrentPrice(payload.currentPrice);
+        }
+      } else {
+        throw new Error("TIMEFRAME_FETCH_EMPTY");
+      }
+    } catch (error) {
+      console.warn("Failed to switch chart timeframe:", error);
+      selectedTfRef.current = previousTf;
+      setSelectedTf(previousTf);
+      aggregatorRef.current.reset(timeframeToMs(previousTf));
+    } finally {
+      if (requestId === timeframeRequestRef.current) {
+        setIsTimeframeLoading(false);
+      }
+    }
   };
 
-  // Convert initial candles to clean LiveCandle array (Return empty if no real initial candles)
+  const effectiveInitialCandles = localSeedCandles ?? initialCandles;
+  const initialCandleSignature = effectiveInitialCandles.length > 0
+    ? (() => {
+        const first = effectiveInitialCandles[0];
+        const last = effectiveInitialCandles[effectiveInitialCandles.length - 1];
+        return [
+          effectiveInitialCandles.length,
+          first?.time,
+          first?.open,
+          last?.time,
+          last?.close,
+          last?.volume
+        ].join(":");
+      })()
+    : "EMPTY";
+
   const normalizedInitialCandles: LiveCandle[] = useMemo(() => {
-    if (initialCandles && initialCandles.length > 0) {
-      return initialCandles.map(c => {
-        let sec = typeof c.time === "number" ? c.time : Math.floor(new Date(c.time).getTime() / 1000);
+    if (!effectiveInitialCandles || effectiveInitialCandles.length === 0) return [];
+
+    return effectiveInitialCandles
+      .map(c => {
+        let sec =
+          typeof c.time === "number"
+            ? c.time
+            : Math.floor(new Date(c.time).getTime() / 1000);
+
         if (sec > 10_000_000_000) sec = Math.floor(sec / 1000);
+
         return {
           time: sec,
           open: c.open,
@@ -163,45 +272,69 @@ export const RealTimeTradingViewChart: React.FC<RealTimeTradingViewChartProps> =
           close: c.close,
           volume: c.volume,
           isClosed: true
-        };
-      }).sort((a, b) => a.time - b.time);
-    }
-    // LIVE MODE ENFORCEMENT: No synthetic seed candle generation!
-    return [];
-  }, [initialCandles]);
+        } as LiveCandle;
+      })
+      .filter(c =>
+        Number.isFinite(c.time) &&
+        Number.isFinite(c.open) &&
+        Number.isFinite(c.high) &&
+        Number.isFinite(c.low) &&
+        Number.isFinite(c.close) &&
+        Number.isFinite(c.volume)
+      )
+      .sort((a, b) => a.time - b.time);
+  }, [initialCandleSignature]);
 
-  // Recalculate indicators, prediction, and state when candle closes
   const onClosedCandle = useCallback((closedCandle: LiveCandle) => {
-    const MAX_HISTORY_BARS = 600;
-    historyRef.current = [...historyRef.current.slice(-(MAX_HISTORY_BARS - 1)), closedCandle];
-    const candles = historyRef.current;
+    const tf = selectedTfRef.current;
+    const candles = mergeFormingCandle(
+      historyRef.current,
+      { ...closedCandle, isClosed: true },
+      600
+    );
+    historyRef.current = candles;
 
-    // 1. Calculate technical indicators
     const indicators: IndicatorSnapshot = IndicatorEngine.calculate(candles);
-
-    // 2. Analyze market structure (HH/HL, Breakout, etc.)
+    setIndicatorSnapshot(indicators);
     const structure = MarketStructureEngine.analyze(candles, indicators.vwap);
 
-    // 3. AI confidence / Real ML model probability & Online Ensemble
-    let modelProb: number | undefined = undefined;
+    let modelProb: number | undefined;
     let modelVerified = false;
+
     if (candles.length >= 30) {
       try {
         const verifiedCandles = candles.map(c => {
           const src = (c as any).source || "KIS_REALTIME_WS";
-          const feedQual = (c as any).feedQuality || (src === "KIS_REALTIME_WS" ? "BROKER_REALTIME" : "POLLING_DELAYED");
-          const isVer = (c as any).verified ?? (src === "KIS_REALTIME_WS" && feedQual === "BROKER_REALTIME");
+          const feedQual =
+            (c as any).feedQuality ||
+            (src === "KIS_REALTIME_WS" ? "BROKER_REALTIME" : "POLLING_DELAYED");
+          const isVer =
+            (c as any).verified ??
+            (src === "KIS_REALTIME_WS" && feedQual === "BROKER_REALTIME");
+
           return {
             symbol,
-            market: market === "US" ? "US" : market === "UPBIT" || market === "CRYPTO" ? "CRYPTO" : "KOREA",
-            timeframe: selectedTf === "1D" ? "60m" : selectedTf,
+            market:
+              market === "US"
+                ? "US"
+                : market === "UPBIT" || market === "CRYPTO"
+                  ? "CRYPTO"
+                  : "KOREA",
+            timeframe: tf === "1D" ? "60m" : tf,
             open: c.open,
             high: c.high,
             low: c.low,
             close: c.close,
             volume: c.volume,
-            startedAt: typeof c.time === 'number' ? c.time * 1000 : new Date(c.time).getTime(),
-            endedAt: (typeof c.time === 'number' ? c.time * 1000 : new Date(c.time).getTime()) + (selectedTf === "1m" ? 60000 : selectedTf === "3m" ? 180000 : selectedTf === "5m" ? 300000 : selectedTf === "15m" ? 900000 : 86400000),
+            startedAt:
+              typeof c.time === "number"
+                ? c.time * 1000
+                : new Date(c.time).getTime(),
+            endedAt:
+              (typeof c.time === "number"
+                ? c.time * 1000
+                : new Date(c.time).getTime()) +
+              timeframeToMs(tf),
             source: src,
             receivedAt: (c as any).receivedAt || Date.now(),
             verified: isVer,
@@ -209,40 +342,63 @@ export const RealTimeTradingViewChart: React.FC<RealTimeTradingViewChartProps> =
             integrityValid: isVer
           };
         });
+
         const mlResult = runPredictionPipeline({
           symbol,
-          market: market === "US" ? "US" : market === "UPBIT" || market === "CRYPTO" ? "CRYPTO" : "KOREA",
+          market:
+            market === "US"
+              ? "US"
+              : market === "UPBIT" || market === "CRYPTO"
+                ? "CRYPTO"
+                : "KOREA",
           candles: verifiedCandles,
           requireRealData: true
         });
+
         const calibrated = mlResult.calibratedOutput;
-        if (calibrated && typeof calibrated.calibratedProbability === "number" && mlResult.rawModelOutput?.probabilityVerified) {
+
+        if (
+          calibrated &&
+          typeof calibrated.calibratedProbability === "number" &&
+          mlResult.rawModelOutput?.probabilityVerified
+        ) {
           const lgbProb = calibrated.calibratedProbability / 100;
           modelProb = globalOnlineEnsembleWeightEngine.score(
             {
               LIGHTGBM: lgbProb,
               TREND: indicators.trendStrength,
-              MOMENTUM: Math.min(1, Math.max(0, 0.5 + indicators.macdHistogram / 100)),
+              MOMENTUM: Math.min(
+                1,
+                Math.max(0, 0.5 + indicators.macdHistogram / 100)
+              ),
               STRUCTURE: structure.hhhlValid ? 0.8 : 0.4,
               VOLUME: structure.volumeExpansion ? 0.85 : 0.5
             },
             market,
-            selectedTf
+            tf
           );
           modelVerified = true;
         }
-      } catch (err) {
-        // Unverified source or pipeline skipped
+      } catch {
       }
     }
-    const confidenceScore = Math.round((indicators.trendStrength * 0.4 + (indicators.macdHistogram > 0 ? 0.3 : 0.1) + (structure.hhhlValid ? 0.3 : 0)) * 100);
+
+    const confidenceScore = Math.round(
+      (
+        indicators.trendStrength * 0.4 +
+        (indicators.macdHistogram > 0 ? 0.3 : 0.1) +
+        (structure.hhhlValid ? 0.3 : 0)
+      ) * 100
+    );
     setAiConfidence(confidenceScore);
 
-    // Determine execution feed quality from closed candle provenance
-    const executionFeedValid = (closedCandle as any).source === "KIS_REALTIME_WS" && (closedCandle as any).feedQuality === "BROKER_REALTIME";
-    const feedQuality = executionFeedValid ? "BROKER_REALTIME" : "POLLING_DELAYED";
+    const executionFeedValid =
+      (closedCandle as any).source === "KIS_REALTIME_WS" &&
+      (closedCandle as any).feedQuality === "BROKER_REALTIME";
+    const feedQuality = executionFeedValid
+      ? "BROKER_REALTIME"
+      : "POLLING_DELAYED";
 
-    // 4. State Machine transition with MANDATORY EXECUTION GATES
     const nextState = decideTradingState({
       price: closedCandle.close,
       ema9: indicators.ema9,
@@ -253,10 +409,10 @@ export const RealTimeTradingViewChart: React.FC<RealTimeTradingViewChartProps> =
       hhhlValid: structure.hhhlValid,
       breakoutValid: structure.breakoutValid,
       volumeExpansion: structure.volumeExpansion,
-      modelProbability: modelVerified && modelProb !== undefined ? modelProb : 0,
+      modelProbability:
+        modelVerified && modelProb !== undefined ? modelProb : 0,
       currentState: tradingStateRef.current,
       trailingExitPrice: trailingExitRef.current,
-      // MANDATORY EXECUTION GATES
       indicatorsReady: indicators.indicatorsReady === true,
       feedQuality,
       isClosedBar: closedCandle.isClosed === true,
@@ -267,7 +423,9 @@ export const RealTimeTradingViewChart: React.FC<RealTimeTradingViewChartProps> =
       if (nextState === "BUY") {
         entryPriceRef.current = closedCandle.close;
         highestPriceRef.current = closedCandle.close;
-        previousTrailingFloorRef.current = Math.round(closedCandle.close - 1.5 * indicators.atr14);
+        previousTrailingFloorRef.current = Math.round(
+          closedCandle.close - 1.5 * indicators.atr14
+        );
         trailingExitRef.current = previousTrailingFloorRef.current;
       } else if (nextState === "NO_TRADE") {
         entryPriceRef.current = 0;
@@ -275,14 +433,22 @@ export const RealTimeTradingViewChart: React.FC<RealTimeTradingViewChartProps> =
         previousTrailingFloorRef.current = 0;
         trailingExitRef.current = 0;
       }
+
       tradingStateRef.current = nextState;
       setTradingState(nextState);
       onStateChange?.(nextState, confidenceScore);
     }
 
-    // 5. Update dynamic trailing stop via AdaptiveTrailingExitEngineV137 & ExitDecisionBridgeV138
-    if (["BUY", "HOLD", "PROFIT_HOLD", "SELL_WATCH"].includes(tradingStateRef.current) && entryPriceRef.current > 0) {
-      highestPriceRef.current = Math.max(highestPriceRef.current, closedCandle.close);
+    if (
+      ["BUY", "HOLD", "PROFIT_HOLD", "SELL_WATCH"].includes(
+        tradingStateRef.current
+      ) &&
+      entryPriceRef.current > 0
+    ) {
+      highestPriceRef.current = Math.max(
+        highestPriceRef.current,
+        closedCandle.close
+      );
 
       const res = AdaptiveTrailingExitEngineV137.evaluate({
         symbol,
@@ -330,7 +496,6 @@ export const RealTimeTradingViewChart: React.FC<RealTimeTradingViewChartProps> =
         onStateChange?.("PROFIT_HOLD", confidenceScore);
       }
 
-      // Persist active position trailing state to store
       PositionTrailingStateStoreV138.saveState({
         positionId: `${symbol}_active`,
         symbol,
@@ -351,76 +516,160 @@ export const RealTimeTradingViewChart: React.FC<RealTimeTradingViewChartProps> =
       }
     }
 
-    // 6. Generate 3-line forecast path
-    const forecast = generateForecastPath(candles, indicators, 8, modelVerified ? modelProb : undefined);
+    const forecast = generateForecastPath(
+      candles,
+      indicators,
+      8,
+      modelVerified ? modelProb : undefined
+    );
     setLastForecast(forecast);
 
-    if (forecastSeriesRef.current && bullForecastSeriesRef.current && bearForecastSeriesRef.current) {
+    if (
+      forecastSeriesRef.current &&
+      bullForecastSeriesRef.current &&
+      bearForecastSeriesRef.current
+    ) {
       forecastSeriesRef.current.setData(
         forecast
           .map(p => ({ time: p.time as Time, value: p.predicted }))
-          .filter((p): p is { time: Time; value: number } => Number.isFinite(p.value) && p.value > 0)
+          .filter(
+            (p): p is { time: Time; value: number } =>
+              Number.isFinite(p.value) && p.value > 0
+          )
       );
       bullForecastSeriesRef.current.setData(
         forecast
           .map(p => ({ time: p.time as Time, value: p.upper }))
-          .filter((p): p is { time: Time; value: number } => Number.isFinite(p.value) && p.value > 0)
+          .filter(
+            (p): p is { time: Time; value: number } =>
+              Number.isFinite(p.value) && p.value > 0
+          )
       );
       bearForecastSeriesRef.current.setData(
         forecast
           .map(p => ({ time: p.time as Time, value: p.lower }))
-          .filter((p): p is { time: Time; value: number } => Number.isFinite(p.value) && p.value > 0)
+          .filter(
+            (p): p is { time: Time; value: number } =>
+              Number.isFinite(p.value) && p.value > 0
+          )
       );
     }
 
-    // 7. Update indicator series lines
-    if (ema9SeriesRef.current && Number.isFinite(indicators.ema9) && indicators.ema9 > 0) {
-      ema9SeriesRef.current.update({ time: closedCandle.time as Time, value: indicators.ema9 });
+    const time = closedCandle.time as Time;
+
+    if (
+      ema9SeriesRef.current &&
+      Number.isFinite(indicators.ema9) &&
+      indicators.ema9 > 0
+    ) {
+      ema9SeriesRef.current.update({ time, value: indicators.ema9 });
     }
-    if (ema20SeriesRef.current && Number.isFinite(indicators.ema20) && indicators.ema20 > 0) {
-      ema20SeriesRef.current.update({ time: closedCandle.time as Time, value: indicators.ema20 });
+    if (
+      ema20SeriesRef.current &&
+      Number.isFinite(indicators.ema20) &&
+      indicators.ema20 > 0
+    ) {
+      ema20SeriesRef.current.update({ time, value: indicators.ema20 });
     }
-    if (vwapSeriesRef.current && Number.isFinite(indicators.vwap) && indicators.vwap > 0) {
-      vwapSeriesRef.current.update({ time: closedCandle.time as Time, value: indicators.vwap });
+    if (
+      vwapSeriesRef.current &&
+      Number.isFinite(indicators.vwap) &&
+      indicators.vwap > 0
+    ) {
+      vwapSeriesRef.current.update({ time, value: indicators.vwap });
+    }
+    if (rsiSeriesRef.current && Number.isFinite(indicators.rsi14)) {
+      rsiSeriesRef.current.update({ time, value: indicators.rsi14 });
+    }
+    if (macdSeriesRef.current && Number.isFinite(indicators.macd)) {
+      macdSeriesRef.current.update({ time, value: indicators.macd });
+    }
+    if (
+      macdSignalSeriesRef.current &&
+      Number.isFinite(indicators.macdSignal)
+    ) {
+      macdSignalSeriesRef.current.update({
+        time,
+        value: indicators.macdSignal
+      });
+    }
+    if (
+      macdHistogramSeriesRef.current &&
+      Number.isFinite(indicators.macdHistogram)
+    ) {
+      macdHistogramSeriesRef.current.update({
+        time,
+        value: indicators.macdHistogram,
+        color:
+          indicators.macdHistogram >= 0 ? "#10b981aa" : "#f43f5eaa"
+      });
+    }
+    if (atrSeriesRef.current && Number.isFinite(indicators.atr14)) {
+      atrSeriesRef.current.update({ time, value: indicators.atr14 });
     }
 
-    // 8. Update marker if special event happened
-    if (markersRef.current && (nextState === "BUY" || nextState === "SELL" || nextState === "SELL_WATCH" || nextState === "PROFIT_HOLD")) {
+    if (
+      markersRef.current &&
+      ["BUY", "SELL", "SELL_WATCH", "PROFIT_HOLD"].includes(nextState)
+    ) {
       const currentMarkers = markersRef.current.markers() || [];
       const newMarker = {
-        time: closedCandle.time as Time,
+        time,
         position: nextState === "BUY" ? "belowBar" : "aboveBar",
-        color: nextState === "BUY" ? "#10b981" : nextState === "PROFIT_HOLD" ? "#06b6d4" : nextState === "SELL_WATCH" ? "#f59e0b" : "#ef4444",
-        shape: nextState === "BUY" ? "arrowUp" : nextState === "PROFIT_HOLD" ? "circle" : nextState === "SELL_WATCH" ? "square" : "arrowDown",
+        color:
+          nextState === "BUY"
+            ? "#10b981"
+            : nextState === "PROFIT_HOLD"
+              ? "#06b6d4"
+              : nextState === "SELL_WATCH"
+                ? "#f59e0b"
+                : "#ef4444",
+        shape:
+          nextState === "BUY"
+            ? "arrowUp"
+            : nextState === "PROFIT_HOLD"
+              ? "circle"
+              : nextState === "SELL_WATCH"
+                ? "square"
+                : "arrowDown",
         text: `${nextState} (${confidenceScore}%)`
       };
-      markersRef.current.setMarkers([...currentMarkers.slice(-20), newMarker]);
-    }
-  }, [symbol, market, selectedTf, onStateChange]);
 
-  // Mount TradingView Chart
+      markersRef.current.setMarkers([
+        ...currentMarkers.slice(-20),
+        newMarker
+      ]);
+    }
+  }, [symbol, market, onStateChange]);
+
   useEffect(() => {
     if (!chartContainerRef.current) return;
 
     historyRef.current = [...normalizedInitialCandles];
+    setHasRealChartData(normalizedInitialCandles.length > 0);
 
-    // Background & theme colors
     const bg = isWhiteTheme ? "#ffffff" : "#08101e";
     const text = isWhiteTheme ? "#334155" : "#94a3b8";
     const grid = isWhiteTheme ? "#f1f5f9" : "#0f1f38";
+    const separator = isWhiteTheme ? "#cbd5e1" : "#1e293b";
 
     const chart = createChart(chartContainerRef.current, {
       autoSize: true,
       layout: {
         background: { color: bg },
         textColor: text,
+        panes: {
+          separatorColor: separator,
+          separatorHoverColor: "#22d3ee55",
+          enableResize: true
+        }
       },
       grid: {
         vertLines: { color: grid },
         horzLines: { color: grid }
       },
       crosshair: {
-        mode: 1 // Magnet crosshair
+        mode: 1
       },
       timeScale: {
         timeVisible: true,
@@ -434,7 +683,6 @@ export const RealTimeTradingViewChart: React.FC<RealTimeTradingViewChartProps> =
     });
     chartRef.current = chart;
 
-    // 1. Candlestick Series (Korean red up, blue down by default for KRX, or standard)
     const isKrx = market === "KOREA";
     const upColor = isKrx ? "#ef4444" : "#10b981";
     const downColor = isKrx ? "#3b82f6" : "#f43f5e";
@@ -448,7 +696,6 @@ export const RealTimeTradingViewChart: React.FC<RealTimeTradingViewChartProps> =
     });
     candleSeriesRef.current = candleSeries;
 
-    // Populate historical candles
     candleSeries.setData(
       historyRef.current.map(c => ({
         time: c.time as Time,
@@ -459,14 +706,12 @@ export const RealTimeTradingViewChart: React.FC<RealTimeTradingViewChartProps> =
       }))
     );
 
-    // Markers setup
     markersRef.current = createSeriesMarkers(candleSeries);
 
-    // 2. Volume Series
     const volumeSeries = chart.addSeries(HistogramSeries, {
       color: "#64748b",
       priceFormat: { type: "volume" },
-      priceScaleId: "" // Overlay
+      priceScaleId: ""
     });
     volumeSeriesRef.current = volumeSeries;
     volumeSeries.priceScale().applyOptions({
@@ -479,11 +724,17 @@ export const RealTimeTradingViewChart: React.FC<RealTimeTradingViewChartProps> =
       historyRef.current.map(c => ({
         time: c.time as Time,
         value: c.volume,
-        color: c.close >= c.open ? (isKrx ? "#ef444433" : "#10b98133") : (isKrx ? "#3b82f633" : "#f43f5e33")
+        color:
+          c.close >= c.open
+            ? isKrx
+              ? "#ef444433"
+              : "#10b98133"
+            : isKrx
+              ? "#3b82f633"
+              : "#f43f5e33"
       }))
     );
 
-    // 3. EMA 9 (Amber) & EMA 20 (Cyan)
     const ema9Series = chart.addSeries(LineSeries, {
       color: "#f59e0b",
       lineWidth: 2,
@@ -498,7 +749,6 @@ export const RealTimeTradingViewChart: React.FC<RealTimeTradingViewChartProps> =
     });
     ema20SeriesRef.current = ema20Series;
 
-    // 4. VWAP (Purple)
     const vwapSeries = chart.addSeries(LineSeries, {
       color: "#8b5cf6",
       lineWidth: 2,
@@ -506,44 +756,30 @@ export const RealTimeTradingViewChart: React.FC<RealTimeTradingViewChartProps> =
     });
     vwapSeriesRef.current = vwapSeries;
 
-    // Compute initial indicators across history
     const initialIndicators = IndicatorEngine.calculate(historyRef.current);
+    setIndicatorSnapshot(initialIndicators);
+
     const initialCloses = historyRef.current.map(c => c.close);
+    const ema9Values = IndicatorEngine.calcEMASeries(initialCloses, 9);
+    const ema20Values = IndicatorEngine.calcEMASeries(initialCloses, 20);
+    const vwapValues = IndicatorEngine.calculateSessionVWAPSeries(historyRef.current);
 
     ema9Series.setData(
       historyRef.current
-        .map((c, idx) => ({
-          time: c.time as Time,
-          value: IndicatorEngine.calcEMA(initialCloses.slice(0, idx + 1), 9)
-        }))
+        .map((c, idx) => ({ time: c.time as Time, value: ema9Values[idx] }))
         .filter((p): p is { time: Time; value: number } => Number.isFinite(p.value) && p.value > 0)
     );
-
     ema20Series.setData(
       historyRef.current
-        .map((c, idx) => ({
-          time: c.time as Time,
-          value: IndicatorEngine.calcEMA(initialCloses.slice(0, idx + 1), 20)
-        }))
+        .map((c, idx) => ({ time: c.time as Time, value: ema20Values[idx] }))
         .filter((p): p is { time: Time; value: number } => Number.isFinite(p.value) && p.value > 0)
     );
-
-    let runningCumVol = 0;
-    let runningCumVolP = 0;
     vwapSeries.setData(
       historyRef.current
-        .map(c => {
-          runningCumVol += c.volume;
-          runningCumVolP += ((c.high + c.low + c.close) / 3) * c.volume;
-          return {
-            time: c.time as Time,
-            value: runningCumVol > 0 ? Math.round((runningCumVolP / runningCumVol) * 100) / 100 : c.close
-          };
-        })
+        .map((c, idx) => ({ time: c.time as Time, value: vwapValues[idx] }))
         .filter((p): p is { time: Time; value: number } => Number.isFinite(p.value) && p.value > 0)
     );
 
-    // 5. AI Forecast Paths (Base: dashed purple, Bull: dotted green, Bear: dotted red)
     const forecastSeries = chart.addSeries(LineSeries, {
       color: "#a855f7",
       lineWidth: 2,
@@ -568,7 +804,6 @@ export const RealTimeTradingViewChart: React.FC<RealTimeTradingViewChartProps> =
     });
     bearForecastSeriesRef.current = bearForecastSeries;
 
-    // 6. Dynamic Trailing Exit line (Orange dashed)
     const trailingExitSeries = chart.addSeries(LineSeries, {
       color: "#f97316",
       lineWidth: 2,
@@ -577,7 +812,6 @@ export const RealTimeTradingViewChart: React.FC<RealTimeTradingViewChartProps> =
     });
     trailingExitSeriesRef.current = trailingExitSeries;
 
-    // Initial forecast calculation
     const initForecast = generateForecastPath(historyRef.current, initialIndicators, 8);
     setLastForecast(initForecast);
     forecastSeries.setData(
@@ -596,39 +830,156 @@ export const RealTimeTradingViewChart: React.FC<RealTimeTradingViewChartProps> =
         .filter((p): p is { time: Time; value: number } => Number.isFinite(p.value) && p.value > 0)
     );
 
-    // Fit content smoothly
+    const rsiSeries = chart.addSeries(
+      LineSeries,
+      {
+        color: "#38bdf8",
+        lineWidth: 2,
+        title: "RSI 14",
+        priceLineVisible: false,
+        lastValueVisible: true
+      },
+      1
+    );
+    rsiSeriesRef.current = rsiSeries;
+
+    rsiSeries.createPriceLine({ price: 70, color: "#f59e0b", lineWidth: 1, lineStyle: LineStyle.Dashed, axisLabelVisible: true, title: "과열 70" });
+    rsiSeries.createPriceLine({ price: 50, color: "#64748b", lineWidth: 1, lineStyle: LineStyle.Dotted, axisLabelVisible: false, title: "중립 50" });
+    rsiSeries.createPriceLine({ price: 30, color: "#22c55e", lineWidth: 1, lineStyle: LineStyle.Dashed, axisLabelVisible: true, title: "침체 30" });
+
+    const rsiValues = IndicatorEngine.calcRSISeries(initialCloses, 14);
+    rsiSeries.setData(
+      historyRef.current
+        .map((c, idx) => ({ time: c.time as Time, value: rsiValues[idx] }))
+        .filter((p): p is { time: Time; value: number } => Number.isFinite(p.value))
+    );
+
+    const macdHistogram = chart.addSeries(
+      HistogramSeries,
+      {
+        title: "MACD Hist",
+        priceLineVisible: false,
+        lastValueVisible: false,
+        base: 0
+      },
+      2
+    );
+    macdHistogramSeriesRef.current = macdHistogram;
+
+    const macdSeries = chart.addSeries(
+      LineSeries,
+      { color: "#22d3ee", lineWidth: 2, title: "MACD", priceLineVisible: false },
+      2
+    );
+    macdSeriesRef.current = macdSeries;
+
+    const macdSignalSeries = chart.addSeries(
+      LineSeries,
+      { color: "#f59e0b", lineWidth: 2, title: "Signal", priceLineVisible: false },
+      2
+    );
+    macdSignalSeriesRef.current = macdSignalSeries;
+    macdSeries.createPriceLine({ price: 0, color: "#64748b", lineWidth: 1, lineStyle: LineStyle.Dotted, axisLabelVisible: true, title: "0" });
+
+    const macdValues = IndicatorEngine.calcMACDSeries(initialCloses);
+    macdSeries.setData(
+      historyRef.current
+        .map((c, idx) => ({ time: c.time as Time, value: macdValues.macd[idx] }))
+        .filter((p): p is { time: Time; value: number } => Number.isFinite(p.value))
+    );
+    macdSignalSeries.setData(
+      historyRef.current
+        .map((c, idx) => ({ time: c.time as Time, value: macdValues.signal[idx] }))
+        .filter((p): p is { time: Time; value: number } => Number.isFinite(p.value))
+    );
+    macdHistogram.setData(
+      historyRef.current
+        .map((c, idx) => ({
+          time: c.time as Time,
+          value: macdValues.hist[idx],
+          color: macdValues.hist[idx] >= 0 ? "#10b981aa" : "#f43f5eaa"
+        }))
+        .filter((p): p is { time: Time; value: number; color: string } => Number.isFinite(p.value))
+    );
+
+    const atrSeries = chart.addSeries(
+      LineSeries,
+      { color: "#fb7185", lineWidth: 2, title: "ATR 14", priceLineVisible: false, lastValueVisible: true },
+      3
+    );
+    atrSeriesRef.current = atrSeries;
+    const atrValues = IndicatorEngine.calcATRSeries(historyRef.current, 14);
+    atrSeries.setData(
+      historyRef.current
+        .map((c, idx) => ({ time: c.time as Time, value: atrValues[idx] }))
+        .filter((p): p is { time: Time; value: number } => Number.isFinite(p.value) && p.value >= 0)
+    );
+
+    const panes = chart.panes();
+    panes[0]?.setHeight(420);
+    panes[1]?.setHeight(105);
+    panes[2]?.setHeight(115);
+    panes[3]?.setHeight(95);
     chart.timeScale().fitContent();
 
-    // Subscribe to live tick stream
     const unsubscribeFeed = realTimeMarketFeedManager.subscribe(symbol, (tick: LiveTick) => {
       setCurrentPrice(tick.price);
       setLastTickTimeStr(new Date(tick.timestamp).toLocaleTimeString());
 
-      const res = aggregatorRef.current.update(tick);
+      const normalizedMarket = market === "UPBIT" || market === "CRYPTO" ? "CRYPTO" : market;
+      const res = aggregatorRef.current.update(tick, normalizedMarket);
+      const time = res.candle.time as Time;
 
-      // 1. Update active ongoing candle (animates in real-time)
-      if (candleSeriesRef.current) {
-        candleSeriesRef.current.update({
-          time: res.candle.time as Time,
-          open: res.candle.open,
-          high: res.candle.high,
-          low: res.candle.low,
-          close: res.candle.close
-        });
+      candleSeriesRef.current?.update({
+        time,
+        open: res.candle.open,
+        high: res.candle.high,
+        low: res.candle.low,
+        close: res.candle.close
+      });
+      volumeSeriesRef.current?.update({
+        time,
+        value: res.candle.volume,
+        color:
+          res.candle.close >= res.candle.open
+            ? isKrx
+              ? "#ef444433"
+              : "#10b98133"
+            : isKrx
+              ? "#3b82f633"
+              : "#f43f5e33"
+      });
+
+      setHasRealChartData(true);
+      const now = Date.now();
+      if (now - lastIndicatorPreviewAtRef.current >= 1_000) {
+        lastIndicatorPreviewAtRef.current = now;
+        const previewCandles = mergeFormingCandle(
+          historyRef.current,
+          { ...res.candle, isClosed: false },
+          600
+        );
+        const preview = IndicatorEngine.calculate(previewCandles);
+        setIndicatorSnapshot(preview);
+
+        if (Number.isFinite(preview.ema9) && preview.ema9 > 0) ema9SeriesRef.current?.update({ time, value: preview.ema9 });
+        if (Number.isFinite(preview.ema20) && preview.ema20 > 0) ema20SeriesRef.current?.update({ time, value: preview.ema20 });
+        if (Number.isFinite(preview.vwap) && preview.vwap > 0) vwapSeriesRef.current?.update({ time, value: preview.vwap });
+        if (Number.isFinite(preview.rsi14)) rsiSeriesRef.current?.update({ time, value: preview.rsi14 });
+        if (Number.isFinite(preview.macd)) macdSeriesRef.current?.update({ time, value: preview.macd });
+        if (Number.isFinite(preview.macdSignal)) macdSignalSeriesRef.current?.update({ time, value: preview.macdSignal });
+        if (Number.isFinite(preview.macdHistogram)) {
+          macdHistogramSeriesRef.current?.update({
+            time,
+            value: preview.macdHistogram,
+            color: preview.macdHistogram >= 0 ? "#10b981aa" : "#f43f5eaa"
+          });
+        }
+        if (Number.isFinite(preview.atr14)) atrSeriesRef.current?.update({ time, value: preview.atr14 });
       }
 
-      // 2. Update active volume
-      if (volumeSeriesRef.current) {
-        volumeSeriesRef.current.update({
-          time: res.candle.time as Time,
-          value: res.candle.volume,
-          color: res.candle.close >= res.candle.open ? (isKrx ? "#ef444433" : "#10b98133") : (isKrx ? "#3b82f633" : "#f43f5e33")
-        });
-      }
-
-      // 3. If closed a candle, trigger comprehensive recalculation
       if (res.closed) {
-        onClosedCandle(res.candle);
+        onClosedCandle({ ...res.candle, isClosed: true });
       }
     });
 
@@ -636,19 +987,45 @@ export const RealTimeTradingViewChart: React.FC<RealTimeTradingViewChartProps> =
       unsubscribeFeed();
       chart.remove();
       chartRef.current = null;
+      candleSeriesRef.current = null;
+      volumeSeriesRef.current = null;
+      ema9SeriesRef.current = null;
+      ema20SeriesRef.current = null;
+      vwapSeriesRef.current = null;
+      forecastSeriesRef.current = null;
+      bullForecastSeriesRef.current = null;
+      bearForecastSeriesRef.current = null;
+      trailingExitSeriesRef.current = null;
+      rsiSeriesRef.current = null;
+      macdSeriesRef.current = null;
+      macdSignalSeriesRef.current = null;
+      macdHistogramSeriesRef.current = null;
+      atrSeriesRef.current = null;
+      markersRef.current = null;
     };
   }, [symbol, isWhiteTheme, normalizedInitialCandles, market, onClosedCandle]);
 
-  // Apply visibility toggles
   useEffect(() => {
-    if (ema9SeriesRef.current) ema9SeriesRef.current.applyOptions({ visible: activeIndicators.ema });
-    if (ema20SeriesRef.current) ema20SeriesRef.current.applyOptions({ visible: activeIndicators.ema });
-    if (vwapSeriesRef.current) vwapSeriesRef.current.applyOptions({ visible: activeIndicators.vwap });
-    if (forecastSeriesRef.current) forecastSeriesRef.current.applyOptions({ visible: activeIndicators.forecast });
-    if (bullForecastSeriesRef.current) bullForecastSeriesRef.current.applyOptions({ visible: activeIndicators.forecast });
-    if (bearForecastSeriesRef.current) bearForecastSeriesRef.current.applyOptions({ visible: activeIndicators.forecast });
-    if (trailingExitSeriesRef.current) trailingExitSeriesRef.current.applyOptions({ visible: activeIndicators.trailing });
-    if (volumeSeriesRef.current) volumeSeriesRef.current.applyOptions({ visible: activeIndicators.volume });
+    ema9SeriesRef.current?.applyOptions({ visible: activeIndicators.ema });
+    ema20SeriesRef.current?.applyOptions({ visible: activeIndicators.ema });
+    vwapSeriesRef.current?.applyOptions({ visible: activeIndicators.vwap });
+    forecastSeriesRef.current?.applyOptions({ visible: activeIndicators.forecast });
+    bullForecastSeriesRef.current?.applyOptions({ visible: activeIndicators.forecast });
+    bearForecastSeriesRef.current?.applyOptions({ visible: activeIndicators.forecast });
+    trailingExitSeriesRef.current?.applyOptions({ visible: activeIndicators.trailing });
+    volumeSeriesRef.current?.applyOptions({ visible: activeIndicators.volume });
+    rsiSeriesRef.current?.applyOptions({ visible: activeIndicators.rsi });
+    macdSeriesRef.current?.applyOptions({ visible: activeIndicators.macd });
+    macdSignalSeriesRef.current?.applyOptions({ visible: activeIndicators.macd });
+    macdHistogramSeriesRef.current?.applyOptions({ visible: activeIndicators.macd });
+    atrSeriesRef.current?.applyOptions({ visible: activeIndicators.atr });
+
+    const panes = chartRef.current?.panes();
+    if (panes) {
+      panes[1]?.setHeight(activeIndicators.rsi ? 105 : 2);
+      panes[2]?.setHeight(activeIndicators.macd ? 115 : 2);
+      panes[3]?.setHeight(activeIndicators.atr ? 95 : 2);
+    }
   }, [activeIndicators]);
 
   const stateColors: Record<TradingState, { bg: string; text: string; border: string }> = {
@@ -661,26 +1038,49 @@ export const RealTimeTradingViewChart: React.FC<RealTimeTradingViewChartProps> =
     SELL: { bg: "bg-rose-500/25", text: "text-rose-400", border: "border-rose-500/60" }
   };
 
+  const currentRvol = indicatorSnapshot && Number.isFinite(indicatorSnapshot.rvol)
+    ? indicatorSnapshot.rvol
+    : null;
+  const rvolStatus = currentRvol === null
+    ? "계산 대기"
+    : currentRvol >= 2
+      ? "거래량 매우 많음 🔥"
+      : currentRvol >= 1.5
+        ? "거래량 많음"
+        : currentRvol < 0.7
+          ? "거래량 적음"
+          : "거래량 보통";
+  const rsiStatus = !indicatorSnapshot || !Number.isFinite(indicatorSnapshot.rsi14)
+    ? "계산 대기"
+    : indicatorSnapshot.rsi14 >= 70
+      ? "과열 주의"
+      : indicatorSnapshot.rsi14 <= 30
+        ? "과매도 구간"
+        : indicatorSnapshot.rsi14 >= 50
+          ? "상승 힘 우세"
+          : "하락 힘 우세";
+  const macdStatus = !indicatorSnapshot || !Number.isFinite(indicatorSnapshot.macdHistogram)
+    ? "계산 대기"
+    : indicatorSnapshot.macdHistogram > 0
+      ? "상승 모멘텀"
+      : indicatorSnapshot.macdHistogram < 0
+        ? "하락 모멘텀"
+        : "중립";
+  const atrPercent = indicatorSnapshot && Number.isFinite(indicatorSnapshot.atr14) && currentPrice > 0
+    ? (indicatorSnapshot.atr14 / currentPrice) * 100
+    : null;
+  const lowerPaneCount = [activeIndicators.rsi, activeIndicators.macd, activeIndicators.atr].filter(Boolean).length;
+  const chartHeight = 500 + lowerPaneCount * 105;
+
   return (
     <div className={`flex flex-col rounded-xl border ${isWhiteTheme ? "bg-white border-slate-200 text-slate-900" : "bg-[#08101e] border-[#13233c] text-slate-100"} p-3 gap-2 shadow-lg ${className}`}>
-      
-      {/* 1. TOP STATUS BAR & REALTIME TRADING STATE HUD */}
       <div className="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-slate-700/50">
-        
-        {/* Symbol & Price Header */}
         <div className="flex items-center gap-2.5">
           <div className="flex items-center gap-1.5">
             <span className="text-sm font-black">{name}</span>
-            <span className="text-xs font-mono px-1.5 py-0.5 rounded bg-slate-800 text-cyan-400 border border-slate-700 font-bold">
-              {symbol}
-            </span>
+            <span className="text-xs font-mono px-1.5 py-0.5 rounded bg-slate-800 text-cyan-400 border border-slate-700 font-bold">{symbol}</span>
           </div>
-
-          <div className="text-base font-mono font-black text-cyan-400">
-            {formatDisplayPrice(currentPrice)}
-          </div>
-
-          {/* Live Tick Pulse Indicator */}
+          <div className="text-base font-mono font-black text-cyan-400">{formatDisplayPrice(currentPrice)}</div>
           <div className="flex items-center gap-1 text-[11px] font-mono text-emerald-400">
             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
             <span className="font-bold">LIVE TICK</span>
@@ -688,27 +1088,19 @@ export const RealTimeTradingViewChart: React.FC<RealTimeTradingViewChartProps> =
           </div>
         </div>
 
-        {/* State Machine HUD Badge & Trailing Stop */}
         <div className="flex flex-wrap items-center gap-2">
-          {/* State Badge */}
           <div className={`px-2.5 py-1 rounded-lg border text-xs font-black flex items-center gap-1.5 shadow-sm ${stateColors[tradingState].bg} ${stateColors[tradingState].text} ${stateColors[tradingState].border}`}>
             <Activity className="w-3.5 h-3.5 animate-pulse" />
             <span>상태: {tradingState}</span>
           </div>
-
-          {/* Technical Score Badge */}
           <div className="px-2 py-1 rounded-lg bg-purple-950/60 border border-purple-800/60 text-purple-300 text-xs font-mono font-bold flex items-center gap-1" title="기술적 종합 점수 (확률값 아님)">
             <Sparkles className="w-3 h-3 text-purple-400" />
             <span>Technical Score {aiConfidence}/100</span>
           </div>
-
-          {/* Feed Quality Badge */}
           <div className="px-2 py-1 rounded-lg bg-emerald-950/60 border border-emerald-800/60 text-emerald-300 text-xs font-mono font-bold flex items-center gap-1">
             <ShieldCheck className="w-3 h-3 text-emerald-400" />
             <span>FEED: BROKER REALTIME</span>
           </div>
-
-          {/* Trailing Stop Display if Active */}
           {trailingExitPrice > 0 && (
             <div className="px-2 py-1 rounded-lg bg-orange-950/60 border border-orange-800/60 text-orange-300 text-xs font-mono font-bold flex items-center gap-1">
               <ShieldCheck className="w-3 h-3 text-orange-400" />
@@ -718,7 +1110,6 @@ export const RealTimeTradingViewChart: React.FC<RealTimeTradingViewChartProps> =
         </div>
       </div>
 
-      {/* Model Metadata Status Bar */}
       <div className="flex flex-wrap items-center justify-between gap-2 px-2 py-1 bg-slate-900/90 rounded border border-slate-800 text-[10px] font-mono text-slate-400">
         <div className="flex items-center gap-3">
           <span>SOURCE: <strong className="text-cyan-400">KIS_REALTIME_WS</strong></span>
@@ -726,148 +1117,114 @@ export const RealTimeTradingViewChart: React.FC<RealTimeTradingViewChartProps> =
           <span>TIMEFRAME: <strong className="text-amber-400">{selectedTf}</strong></span>
           <span>MODEL: <strong className="text-purple-400">TECHNICAL PROJECTION</strong></span>
         </div>
-        <div>
-          <span>BAR STATUS: <strong className="text-cyan-300">BUILDING (CONFIRM ON CLOSE)</strong></span>
-        </div>
+        <div><span>BAR STATUS: <strong className="text-cyan-300">BUILDING · SIGNAL CONFIRM ON CLOSE</strong></span></div>
       </div>
 
-      {/* 2. TIMEFRAME & INDICATOR TOGGLE TOOLBAR */}
+      {indicatorSnapshot && hasRealChartData && (
+        <div className="grid grid-cols-2 md:grid-cols-4 2xl:grid-cols-7 gap-1.5 text-[10px] font-mono">
+          <div className="rounded-lg border border-amber-700/50 bg-amber-950/30 px-2 py-1.5">
+            <div className="text-slate-400">EMA9 · 짧은 흐름</div>
+            <div className="font-black text-amber-300">{Number.isFinite(indicatorSnapshot.ema9) ? formatDisplayPrice(indicatorSnapshot.ema9) : "계산 중"}</div>
+          </div>
+          <div className="rounded-lg border border-cyan-700/50 bg-cyan-950/30 px-2 py-1.5">
+            <div className="text-slate-400">EMA20 · 기준 흐름</div>
+            <div className="font-black text-cyan-300">{Number.isFinite(indicatorSnapshot.ema20) ? formatDisplayPrice(indicatorSnapshot.ema20) : "계산 중"}</div>
+          </div>
+          <div className="rounded-lg border border-purple-700/50 bg-purple-950/30 px-2 py-1.5">
+            <div className="text-slate-400">VWAP · 오늘 평균</div>
+            <div className="font-black text-purple-300">{Number.isFinite(indicatorSnapshot.vwap) ? formatDisplayPrice(indicatorSnapshot.vwap) : "계산 중"}</div>
+          </div>
+          <div className={`rounded-lg border px-2 py-1.5 ${currentRvol !== null && currentRvol >= 2 ? "border-orange-500/70 bg-orange-950/40" : "border-slate-700 bg-slate-900/60"}`}>
+            <div className="text-slate-400">RVOL · 평소보다 거래량</div>
+            <div className={`font-black ${currentRvol !== null && currentRvol >= 2 ? "text-orange-300" : "text-emerald-300"}`}>{currentRvol !== null ? `${currentRvol.toFixed(2)}x` : "계산 중"}</div>
+            <div className="text-[9px] text-slate-400">{rvolStatus}</div>
+          </div>
+          <div className="rounded-lg border border-sky-700/50 bg-sky-950/30 px-2 py-1.5">
+            <div className="text-slate-400">RSI14 · 매수/매도 힘</div>
+            <div className="font-black text-sky-300">{Number.isFinite(indicatorSnapshot.rsi14) ? indicatorSnapshot.rsi14.toFixed(1) : "계산 중"}</div>
+            <div className="text-[9px] text-slate-400">{rsiStatus}</div>
+          </div>
+          <div className="rounded-lg border border-teal-700/50 bg-teal-950/30 px-2 py-1.5">
+            <div className="text-slate-400">MACD · 방향 힘</div>
+            <div className={`font-black ${Number.isFinite(indicatorSnapshot.macdHistogram) && indicatorSnapshot.macdHistogram >= 0 ? "text-emerald-300" : "text-rose-300"}`}>{Number.isFinite(indicatorSnapshot.macdHistogram) ? indicatorSnapshot.macdHistogram.toFixed(4) : "계산 중"}</div>
+            <div className="text-[9px] text-slate-400">{macdStatus}</div>
+          </div>
+          <div className="rounded-lg border border-rose-700/50 bg-rose-950/30 px-2 py-1.5">
+            <div className="text-slate-400">ATR14 · 가격 흔들림</div>
+            <div className="font-black text-rose-300">{Number.isFinite(indicatorSnapshot.atr14) ? formatDisplayPrice(indicatorSnapshot.atr14) : "계산 중"}</div>
+            <div className="text-[9px] text-slate-400">{atrPercent !== null ? `현재가의 ${atrPercent.toFixed(2)}%` : "계산 대기"}</div>
+          </div>
+        </div>
+      )}
+
       <div className="flex flex-wrap items-center justify-between gap-2 text-xs font-mono">
-        
-        {/* Timeframe Buttons (1m, 3m, 5m, 15m, 1D) */}
         <div className="flex items-center gap-1 bg-slate-900/80 p-0.5 rounded-lg border border-slate-800">
           {(["1m", "3m", "5m", "15m", "1D"] as const).map(tf => (
             <button
               key={tf}
               type="button"
               onClick={() => handleTimeframeChange(tf)}
-              className={`px-2 py-0.5 rounded transition font-bold cursor-pointer ${
-                selectedTf === tf
-                  ? "bg-cyan-600 text-white shadow-xs"
-                  : "text-slate-400 hover:text-white"
-              }`}
+              disabled={isTimeframeLoading}
+              className={`px-2 py-0.5 rounded transition font-bold cursor-pointer disabled:opacity-50 ${selectedTf === tf ? "bg-cyan-600 text-white shadow-xs" : "text-slate-400 hover:text-white"}`}
             >
-              {tf}
+              {selectedTf === tf && isTimeframeLoading ? `${tf}…` : tf}
             </button>
           ))}
         </div>
 
-        {/* Indicator Toggles */}
         <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
-          <button
-            type="button"
-            onClick={() => setActiveIndicators(prev => ({ ...prev, ema: !prev.ema }))}
-            className={`px-2 py-0.5 rounded border transition cursor-pointer font-bold ${
-              activeIndicators.ema
-                ? "bg-amber-950/70 border-amber-600 text-amber-300"
-                : "bg-slate-900/60 border-slate-800 text-slate-500"
-            }`}
-          >
-            EMA (9/20)
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setActiveIndicators(prev => ({ ...prev, vwap: !prev.vwap }))}
-            className={`px-2 py-0.5 rounded border transition cursor-pointer font-bold ${
-              activeIndicators.vwap
-                ? "bg-purple-950/70 border-purple-600 text-purple-300"
-                : "bg-slate-900/60 border-slate-800 text-slate-500"
-            }`}
-          >
-            VWAP
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setActiveIndicators(prev => ({ ...prev, forecast: !prev.forecast }))}
-            className={`px-2 py-0.5 rounded border transition cursor-pointer font-bold flex items-center gap-1 ${
-              activeIndicators.forecast
-                ? "bg-cyan-950/70 border-cyan-500 text-cyan-300"
-                : "bg-slate-900/60 border-slate-800 text-slate-500"
-            }`}
-          >
-            <Sparkles className="w-3 h-3 text-cyan-400" />
-            <span>AI 3-Path 예측선</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setActiveIndicators(prev => ({ ...prev, trailing: !prev.trailing }))}
-            className={`px-2 py-0.5 rounded border transition cursor-pointer font-bold ${
-              activeIndicators.trailing
-                ? "bg-orange-950/70 border-orange-600 text-orange-300"
-                : "bg-slate-900/60 border-slate-800 text-slate-500"
-            }`}
-          >
-            Trailing Exit
-          </button>
-
-          <button
-            type="button"
-            onClick={() => {
-              if (chartRef.current) {
-                chartRef.current.timeScale().fitContent();
-              }
-            }}
-            className="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 transition cursor-pointer font-bold"
-            title="차트 전체 보기 맞춤"
-          >
-            <Maximize2 className="w-3 h-3" />
-          </button>
+          <button type="button" onClick={() => setActiveIndicators(prev => ({ ...prev, ema: !prev.ema }))} className={`px-2 py-0.5 rounded border transition cursor-pointer font-bold ${activeIndicators.ema ? "bg-amber-950/70 border-amber-600 text-amber-300" : "bg-slate-900/60 border-slate-800 text-slate-500"}`}>EMA (9/20)</button>
+          <button type="button" onClick={() => setActiveIndicators(prev => ({ ...prev, vwap: !prev.vwap }))} className={`px-2 py-0.5 rounded border transition cursor-pointer font-bold ${activeIndicators.vwap ? "bg-purple-950/70 border-purple-600 text-purple-300" : "bg-slate-900/60 border-slate-800 text-slate-500"}`}>VWAP</button>
+          <button type="button" onClick={() => setActiveIndicators(prev => ({ ...prev, volume: !prev.volume }))} className={`px-2 py-0.5 rounded border transition cursor-pointer font-bold ${activeIndicators.volume ? "bg-emerald-950/70 border-emerald-600 text-emerald-300" : "bg-slate-900/60 border-slate-800 text-slate-500"}`}>거래량</button>
+          <button type="button" onClick={() => setActiveIndicators(prev => ({ ...prev, rsi: !prev.rsi }))} className={`px-2 py-0.5 rounded border transition cursor-pointer font-bold ${activeIndicators.rsi ? "bg-sky-950/70 border-sky-600 text-sky-300" : "bg-slate-900/60 border-slate-800 text-slate-500"}`}>RSI</button>
+          <button type="button" onClick={() => setActiveIndicators(prev => ({ ...prev, macd: !prev.macd }))} className={`px-2 py-0.5 rounded border transition cursor-pointer font-bold ${activeIndicators.macd ? "bg-teal-950/70 border-teal-600 text-teal-300" : "bg-slate-900/60 border-slate-800 text-slate-500"}`}>MACD</button>
+          <button type="button" onClick={() => setActiveIndicators(prev => ({ ...prev, atr: !prev.atr }))} className={`px-2 py-0.5 rounded border transition cursor-pointer font-bold ${activeIndicators.atr ? "bg-rose-950/70 border-rose-600 text-rose-300" : "bg-slate-900/60 border-slate-800 text-slate-500"}`}>ATR</button>
+          <button type="button" onClick={() => setActiveIndicators(prev => ({ ...prev, forecast: !prev.forecast }))} className={`px-2 py-0.5 rounded border transition cursor-pointer font-bold flex items-center gap-1 ${activeIndicators.forecast ? "bg-cyan-950/70 border-cyan-500 text-cyan-300" : "bg-slate-900/60 border-slate-800 text-slate-500"}`}><Sparkles className="w-3 h-3 text-cyan-400" /><span>AI 3-Path 예측선</span></button>
+          <button type="button" onClick={() => setActiveIndicators(prev => ({ ...prev, trailing: !prev.trailing }))} className={`px-2 py-0.5 rounded border transition cursor-pointer font-bold ${activeIndicators.trailing ? "bg-orange-950/70 border-orange-600 text-orange-300" : "bg-slate-900/60 border-slate-800 text-slate-500"}`}>Trailing Exit</button>
+          <button type="button" onClick={() => chartRef.current?.timeScale().fitContent()} className="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 transition cursor-pointer font-bold" title="차트 전체 보기 맞춤"><Maximize2 className="w-3 h-3" /></button>
         </div>
       </div>
 
-      {/* 3. LIGHTWEIGHT CHARTS CANVAS CONTAINER */}
-      <div 
+      <div className="flex flex-wrap items-center gap-3 px-2 text-[10px] font-mono text-slate-400">
+        {activeIndicators.rsi && <span>RSI <strong className="text-sky-300">70 과열 · 50 중립 · 30 과매도</strong></span>}
+        {activeIndicators.macd && <span>MACD <strong className="text-teal-300">청록=MACD · 주황=Signal · 막대=차이</strong></span>}
+        {activeIndicators.atr && <span>ATR <strong className="text-rose-300">선이 커질수록 변동성 확대</strong></span>}
+      </div>
+
+      <div
         ref={chartContainerRef}
-        className="w-full h-[480px] rounded-lg overflow-hidden border border-slate-800/80 relative"
+        className="w-full rounded-lg overflow-hidden border border-slate-800/80 relative"
+        style={{ height: chartHeight }}
       >
-        {historyRef.current.length === 0 && (
+        {isTimeframeLoading && (
+          <div className="absolute top-2 right-2 z-20 rounded-md border border-cyan-700/60 bg-slate-950/90 px-2 py-1 text-[10px] font-mono font-bold text-cyan-300">
+            {selectedTf} 실제 봉 불러오는 중…
+          </div>
+        )}
+        {!hasRealChartData && (
           <div className="absolute inset-0 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm z-10 p-6 text-center">
             <div className="max-w-md p-4 rounded-xl border border-slate-800 bg-slate-900/90 shadow-2xl flex flex-col items-center gap-2">
               <Activity className="w-8 h-8 text-cyan-400 animate-pulse" />
               <div className="text-sm font-bold text-slate-200">실시간 시장 데이터 대기 중 (WAITING_FOR_REAL_MARKET_DATA)</div>
-              <div className="text-xs text-slate-400">
-                가짜/합성 시세 생성이 금지된 LIVE-ONLY 상태입니다.<br />
-                실제 WebSocket 체결 틱 또는 API 봉 수신 시 차트가 표시됩니다.
-              </div>
+              <div className="text-xs text-slate-400">가짜/합성 시세 생성이 금지된 LIVE-ONLY 상태입니다.<br />실제 WebSocket 체결 틱 또는 API 봉 수신 시 차트가 표시됩니다.</div>
             </div>
           </div>
         )}
       </div>
 
-      {/* 4. BOTTOM FORECAST SUMMARY LEGEND */}
       {lastForecast.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-2 pt-1 font-mono text-[11px] border-t border-slate-800/60">
           <div className="flex items-center justify-between p-1.5 rounded bg-slate-900/60 border border-slate-800">
-            <span className="text-emerald-400 font-bold flex items-center gap-1">
-              <span className="w-2 h-0.5 bg-emerald-400 inline-block" />
-              <span>Bull Scenario (상방)</span>
-            </span>
-            <span className="text-emerald-300 font-black">
-              {formatDisplayPrice(lastForecast[lastForecast.length - 1].upper)} ({(lastForecast[0].probabilityUp * 100).toFixed(0)}%)
-            </span>
+            <span className="text-emerald-400 font-bold flex items-center gap-1"><span className="w-2 h-0.5 bg-emerald-400 inline-block" /><span>Bull Scenario (상방)</span></span>
+            <span className="text-emerald-300 font-black">{formatDisplayPrice(lastForecast[lastForecast.length - 1].upper)} ({(lastForecast[0].probabilityUp * 100).toFixed(0)}%)</span>
           </div>
-
           <div className="flex items-center justify-between p-1.5 rounded bg-slate-900/60 border border-slate-800">
-            <span className="text-purple-400 font-bold flex items-center gap-1">
-              <span className="w-2 h-0.5 bg-purple-400 inline-block" />
-              <span>AI Base Path (기본)</span>
-            </span>
-            <span className="text-purple-300 font-black">
-              {formatDisplayPrice(lastForecast[lastForecast.length - 1].predicted)}
-            </span>
+            <span className="text-purple-400 font-bold flex items-center gap-1"><span className="w-2 h-0.5 bg-purple-400 inline-block" /><span>AI Base Path (기본)</span></span>
+            <span className="text-purple-300 font-black">{formatDisplayPrice(lastForecast[lastForecast.length - 1].predicted)}</span>
           </div>
-
           <div className="flex items-center justify-between p-1.5 rounded bg-slate-900/60 border border-slate-800">
-            <span className="text-rose-400 font-bold flex items-center gap-1">
-              <span className="w-2 h-0.5 bg-rose-400 inline-block" />
-              <span>Bear Scenario (하방)</span>
-            </span>
-            <span className="text-rose-300 font-black">
-              {formatDisplayPrice(lastForecast[lastForecast.length - 1].lower)} ({(lastForecast[0].probabilityDown * 100).toFixed(0)}%)
-            </span>
+            <span className="text-rose-400 font-bold flex items-center gap-1"><span className="w-2 h-0.5 bg-rose-400 inline-block" /><span>Bear Scenario (하방)</span></span>
+            <span className="text-rose-300 font-black">{formatDisplayPrice(lastForecast[lastForecast.length - 1].lower)} ({(lastForecast[0].probabilityDown * 100).toFixed(0)}%)</span>
           </div>
         </div>
       )}
