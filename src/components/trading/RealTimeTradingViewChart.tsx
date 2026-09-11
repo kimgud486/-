@@ -100,6 +100,7 @@ export const RealTimeTradingViewChart: React.FC<RealTimeTradingViewChartProps> =
     volume: true
   });
   const [lastTickTimeStr, setLastTickTimeStr] = useState<string>("");
+  const [indicatorSnapshot, setIndicatorSnapshot] = useState<IndicatorSnapshot | null>(null);
 
   // Keep internal candle history and aggregator
   const historyRef = useRef<LiveCandle[]>([]);
@@ -178,6 +179,7 @@ export const RealTimeTradingViewChart: React.FC<RealTimeTradingViewChartProps> =
 
     // 1. Calculate technical indicators
     const indicators: IndicatorSnapshot = IndicatorEngine.calculate(candles);
+    setIndicatorSnapshot(indicators);
 
     // 2. Analyze market structure (HH/HL, Breakout, etc.)
     const structure = MarketStructureEngine.analyze(candles, indicators.vwap);
@@ -506,40 +508,29 @@ export const RealTimeTradingViewChart: React.FC<RealTimeTradingViewChartProps> =
     });
     vwapSeriesRef.current = vwapSeries;
 
-    // Compute initial indicators across history
+    // Compute initial indicators across history using the same engine as live bars.
     const initialIndicators = IndicatorEngine.calculate(historyRef.current);
+    setIndicatorSnapshot(initialIndicators);
     const initialCloses = historyRef.current.map(c => c.close);
+    const ema9Values = IndicatorEngine.calcEMASeries(initialCloses, 9);
+    const ema20Values = IndicatorEngine.calcEMASeries(initialCloses, 20);
+    const vwapValues = IndicatorEngine.calculateSessionVWAPSeries(historyRef.current);
 
     ema9Series.setData(
       historyRef.current
-        .map((c, idx) => ({
-          time: c.time as Time,
-          value: IndicatorEngine.calcEMA(initialCloses.slice(0, idx + 1), 9)
-        }))
+        .map((c, idx) => ({ time: c.time as Time, value: ema9Values[idx] }))
         .filter((p): p is { time: Time; value: number } => Number.isFinite(p.value) && p.value > 0)
     );
 
     ema20Series.setData(
       historyRef.current
-        .map((c, idx) => ({
-          time: c.time as Time,
-          value: IndicatorEngine.calcEMA(initialCloses.slice(0, idx + 1), 20)
-        }))
+        .map((c, idx) => ({ time: c.time as Time, value: ema20Values[idx] }))
         .filter((p): p is { time: Time; value: number } => Number.isFinite(p.value) && p.value > 0)
     );
 
-    let runningCumVol = 0;
-    let runningCumVolP = 0;
     vwapSeries.setData(
       historyRef.current
-        .map(c => {
-          runningCumVol += c.volume;
-          runningCumVolP += ((c.high + c.low + c.close) / 3) * c.volume;
-          return {
-            time: c.time as Time,
-            value: runningCumVol > 0 ? Math.round((runningCumVolP / runningCumVol) * 100) / 100 : c.close
-          };
-        })
+        .map((c, idx) => ({ time: c.time as Time, value: vwapValues[idx] }))
         .filter((p): p is { time: Time; value: number } => Number.isFinite(p.value) && p.value > 0)
     );
 
@@ -661,6 +652,19 @@ export const RealTimeTradingViewChart: React.FC<RealTimeTradingViewChartProps> =
     SELL: { bg: "bg-rose-500/25", text: "text-rose-400", border: "border-rose-500/60" }
   };
 
+  const currentRvol = indicatorSnapshot && Number.isFinite(indicatorSnapshot.rvol)
+    ? indicatorSnapshot.rvol
+    : null;
+  const rvolStatus = currentRvol === null
+    ? "계산 대기"
+    : currentRvol >= 2
+      ? "거래량 매우 많음 🔥"
+      : currentRvol >= 1.5
+        ? "거래량 많음"
+        : currentRvol < 0.7
+          ? "거래량 적음"
+          : "거래량 보통";
+
   return (
     <div className={`flex flex-col rounded-xl border ${isWhiteTheme ? "bg-white border-slate-200 text-slate-900" : "bg-[#08101e] border-[#13233c] text-slate-100"} p-3 gap-2 shadow-lg ${className}`}>
       
@@ -731,6 +735,49 @@ export const RealTimeTradingViewChart: React.FC<RealTimeTradingViewChartProps> =
         </div>
       </div>
 
+      {/* Easy indicator HUD: values are confirmed from real candle history, not invented. */}
+      {indicatorSnapshot && historyRef.current.length > 0 && (
+        <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-1.5 text-[10px] font-mono">
+          <div className="rounded-lg border border-amber-700/50 bg-amber-950/30 px-2 py-1.5">
+            <div className="text-slate-400">EMA9 · 짧은 흐름</div>
+            <div className="font-black text-amber-300">
+              {Number.isFinite(indicatorSnapshot.ema9) ? formatDisplayPrice(indicatorSnapshot.ema9) : "계산 중"}
+            </div>
+          </div>
+          <div className="rounded-lg border border-cyan-700/50 bg-cyan-950/30 px-2 py-1.5">
+            <div className="text-slate-400">EMA20 · 기준 흐름</div>
+            <div className="font-black text-cyan-300">
+              {Number.isFinite(indicatorSnapshot.ema20) ? formatDisplayPrice(indicatorSnapshot.ema20) : "계산 중"}
+            </div>
+          </div>
+          <div className="rounded-lg border border-purple-700/50 bg-purple-950/30 px-2 py-1.5">
+            <div className="text-slate-400">VWAP · 오늘 평균</div>
+            <div className="font-black text-purple-300">
+              {Number.isFinite(indicatorSnapshot.vwap) ? formatDisplayPrice(indicatorSnapshot.vwap) : "계산 중"}
+            </div>
+          </div>
+          <div className={`rounded-lg border px-2 py-1.5 ${currentRvol !== null && currentRvol >= 2 ? "border-orange-500/70 bg-orange-950/40" : "border-slate-700 bg-slate-900/60"}`}>
+            <div className="text-slate-400">RVOL · 평소보다 거래량</div>
+            <div className={`font-black ${currentRvol !== null && currentRvol >= 2 ? "text-orange-300" : "text-emerald-300"}`}>
+              {currentRvol !== null ? `${currentRvol.toFixed(2)}x` : "계산 중"}
+            </div>
+            <div className="text-[9px] text-slate-400">{rvolStatus}</div>
+          </div>
+          <div className="rounded-lg border border-slate-700 bg-slate-900/60 px-2 py-1.5">
+            <div className="text-slate-400">RSI · 과열 체크</div>
+            <div className="font-black text-sky-300">
+              {Number.isFinite(indicatorSnapshot.rsi14) ? indicatorSnapshot.rsi14.toFixed(1) : "계산 중"}
+            </div>
+          </div>
+          <div className="rounded-lg border border-slate-700 bg-slate-900/60 px-2 py-1.5">
+            <div className="text-slate-400">ATR · 가격 흔들림</div>
+            <div className="font-black text-slate-200">
+              {Number.isFinite(indicatorSnapshot.atr14) ? formatDisplayPrice(indicatorSnapshot.atr14) : "계산 중"}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* 2. TIMEFRAME & INDICATOR TOGGLE TOOLBAR */}
       <div className="flex flex-wrap items-center justify-between gap-2 text-xs font-mono">
         
@@ -776,6 +823,18 @@ export const RealTimeTradingViewChart: React.FC<RealTimeTradingViewChartProps> =
             }`}
           >
             VWAP
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveIndicators(prev => ({ ...prev, volume: !prev.volume }))}
+            className={`px-2 py-0.5 rounded border transition cursor-pointer font-bold ${
+              activeIndicators.volume
+                ? "bg-emerald-950/70 border-emerald-600 text-emerald-300"
+                : "bg-slate-900/60 border-slate-800 text-slate-500"
+            }`}
+          >
+            거래량
           </button>
 
           <button
