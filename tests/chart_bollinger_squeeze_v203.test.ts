@@ -30,7 +30,7 @@ test("Bollinger series stays NaN before warmup and uses aligned 20-bar windows",
 
 test("Bollinger squeeze compares current bandwidth with previous bars only", () => {
   const wide = Array.from({ length: 45 }, (_, index) => index % 2 === 0 ? 94 : 106);
-  const narrow = Array.from({ length: 8 }, (_, index) => index % 2 === 0 ? 99.9 : 100.1);
+  const narrow = Array.from({ length: 12 }, (_, index) => index % 2 === 0 ? 99.9 : 100.1);
   const closes = [...wide, ...narrow];
   const series = BollingerSqueezeEngine.calculateSeries(closes, 20, 2, 20, 0.75);
   const last = series[series.length - 1];
@@ -42,7 +42,7 @@ test("Bollinger squeeze compares current bandwidth with previous bars only", () 
 
 test("closed upper-band cross is confirmed, forming cross stays candidate only", () => {
   const wide = Array.from({ length: 45 }, (_, index) => index % 2 === 0 ? 95 : 105);
-  const narrow = Array.from({ length: 8 }, (_, index) => index % 2 === 0 ? 99.9 : 100.1);
+  const narrow = Array.from({ length: 12 }, (_, index) => index % 2 === 0 ? 99.9 : 100.1);
   const closes = [...wide, ...narrow, 110];
 
   const confirmed = BollingerSqueezeEngine.analyze(candlesFromCloses(closes, true));
