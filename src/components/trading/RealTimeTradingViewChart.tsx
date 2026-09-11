@@ -22,6 +22,7 @@ import type { LiveTick, LiveCandle, IndicatorSnapshot, TradingState, ForecastPoi
 import { CandleAggregator } from "../../realtime/CandleAggregator";
 import { IndicatorEngine } from "../../realtime/IndicatorEngine";
 import { BollingerSqueezeEngine } from "../../realtime/BollingerSqueezeEngine";
+import { LiveVolumeProfileAccumulator, VolumeProfileEngine, type VolumeProfileSnapshot } from "../../realtime/VolumeProfileEngine";
 import { MarketStructureEngine } from "../../realtime/MarketStructureEngine";
 import { decideTradingState } from "../../realtime/TradingStateMachine";
 import { AdaptiveTrailingExitEngineV137 } from "../../services/v13_7/AdaptiveTrailingExitEngineV137";
@@ -91,6 +92,9 @@ export const RealTimeTradingViewChart: React.FC<RealTimeTradingViewChartProps> =
   const bollingerUpperSeriesRef = useRef<ISeriesApi<"Line"> | null>(null);
   const bollingerMiddleSeriesRef = useRef<ISeriesApi<"Line"> | null>(null);
   const bollingerLowerSeriesRef = useRef<ISeriesApi<"Line"> | null>(null);
+  const volumeProfilePocSeriesRef = useRef<ISeriesApi<"Line"> | null>(null);
+  const volumeProfileVahSeriesRef = useRef<ISeriesApi<"Line"> | null>(null);
+  const volumeProfileValSeriesRef = useRef<ISeriesApi<"Line"> | null>(null);
   const forecastSeriesRef = useRef<ISeriesApi<"Line"> | null>(null);
   const bullForecastSeriesRef = useRef<ISeriesApi<"Line"> | null>(null);
   const bearForecastSeriesRef = useRef<ISeriesApi<"Line"> | null>(null);
@@ -110,6 +114,7 @@ export const RealTimeTradingViewChart: React.FC<RealTimeTradingViewChartProps> =
   const [lastForecast, setLastForecast] = useState<ForecastPoint[]>([]);
   const [indicatorSnapshot, setIndicatorSnapshot] = useState<IndicatorSnapshot | null>(null);
   const [bollingerSnapshot, setBollingerSnapshot] = useState<ReturnType<typeof BollingerSqueezeEngine.analyze> | null>(null);
+  const [volumeProfileSnapshot, setVolumeProfileSnapshot] = useState<VolumeProfileSnapshot | null>(null);
   const [lastTickTimeStr, setLastTickTimeStr] = useState<string>("");
   const [localSeedCandles, setLocalSeedCandles] = useState<InitialCandle[] | null>(null);
   const [isTimeframeLoading, setIsTimeframeLoading] = useState<boolean>(false);
@@ -118,6 +123,7 @@ export const RealTimeTradingViewChart: React.FC<RealTimeTradingViewChartProps> =
     ema: true,
     vwap: true,
     bollinger: true,
+    volumeProfile: true,
     forecast: true,
     trailing: true,
     volume: true,
@@ -138,6 +144,7 @@ export const RealTimeTradingViewChart: React.FC<RealTimeTradingViewChartProps> =
   const selectedTfRef = useRef<ChartTimeframe>(timeframe);
   const timeframeRequestRef = useRef<number>(0);
   const lastIndicatorPreviewAtRef = useRef<number>(0);
+  const volumeProfileAccumulatorRef = useRef(new LiveVolumeProfileAccumulator());
 
   useEffect(() => {
     setSelectedTf(timeframe);
@@ -148,6 +155,11 @@ export const RealTimeTradingViewChart: React.FC<RealTimeTradingViewChartProps> =
     historyRef.current = [];
     aggregatorRef.current.reset(timeframeToMs(timeframe));
   }, [timeframe, symbol]);
+
+  useEffect(() => {
+    volumeProfileAccumulatorRef.current.reset();
+    setVolumeProfileSnapshot(null);
+  }, [symbol]);
 
   useEffect(() => {
     let active = true;
@@ -797,10 +809,39 @@ export const RealTimeTradingViewChart: React.FC<RealTimeTradingViewChartProps> =
     });
     bollingerLowerSeriesRef.current = bollingerLowerSeries;
 
+    const volumeProfilePocSeries = chart.addSeries(LineSeries, {
+      color: "#facc15",
+      lineWidth: 2,
+      lineStyle: LineStyle.Solid,
+      title: "POC · 거래 최다 가격",
+      priceLineVisible: false
+    });
+    volumeProfilePocSeriesRef.current = volumeProfilePocSeries;
+
+    const volumeProfileVahSeries = chart.addSeries(LineSeries, {
+      color: "#34d399",
+      lineWidth: 1,
+      lineStyle: LineStyle.Dashed,
+      title: "VAH · 핵심구역 위",
+      priceLineVisible: false
+    });
+    volumeProfileVahSeriesRef.current = volumeProfileVahSeries;
+
+    const volumeProfileValSeries = chart.addSeries(LineSeries, {
+      color: "#fb7185",
+      lineWidth: 1,
+      lineStyle: LineStyle.Dashed,
+      title: "VAL · 핵심구역 아래",
+      priceLineVisible: false
+    });
+    volumeProfileValSeriesRef.current = volumeProfileValSeries;
+
     const initialIndicators = IndicatorEngine.calculate(historyRef.current);
     setIndicatorSnapshot(initialIndicators);
     const initialBollinger = BollingerSqueezeEngine.analyze(historyRef.current);
     setBollingerSnapshot(initialBollinger);
+    const initialVolumeProfile = VolumeProfileEngine.estimateFromCandles(historyRef.current, 48, 0.7);
+    setVolumeProfileSnapshot(initialVolumeProfile);
 
     const initialCloses = historyRef.current.map(c => c.close);
     const ema9Values = IndicatorEngine.calcEMASeries(initialCloses, 9);
@@ -839,6 +880,23 @@ export const RealTimeTradingViewChart: React.FC<RealTimeTradingViewChartProps> =
         .map((c, idx) => ({ time: c.time as Time, value: bollingerValues[idx]?.lower }))
         .filter((p): p is { time: Time; value: number } => Number.isFinite(p.value) && p.value > 0)
     );
+
+    const profileGuideData = (value: number, endTime?: Time) => {
+      if (!Number.isFinite(value) || value <= 0) return [] as Array<{ time: Time; value: number }>;
+      const first = historyRef.current[0]?.time as Time | undefined;
+      const lastCandle = historyRef.current[historyRef.current.length - 1];
+      const last = endTime ?? (lastCandle?.time as Time | undefined);
+      if (first === undefined && last === undefined) return [] as Array<{ time: Time; value: number }>;
+      if (first === undefined || last === undefined || first === last) {
+        const onlyTime = (last ?? first) as Time;
+        return [{ time: onlyTime, value }];
+      }
+      return [{ time: first, value }, { time: last, value }];
+    };
+
+    volumeProfilePocSeries.setData(profileGuideData(initialVolumeProfile.poc));
+    volumeProfileVahSeries.setData(profileGuideData(initialVolumeProfile.vah));
+    volumeProfileValSeries.setData(profileGuideData(initialVolumeProfile.val));
 
     const forecastSeries = chart.addSeries(LineSeries, {
       color: "#a855f7",
@@ -985,6 +1043,7 @@ export const RealTimeTradingViewChart: React.FC<RealTimeTradingViewChartProps> =
     const unsubscribeFeed = realTimeMarketFeedManager.subscribe(symbol, (tick: LiveTick) => {
       setCurrentPrice(tick.price);
       setLastTickTimeStr(new Date(tick.timestamp).toLocaleTimeString());
+      volumeProfileAccumulatorRef.current.addTick(tick);
 
       const normalizedMarket = market === "UPBIT" || market === "CRYPTO" ? "CRYPTO" : market;
       const res = aggregatorRef.current.update(tick, normalizedMarket);
@@ -1023,6 +1082,13 @@ export const RealTimeTradingViewChart: React.FC<RealTimeTradingViewChartProps> =
         setIndicatorSnapshot(preview);
         const previewBollinger = BollingerSqueezeEngine.analyze(previewCandles);
         setBollingerSnapshot(previewBollinger);
+        const liveVolumeProfile = volumeProfileAccumulatorRef.current.snapshot(0.7);
+        if (liveVolumeProfile.sampleCount > 0) {
+          setVolumeProfileSnapshot(liveVolumeProfile);
+          volumeProfilePocSeriesRef.current?.setData(profileGuideData(liveVolumeProfile.poc, time));
+          volumeProfileVahSeriesRef.current?.setData(profileGuideData(liveVolumeProfile.vah, time));
+          volumeProfileValSeriesRef.current?.setData(profileGuideData(liveVolumeProfile.val, time));
+        }
 
         if (Number.isFinite(preview.ema9) && preview.ema9 > 0) ema9SeriesRef.current?.update({ time, value: preview.ema9 });
         if (Number.isFinite(preview.ema20) && preview.ema20 > 0) ema20SeriesRef.current?.update({ time, value: preview.ema20 });
@@ -1060,6 +1126,9 @@ export const RealTimeTradingViewChart: React.FC<RealTimeTradingViewChartProps> =
       bollingerUpperSeriesRef.current = null;
       bollingerMiddleSeriesRef.current = null;
       bollingerLowerSeriesRef.current = null;
+      volumeProfilePocSeriesRef.current = null;
+      volumeProfileVahSeriesRef.current = null;
+      volumeProfileValSeriesRef.current = null;
       forecastSeriesRef.current = null;
       bullForecastSeriesRef.current = null;
       bearForecastSeriesRef.current = null;
@@ -1080,6 +1149,9 @@ export const RealTimeTradingViewChart: React.FC<RealTimeTradingViewChartProps> =
     bollingerUpperSeriesRef.current?.applyOptions({ visible: activeIndicators.bollinger });
     bollingerMiddleSeriesRef.current?.applyOptions({ visible: activeIndicators.bollinger });
     bollingerLowerSeriesRef.current?.applyOptions({ visible: activeIndicators.bollinger });
+    volumeProfilePocSeriesRef.current?.applyOptions({ visible: activeIndicators.volumeProfile });
+    volumeProfileVahSeriesRef.current?.applyOptions({ visible: activeIndicators.volumeProfile });
+    volumeProfileValSeriesRef.current?.applyOptions({ visible: activeIndicators.volumeProfile });
     forecastSeriesRef.current?.applyOptions({ visible: activeIndicators.forecast });
     bullForecastSeriesRef.current?.applyOptions({ visible: activeIndicators.forecast });
     bearForecastSeriesRef.current?.applyOptions({ visible: activeIndicators.forecast });
@@ -1153,6 +1225,21 @@ export const RealTimeTradingViewChart: React.FC<RealTimeTradingViewChartProps> =
           : bollingerSnapshot.direction === "DOWN"
             ? bollingerSnapshot.breakoutConfirmed ? "하단 이탈 확인" : "하단 이탈 진행 중"
             : "밴드 안에서 움직이는 중";
+  const volumeProfileQualityText = !volumeProfileSnapshot
+    ? "계산 대기"
+    : volumeProfileSnapshot.quality === "LIVE_TICK_PARTIAL"
+      ? `실시간 체결 · 연결 후 ${volumeProfileSnapshot.sampleCount}건`
+      : volumeProfileSnapshot.quality === "OHLCV_ESTIMATED"
+        ? "과거 봉으로 추정 · 정확한 가격별 체결 아님"
+        : "계산 대기";
+  const volumeProfilePosition = !volumeProfileSnapshot || !Number.isFinite(volumeProfileSnapshot.vah) || !Number.isFinite(volumeProfileSnapshot.val)
+    ? "계산 대기"
+    : currentPrice > volumeProfileSnapshot.vah
+      ? "핵심 거래구역 위쪽"
+      : currentPrice < volumeProfileSnapshot.val
+        ? "핵심 거래구역 아래쪽"
+        : "핵심 거래구역 안쪽";
+  const maxProfileTopVolume = volumeProfileSnapshot?.topLevels[0]?.volume ?? 1;
   const lowerPaneCount = [activeIndicators.rsi, activeIndicators.macd, activeIndicators.atr].filter(Boolean).length;
   const chartHeight = 500 + lowerPaneCount * 105;
 
@@ -1205,7 +1292,7 @@ export const RealTimeTradingViewChart: React.FC<RealTimeTradingViewChartProps> =
       </div>
 
       {indicatorSnapshot && hasRealChartData && (
-        <div className="grid grid-cols-2 md:grid-cols-4 2xl:grid-cols-8 gap-1.5 text-[10px] font-mono">
+        <div className="grid grid-cols-2 md:grid-cols-4 2xl:grid-cols-9 gap-1.5 text-[10px] font-mono">
           <div className="rounded-lg border border-amber-700/50 bg-amber-950/30 px-2 py-1.5">
             <div className="text-slate-400">EMA9 · 짧은 흐름</div>
             <div className="font-black text-amber-300">{Number.isFinite(indicatorSnapshot.ema9) ? formatDisplayPrice(indicatorSnapshot.ema9) : "계산 중"}</div>
@@ -1222,6 +1309,11 @@ export const RealTimeTradingViewChart: React.FC<RealTimeTradingViewChartProps> =
             <div className="text-slate-400">Bollinger · 폭/돌파</div>
             <div className="font-black text-blue-300">{bollingerSnapshot && Number.isFinite(bollingerSnapshot.bandwidthPct) ? `${bollingerSnapshot.bandwidthPct.toFixed(2)}%` : "계산 중"}</div>
             <div className="text-[9px] text-slate-400">{bollingerStatus}</div>
+          </div>
+          <div className="rounded-lg border border-yellow-700/50 bg-yellow-950/20 px-2 py-1.5">
+            <div className="text-slate-400">가격별 거래량 · POC</div>
+            <div className="font-black text-yellow-300">{volumeProfileSnapshot && Number.isFinite(volumeProfileSnapshot.poc) ? formatDisplayPrice(volumeProfileSnapshot.poc) : "계산 중"}</div>
+            <div className="text-[9px] text-slate-400">{volumeProfilePosition}</div>
           </div>
           <div className={`rounded-lg border px-2 py-1.5 ${currentRvol !== null && currentRvol >= 2 ? "border-orange-500/70 bg-orange-950/40" : "border-slate-700 bg-slate-900/60"}`}>
             <div className="text-slate-400">RVOL · 평소보다 거래량</div>
@@ -1265,6 +1357,7 @@ export const RealTimeTradingViewChart: React.FC<RealTimeTradingViewChartProps> =
           <button type="button" onClick={() => setActiveIndicators(prev => ({ ...prev, ema: !prev.ema }))} className={`px-2 py-0.5 rounded border transition cursor-pointer font-bold ${activeIndicators.ema ? "bg-amber-950/70 border-amber-600 text-amber-300" : "bg-slate-900/60 border-slate-800 text-slate-500"}`}>EMA (9/20)</button>
           <button type="button" onClick={() => setActiveIndicators(prev => ({ ...prev, vwap: !prev.vwap }))} className={`px-2 py-0.5 rounded border transition cursor-pointer font-bold ${activeIndicators.vwap ? "bg-purple-950/70 border-purple-600 text-purple-300" : "bg-slate-900/60 border-slate-800 text-slate-500"}`}>VWAP</button>
           <button type="button" onClick={() => setActiveIndicators(prev => ({ ...prev, bollinger: !prev.bollinger }))} className={`px-2 py-0.5 rounded border transition cursor-pointer font-bold ${activeIndicators.bollinger ? "bg-blue-950/70 border-blue-600 text-blue-300" : "bg-slate-900/60 border-slate-800 text-slate-500"}`}>Bollinger</button>
+          <button type="button" onClick={() => setActiveIndicators(prev => ({ ...prev, volumeProfile: !prev.volumeProfile }))} className={`px-2 py-0.5 rounded border transition cursor-pointer font-bold ${activeIndicators.volumeProfile ? "bg-yellow-950/70 border-yellow-600 text-yellow-300" : "bg-slate-900/60 border-slate-800 text-slate-500"}`}>가격별거래량</button>
           <button type="button" onClick={() => setActiveIndicators(prev => ({ ...prev, volume: !prev.volume }))} className={`px-2 py-0.5 rounded border transition cursor-pointer font-bold ${activeIndicators.volume ? "bg-emerald-950/70 border-emerald-600 text-emerald-300" : "bg-slate-900/60 border-slate-800 text-slate-500"}`}>거래량</button>
           <button type="button" onClick={() => setActiveIndicators(prev => ({ ...prev, rsi: !prev.rsi }))} className={`px-2 py-0.5 rounded border transition cursor-pointer font-bold ${activeIndicators.rsi ? "bg-sky-950/70 border-sky-600 text-sky-300" : "bg-slate-900/60 border-slate-800 text-slate-500"}`}>RSI</button>
           <button type="button" onClick={() => setActiveIndicators(prev => ({ ...prev, macd: !prev.macd }))} className={`px-2 py-0.5 rounded border transition cursor-pointer font-bold ${activeIndicators.macd ? "bg-teal-950/70 border-teal-600 text-teal-300" : "bg-slate-900/60 border-slate-800 text-slate-500"}`}>MACD</button>
@@ -1277,6 +1370,7 @@ export const RealTimeTradingViewChart: React.FC<RealTimeTradingViewChartProps> =
 
       <div className="flex flex-wrap items-center gap-3 px-2 text-[10px] font-mono text-slate-400">
         {activeIndicators.bollinger && <span>BB <strong className="text-blue-300">위/가운데/아래 밴드 · 좁아지면 스퀴즈</strong></span>}
+        {activeIndicators.volumeProfile && <span>가격별거래량 <strong className="text-yellow-300">POC=제일 많이 거래 · VAH/VAL=핵심 구역 위/아래</strong></span>}
         {activeIndicators.rsi && <span>RSI <strong className="text-sky-300">70 과열 · 50 중립 · 30 과매도</strong></span>}
         {activeIndicators.macd && <span>MACD <strong className="text-teal-300">청록=MACD · 주황=Signal · 막대=차이</strong></span>}
         {activeIndicators.atr && <span>ATR <strong className="text-rose-300">선이 커질수록 변동성 확대</strong></span>}
@@ -1290,6 +1384,31 @@ export const RealTimeTradingViewChart: React.FC<RealTimeTradingViewChartProps> =
         {activeIndicators.bollinger && bollingerSnapshot && Number.isFinite(bollingerSnapshot.bandwidthPct) && (
           <div className={`absolute top-2 left-2 z-20 rounded-md border px-2 py-1 text-[10px] font-mono font-bold ${bollingerSnapshot.squeezeRelease ? "border-fuchsia-500/70 bg-fuchsia-950/90 text-fuchsia-200" : bollingerSnapshot.squeeze ? "border-indigo-500/70 bg-indigo-950/90 text-indigo-200" : bollingerSnapshot.direction === "UP" ? "border-emerald-500/70 bg-emerald-950/90 text-emerald-200" : bollingerSnapshot.direction === "DOWN" ? "border-rose-500/70 bg-rose-950/90 text-rose-200" : "border-blue-700/60 bg-slate-950/90 text-blue-200"}`}>
             BB {bollingerSnapshot.bandwidthPct.toFixed(2)}% · {bollingerStatus}
+          </div>
+        )}
+        {activeIndicators.volumeProfile && volumeProfileSnapshot && Number.isFinite(volumeProfileSnapshot.poc) && (
+          <div className="absolute top-10 right-2 z-20 w-48 rounded-lg border border-yellow-700/60 bg-slate-950/90 p-2 text-[9px] font-mono shadow-xl">
+            <div className="mb-1 flex items-center justify-between">
+              <strong className="text-yellow-300">가격별 거래량 지도</strong>
+              <span className="text-slate-500">TOP 5</span>
+            </div>
+            <div className="mb-1 grid grid-cols-3 gap-1 text-center">
+              <div><span className="text-slate-500">POC</span><div className="font-bold text-yellow-300">{formatDisplayPrice(volumeProfileSnapshot.poc)}</div></div>
+              <div><span className="text-slate-500">VAH</span><div className="font-bold text-emerald-300">{formatDisplayPrice(volumeProfileSnapshot.vah)}</div></div>
+              <div><span className="text-slate-500">VAL</span><div className="font-bold text-rose-300">{formatDisplayPrice(volumeProfileSnapshot.val)}</div></div>
+            </div>
+            <div className="space-y-1">
+              {volumeProfileSnapshot.topLevels.slice(0, 5).map(level => (
+                <div key={level.price} className="grid grid-cols-[62px_1fr_32px] items-center gap-1">
+                  <span className="text-slate-300 text-right">{formatDisplayPrice(level.price)}</span>
+                  <div className="h-1.5 overflow-hidden rounded bg-slate-800">
+                    <div className="h-full rounded bg-yellow-400/70" style={{ width: `${Math.max(6, Math.min(100, (level.volume / maxProfileTopVolume) * 100))}%` }} />
+                  </div>
+                  <span className="text-slate-500 text-right">{level.volumePct.toFixed(0)}%</span>
+                </div>
+              ))}
+            </div>
+            <div className="mt-1 border-t border-slate-800 pt-1 text-slate-500">{volumeProfileQualityText}</div>
           </div>
         )}
         {isTimeframeLoading && (
