@@ -8,3 +8,5 @@ coverage/
 
 # lotto645: 회차별 백테스트 상세 CSV(9MB)는 `python -m lotto645 backtest`로 재생성
 lotto/reports/backtest_rounds.csv
+__pycache__/
+*.pyc
