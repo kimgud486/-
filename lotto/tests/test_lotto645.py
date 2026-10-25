@@ -251,6 +251,40 @@ class UpgradeTests(unittest.TestCase):
         self.assertEqual(len(bt.rounds["unpopular"]), 11)
 
 
+class MLTests(unittest.TestCase):
+    """기계학습 파이프라인이 '신호가 있으면 잡고, 없으면 0.5'인지 확인."""
+
+    def _predictable_draws(self, n):
+        # 가짜 로또: 다음 회차 = 직전 회차 번호 각각 +1 (45→1). 완전히 예측 가능.
+        draws = [data.Draw(1, "d", (3, 11, 20, 27, 38, 44), 7)]
+        for i in range(2, n + 1):
+            prev = draws[-1].numbers
+            nums = tuple(sorted((p % 45) + 1 for p in prev))
+            bonus = next(b for b in range(1, 46) if b not in nums)
+            draws.append(data.Draw(i, "d", nums, bonus))
+        return draws
+
+    def test_pipeline_detects_signal_when_present(self):
+        try:
+            import sklearn  # noqa: F401
+        except ImportError:
+            self.skipTest("scikit-learn 없음")
+        from lotto645 import ml
+        r = ml.run_ml(self._predictable_draws(200), start=120, end=200, refit_every=20)
+        self.assertGreater(r.auc, 0.9)
+        self.assertGreater(r.top6_hit_rate, 0.8)
+
+    def test_pipeline_near_half_on_random(self):
+        try:
+            import sklearn  # noqa: F401
+        except ImportError:
+            self.skipTest("scikit-learn 없음")
+        from lotto645 import ml
+        r = ml.run_ml(synthetic_draws(260, seed=11), start=150, end=260, refit_every=30)
+        self.assertLess(abs(r.auc - 0.5), 0.06)
+        self.assertEqual(r.n_rounds, 111)
+
+
 class PoolTests(unittest.TestCase):
     def test_build_pool_sizes_and_games_inside_pool(self):
         from lotto645 import pool

@@ -162,6 +162,20 @@ def cmd_popularity(args):
     print(md)
 
 
+def cmd_ml(args):
+    from . import ml
+    draws = _load(args)
+    end = args.end or draws[-1].round
+    print(f"[ml] {args.model} 모델, {args.start}~{end}회 전진 검증, {args.refit}회차마다 재학습 (scikit-learn 필요)")
+    r = ml.run_ml(draws, start=args.start, end=end, refit_every=args.refit, progress=True, model=args.model)
+    md = ml.ml_markdown(r)
+    if args.out:
+        with open(args.out, "w", encoding="utf-8") as f:
+            f.write(md)
+        print(f"저장: {args.out}")
+    print(md)
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="lotto645", description="로또 6/45 분석·예측·백테스트")
     p.add_argument("--data", default=data.DEFAULT_CSV, help="CSV 데이터 경로")
@@ -204,6 +218,14 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--split", type=int, default=None, help="이 회차까지 학습 구간, 이후 검증 구간으로 나눠 재현성 검정")
     s.add_argument("--out", default=REPORTS_DIR, help="리포트 저장 폴더")
     s.set_defaults(fn=cmd_backtest)
+
+    s = sub.add_parser("ml", help="기계학습(그래디언트 부스팅/로지스틱) 전진 예측 시험 — AUC와 상위 번호 적중률")
+    s.add_argument("--model", default="hgb", choices=["hgb", "logit"])
+    s.add_argument("--start", type=int, default=300)
+    s.add_argument("--end", type=int, default=None)
+    s.add_argument("--refit", type=int, default=25, help="재학습 주기(회차)")
+    s.add_argument("--out", default=None)
+    s.set_defaults(fn=cmd_ml)
 
     s = sub.add_parser("popularity", help="번호 인기도(1등 공동 당첨자) 분석 — 당첨금 극대화 근거")
     s.add_argument("--out", default=None)
