@@ -1,0 +1,508 @@
+{
+  "start_round": 2,
+  "end_round": 1247,
+  "games": 5,
+  "pool_size": 15,
+  "filter_pass_rate_all": 0.8386837881219904,
+  "summaries": {
+    "frequency": {
+      "strategy": "frequency",
+      "label": "누적 빈도(핫넘버)",
+      "rounds": 1246,
+      "games_per_round": 5,
+      "total_games": 6230,
+      "mean_matches": 0.7754414125200642,
+      "expected_mean": 0.8,
+      "total_matches": 4831,
+      "expected_total": 4984.0,
+      "t_vs_theory": -1.4036255058660427,
+      "p_value_vs_theory": 0.16067976520480315,
+      "match_distribution": {
+        "0": 2594,
+        "1": 2601,
+        "2": 885,
+        "3": 140,
+        "4": 10,
+        "5": 0,
+        "6": 0
+      },
+      "theory_distribution": {
+        "0": 2495.5,
+        "1": 2642.3,
+        "2": 943.7,
+        "3": 139.8,
+        "4": 8.5,
+        "5": 0.2,
+        "6": 0.0
+      },
+      "best_distribution": {
+        "0": 182,
+        "1": 605,
+        "2": 361,
+        "3": 90,
+        "4": 8,
+        "5": 0,
+        "6": 0
+      },
+      "prize_counts": {
+        "1": 0,
+        "2": 0,
+        "3": 0,
+        "4": 10,
+        "5": 140
+      },
+      "rate_3plus": 0.024077046548956663,
+      "expected_rate_3plus": 0.023834078570323606,
+      "mean_actual_rank": 23.193285179240235,
+      "top6_hit_rate": 0.13081861958266452,
+      "top6_p_value": 0.5402469658168433,
+      "pool_hit_rate": 0.32664526484751205,
+      "expected_pool_hit_rate": 0.33333333333333337,
+      "filter_excluded_actual_rate": 0.16131621187800962,
+      "verdict": "무작위와 통계적으로 구별되지 않음 (예측력 없음)"
+    },
+    "cold": {
+      "strategy": "cold",
+      "label": "미출현(콜드넘버)",
+      "rounds": 1246,
+      "games_per_round": 5,
+      "total_games": 6230,
+      "mean_matches": 0.801123595505618,
+      "expected_mean": 0.8,
+      "total_matches": 4991,
+      "expected_total": 4984.0,
+      "t_vs_theory": 0.06791481152559584,
+      "p_value_vs_theory": 0.9458643531529531,
+      "match_distribution": {
+        "0": 2446,
+        "1": 2707,
+        "2": 953,
+        "3": 118,
+        "4": 6,
+        "5": 0,
+        "6": 0
+      },
+      "theory_distribution": {
+        "0": 2495.5,
+        "1": 2642.3,
+        "2": 943.7,
+        "3": 139.8,
+        "4": 8.5,
+        "5": 0.2,
+        "6": 0.0
+      },
+      "best_distribution": {
+        "0": 157,
+        "1": 579,
+        "2": 422,
+        "3": 82,
+        "4": 6,
+        "5": 0,
+        "6": 0
+      },
+      "prize_counts": {
+        "1": 0,
+        "2": 0,
+        "3": 0,
+        "4": 6,
+        "5": 118
+      },
+      "rate_3plus": 0.019903691813804174,
+      "expected_rate_3plus": 0.023834078570323606,
+      "mean_actual_rank": 23.11369716425896,
+      "top6_hit_rate": 0.13028357410379882,
+      "top6_p_value": 0.44400704711742145,
+      "pool_hit_rate": 0.33386837881219905,
+      "expected_pool_hit_rate": 0.3336900303192438,
+      "filter_excluded_actual_rate": 0.16131621187800962,
+      "verdict": "무작위와 통계적으로 구별되지 않음 (예측력 없음)"
+    },
+    "recent": {
+      "strategy": "recent",
+      "label": "최근 20회 가중",
+      "rounds": 1246,
+      "games_per_round": 5,
+      "total_games": 6230,
+      "mean_matches": 0.8032102728731942,
+      "expected_mean": 0.8,
+      "total_matches": 5004,
+      "expected_total": 4984.0,
+      "t_vs_theory": 0.1873103525942869,
+      "p_value_vs_theory": 0.8514478264907089,
+      "match_distribution": {
+        "0": 2446,
+        "1": 2719,
+        "2": 923,
+        "3": 130,
+        "4": 11,
+        "5": 1,
+        "6": 0
+      },
+      "theory_distribution": {
+        "0": 2495.5,
+        "1": 2642.3,
+        "2": 943.7,
+        "3": 139.8,
+        "4": 8.5,
+        "5": 0.2,
+        "6": 0.0
+      },
+      "best_distribution": {
+        "0": 167,
+        "1": 588,
+        "2": 394,
+        "3": 88,
+        "4": 8,
+        "5": 1,
+        "6": 0
+      },
+      "prize_counts": {
+        "1": 0,
+        "2": 0,
+        "3": 1,
+        "4": 11,
+        "5": 130
+      },
+      "rate_3plus": 0.022792937399678973,
+      "expected_rate_3plus": 0.023834078570323606,
+      "mean_actual_rank": 22.939539860888175,
+      "top6_hit_rate": 0.13563402889245585,
+      "top6_p_value": 0.5516102151084596,
+      "pool_hit_rate": 0.33507223113964685,
+      "expected_pool_hit_rate": 0.33333333333333337,
+      "filter_excluded_actual_rate": 0.16131621187800962,
+      "verdict": "무작위와 통계적으로 구별되지 않음 (예측력 없음)"
+    },
+    "markov": {
+      "strategy": "markov",
+      "label": "직전회차 전이",
+      "rounds": 1246,
+      "games_per_round": 5,
+      "total_games": 6230,
+      "mean_matches": 0.7690208667736758,
+      "expected_mean": 0.8,
+      "total_matches": 4791,
+      "expected_total": 4984.0,
+      "t_vs_theory": -1.8236709313425525,
+      "p_value_vs_theory": 0.06844148886632269,
+      "match_distribution": {
+        "0": 2602,
+        "1": 2602,
+        "2": 899,
+        "3": 117,
+        "4": 10,
+        "5": 0,
+        "6": 0
+      },
+      "theory_distribution": {
+        "0": 2495.5,
+        "1": 2642.3,
+        "2": 943.7,
+        "3": 139.8,
+        "4": 8.5,
+        "5": 0.2,
+        "6": 0.0
+      },
+      "best_distribution": {
+        "0": 188,
+        "1": 570,
+        "2": 409,
+        "3": 70,
+        "4": 9,
+        "5": 0,
+        "6": 0
+      },
+      "prize_counts": {
+        "1": 0,
+        "2": 0,
+        "3": 0,
+        "4": 10,
+        "5": 117
+      },
+      "rate_3plus": 0.020385232744783308,
+      "expected_rate_3plus": 0.023834078570323606,
+      "mean_actual_rank": 23.0920278223649,
+      "top6_hit_rate": 0.12466559657570893,
+      "top6_p_value": 0.027000936539733893,
+      "pool_hit_rate": 0.3261102193686463,
+      "expected_pool_hit_rate": 0.33440342429106473,
+      "filter_excluded_actual_rate": 0.16131621187800962,
+      "verdict": "무작위와 통계적으로 구별되지 않음 (예측력 없음)"
+    },
+    "pair": {
+      "strategy": "pair",
+      "label": "동반출현 친화도",
+      "rounds": 1246,
+      "games_per_round": 5,
+      "total_games": 6230,
+      "mean_matches": 0.742215088282504,
+      "expected_mean": 0.8,
+      "total_matches": 4624,
+      "expected_total": 4984.0,
+      "t_vs_theory": -3.3703575351081465,
+      "p_value_vs_theory": 0.0007737090574176884,
+      "match_distribution": {
+        "0": 2718,
+        "1": 2549,
+        "2": 825,
+        "3": 127,
+        "4": 11,
+        "5": 0,
+        "6": 0
+      },
+      "theory_distribution": {
+        "0": 2495.5,
+        "1": 2642.3,
+        "2": 943.7,
+        "3": 139.8,
+        "4": 8.5,
+        "5": 0.2,
+        "6": 0.0
+      },
+      "best_distribution": {
+        "0": 200,
+        "1": 597,
+        "2": 361,
+        "3": 79,
+        "4": 9,
+        "5": 0,
+        "6": 0
+      },
+      "prize_counts": {
+        "1": 0,
+        "2": 0,
+        "3": 0,
+        "4": 11,
+        "5": 127
+      },
+      "rate_3plus": 0.022150882825040127,
+      "expected_rate_3plus": 0.023834078570323606,
+      "mean_actual_rank": 23.301765650080256,
+      "top6_hit_rate": 0.12386302835741038,
+      "top6_p_value": 0.015699766805773965,
+      "pool_hit_rate": 0.3227661851257357,
+      "expected_pool_hit_rate": 0.33333333333333337,
+      "filter_excluded_actual_rate": 0.16131621187800962,
+      "verdict": "무작위 기대치보다 낮음 — 전략이 고른 번호가 오히려 덜 나왔음. 가정과 반대 방향이며, 여러 전략을 동시에 검정할 때 우연히 나올 수 있는 크기"
+    },
+    "ensemble": {
+      "strategy": "ensemble",
+      "label": "앙상블(빈도+최근+전이+동반)",
+      "rounds": 1246,
+      "games_per_round": 5,
+      "total_games": 6230,
+      "mean_matches": 0.7574638844301765,
+      "expected_mean": 0.8,
+      "total_matches": 4719,
+      "expected_total": 4984.0,
+      "t_vs_theory": -2.4257659550218444,
+      "p_value_vs_theory": 0.015417489845449226,
+      "match_distribution": {
+        "0": 2677,
+        "1": 2566,
+        "2": 822,
+        "3": 152,
+        "4": 12,
+        "5": 1,
+        "6": 0
+      },
+      "theory_distribution": {
+        "0": 2495.5,
+        "1": 2642.3,
+        "2": 943.7,
+        "3": 139.8,
+        "4": 8.5,
+        "5": 0.2,
+        "6": 0.0
+      },
+      "best_distribution": {
+        "0": 197,
+        "1": 607,
+        "2": 339,
+        "3": 90,
+        "4": 12,
+        "5": 1,
+        "6": 0
+      },
+      "prize_counts": {
+        "1": 0,
+        "2": 0,
+        "3": 1,
+        "4": 12,
+        "5": 152
+      },
+      "rate_3plus": 0.026484751203852328,
+      "expected_rate_3plus": 0.023834078570323606,
+      "mean_actual_rank": 23.189406099518457,
+      "top6_hit_rate": 0.12453183520599251,
+      "top6_p_value": 0.02473244054441608,
+      "pool_hit_rate": 0.32356875334403423,
+      "expected_pool_hit_rate": 0.33333333333333337,
+      "filter_excluded_actual_rate": 0.16131621187800962,
+      "verdict": "무작위 기대치보다 낮음 — 전략이 고른 번호가 오히려 덜 나왔음. 가정과 반대 방향이며, 여러 전략을 동시에 검정할 때 우연히 나올 수 있는 크기"
+    },
+    "balanced": {
+      "strategy": "balanced",
+      "label": "균등 추출+패턴 필터",
+      "rounds": 1246,
+      "games_per_round": 5,
+      "total_games": 6230,
+      "mean_matches": 0.7895666131621187,
+      "expected_mean": 0.8,
+      "total_matches": 4919,
+      "expected_total": 4984.0,
+      "t_vs_theory": -1.0359610055090693,
+      "p_value_vs_theory": 0.30042150504306797,
+      "match_distribution": {
+        "0": 2544,
+        "1": 2621,
+        "2": 910,
+        "3": 142,
+        "4": 13,
+        "5": 0,
+        "6": 0
+      },
+      "theory_distribution": {
+        "0": 2495.5,
+        "1": 2642.3,
+        "2": 943.7,
+        "3": 139.8,
+        "4": 8.5,
+        "5": 0.2,
+        "6": 0.0
+      },
+      "best_distribution": {
+        "0": 13,
+        "1": 474,
+        "2": 611,
+        "3": 135,
+        "4": 13,
+        "5": 0,
+        "6": 0
+      },
+      "prize_counts": {
+        "1": 0,
+        "2": 0,
+        "3": 0,
+        "4": 13,
+        "5": 142
+      },
+      "rate_3plus": 0.024879614767255216,
+      "expected_rate_3plus": 0.023834078570323606,
+      "mean_actual_rank": null,
+      "top6_hit_rate": null,
+      "top6_p_value": null,
+      "pool_hit_rate": null,
+      "expected_pool_hit_rate": null,
+      "filter_excluded_actual_rate": 0.16131621187800962,
+      "verdict": "무작위와 통계적으로 구별되지 않음 (예측력 없음)"
+    },
+    "random": {
+      "strategy": "random",
+      "label": "순수 무작위(기준선)",
+      "rounds": 1246,
+      "games_per_round": 5,
+      "total_games": 6230,
+      "mean_matches": 0.8099518459069021,
+      "expected_mean": 0.8,
+      "total_matches": 5046,
+      "expected_total": 4984.0,
+      "t_vs_theory": 0.9582477938528732,
+      "p_value_vs_theory": 0.3381238652069826,
+      "match_distribution": {
+        "0": 2472,
+        "1": 2671,
+        "2": 902,
+        "3": 169,
+        "4": 16,
+        "5": 0,
+        "6": 0
+      },
+      "theory_distribution": {
+        "0": 2495.5,
+        "1": 2642.3,
+        "2": 943.7,
+        "3": 139.8,
+        "4": 8.5,
+        "5": 0.2,
+        "6": 0.0
+      },
+      "best_distribution": {
+        "0": 18,
+        "1": 466,
+        "2": 587,
+        "3": 159,
+        "4": 16,
+        "5": 0,
+        "6": 0
+      },
+      "prize_counts": {
+        "1": 0,
+        "2": 0,
+        "3": 0,
+        "4": 16,
+        "5": 169
+      },
+      "rate_3plus": 0.02969502407704655,
+      "expected_rate_3plus": 0.023834078570323606,
+      "mean_actual_rank": null,
+      "top6_hit_rate": null,
+      "top6_p_value": null,
+      "pool_hit_rate": null,
+      "expected_pool_hit_rate": null,
+      "filter_excluded_actual_rate": null,
+      "verdict": "무작위와 통계적으로 구별되지 않음 (예측력 없음)"
+    }
+  },
+  "comparison_vs_random": {
+    "frequency": {
+      "mean_diff_per_game": -0.03451043338683788,
+      "p_value": 0.09200046157375742,
+      "better_rounds": 490,
+      "worse_rounds": 632,
+      "tie_rounds": 124
+    },
+    "cold": {
+      "mean_diff_per_game": -0.008828250401284106,
+      "p_value": 0.6535716470061239,
+      "better_rounds": 524,
+      "worse_rounds": 588,
+      "tie_rounds": 134
+    },
+    "recent": {
+      "mean_diff_per_game": -0.00674157303370787,
+      "p_value": 0.7318530114957827,
+      "better_rounds": 515,
+      "worse_rounds": 584,
+      "tie_rounds": 147
+    },
+    "markov": {
+      "mean_diff_per_game": -0.040930979133226325,
+      "p_value": 0.04145906657740527,
+      "better_rounds": 514,
+      "worse_rounds": 601,
+      "tie_rounds": 131
+    },
+    "pair": {
+      "mean_diff_per_game": -0.06773675762439808,
+      "p_value": 0.0008102910008718808,
+      "better_rounds": 464,
+      "worse_rounds": 656,
+      "tie_rounds": 126
+    },
+    "ensemble": {
+      "mean_diff_per_game": -0.05248796147672553,
+      "p_value": 0.010915594825951199,
+      "better_rounds": 471,
+      "worse_rounds": 632,
+      "tie_rounds": 143
+    },
+    "balanced": {
+      "mean_diff_per_game": -0.020385232744783304,
+      "p_value": 0.16479868208411724,
+      "better_rounds": 505,
+      "worse_rounds": 558,
+      "tie_rounds": 183
+    }
+  }
+}
