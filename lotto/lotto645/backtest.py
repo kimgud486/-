@@ -16,8 +16,8 @@ from scipy import stats
 
 from .analysis import combo_features, indicator_matrix
 from .data import Draw
-from .predictor import (DEFAULT_FILTER, PatternFilter, Prediction, generate_games, match_count,
-                        prize_rank, rank_numbers, stable_seed)
+from .predictor import (DEFAULT_FILTER, PatternFilter, Prediction, generate_games, make_ctx, match_count,
+                        prize_rank, rank_numbers, slice_ctx, stable_seed)
 from .strategies import STRATEGIES, DEFAULT_ORDER, Strategy, gaps_since_last
 
 N_BALLS = 45
@@ -144,6 +144,9 @@ def diagnose(strategy: Strategy, pred: Prediction, actual: Sequence[int], bonus:
     elif name == "balanced":
         lines.append("가정 검증(패턴 필터): 필터는 '흔한 모양'의 조합만 남기지만, 각 조합의 당첨 확률은 "
                      "모양과 상관없이 1/8,145,060으로 같음.")
+    elif name == "unpopular":
+        lines.append("가정 검증(비인기): 이 전략은 적중을 올리려는 것이 아니라 당첨 시 공동 당첨자를 줄이려는 것. "
+                     "적중 수는 무작위와 같아야 정상이며, 효과는 1등 당첨자 수 분석(`popularity` 명령)으로 따로 검증.")
     elif name == "random":
         lines.append("기준선: 무작위 선택. 다른 전략의 성적을 이 값과 비교해야 한다.")
 
@@ -190,7 +193,11 @@ class StrategySummary:
     pool_hit_rate: float | None
     expected_pool_hit_rate: float | None
     filter_excluded_actual_rate: float | None
-    verdict: str
+    zero_hit_round_rate: float = 0.0        # 모든 게임이 0개 적중인 회차 비율
+    zero_hit_theory_independent: float = 0.0  # 게임이 독립 무작위일 때의 근사 기대
+    round_mean_std: float = 0.0             # 회차 평균 적중의 표준편차 (커버리지 효과)
+    payout_index: float | None = None       # 생성 조합의 예상 공동 당첨자 비율 (1.0 = 무작위 평균)
+    verdict: str = ""
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -213,16 +220,18 @@ class BacktestResult:
 
 def evaluate_round(strategy: Strategy, history: Sequence[Draw], actual_draw: Draw, *, games: int,
                    pool_size: int, pattern_filter: PatternFilter | None, ind_prefix: np.ndarray | None = None,
-                   seed: int | None = None) -> tuple[Prediction, RoundResult]:
+                   seed: int | None = None, coverage: bool = False, ctx: dict | None = None) -> tuple[Prediction, RoundResult]:
     """history(1~n회)로 actual_draw(n+1회)를 예측·채점·진단."""
     ind = ind_prefix if ind_prefix is not None else indicator_matrix(history)
-    scores = strategy.score(ind)
+    if ctx is None and strategy.needs_ctx:
+        ctx = make_ctx(history)
+    scores = strategy.score(ind, ctx)
     target = actual_draw.round
     if seed is None:
         seed = stable_seed(strategy.name, target, games, pool_size)
     pf = pattern_filter if strategy.use_filter else None
     combos, pool, rejected, notes = generate_games(scores, games=games, pool_size=pool_size, seed=seed,
-                                                   pattern_filter=pf)
+                                                   pattern_filter=pf, coverage=coverage)
     pred = Prediction(target_round=target, strategy=strategy.name, trained_rounds=len(history),
                       scores=scores, ranking=rank_numbers(scores), pool=pool, games=combos,
                       filter_used=pf is not None, rejected_by_filter=rejected, notes=notes)
@@ -277,6 +286,10 @@ def summarize(strategy: Strategy, results: list[RoundResult], games: int) -> Str
     if strategy.use_filter:
         fex = float(np.mean([1.0 if r.filter_violations else 0.0 for r in results]))
 
+    zero_rate = float(np.mean([1.0 if r.matches and max(r.matches) == 0 else 0.0 for r in results])) if results else 0.0
+    zero_theory = MATCH_PMF[0] ** games
+    rm_std = float(round_means.std(ddof=1)) if len(round_means) > 1 else 0.0
+
     if p < 0.05 and z > 0:
         verdict = "무작위 기대치보다 유의하게 높음 — 다중 비교/우연 가능성을 포함해 재검증 필요"
     elif p < 0.05 and z < 0:
@@ -295,7 +308,8 @@ def summarize(strategy: Strategy, results: list[RoundResult], games: int) -> Str
         prize_counts={k: int(prize_counts.get(k, 0)) for k in range(1, 6)},
         rate_3plus=n3 / total_games if total_games else 0.0, expected_rate_3plus=P_AT_LEAST_3,
         mean_actual_rank=rank_mean, top6_hit_rate=top6_rate, top6_p_value=top6_p, pool_hit_rate=pool_hit, expected_pool_hit_rate=pool_exp,
-        filter_excluded_actual_rate=fex, verdict=verdict,
+        filter_excluded_actual_rate=fex, zero_hit_round_rate=zero_rate, zero_hit_theory_independent=zero_theory,
+        round_mean_std=rm_std, verdict=verdict,
     )
 
 
@@ -324,7 +338,8 @@ def compare_to_random(rounds: dict[str, list[RoundResult]]) -> dict[str, dict]:
 
 def run_backtest(draws: Sequence[Draw], *, strategies: Sequence[str] | None = None, start: int = 2,
                  end: int | None = None, games: int = 5, pool_size: int = 15,
-                 pattern_filter: PatternFilter | None = DEFAULT_FILTER, progress: bool = False) -> BacktestResult:
+                 pattern_filter: PatternFilter | None = DEFAULT_FILTER, progress: bool = False,
+                 coverage: bool = False) -> BacktestResult:
     """start회부터 end회까지를 각각 '직전까지의 데이터'로 예측한다.
     start=2 이면 1회 분석 → 2회 예측부터 시작."""
     names = list(strategies or DEFAULT_ORDER)
@@ -334,6 +349,7 @@ def run_backtest(draws: Sequence[Draw], *, strategies: Sequence[str] | None = No
     if end > draws[-1].round:
         raise ValueError(f"end({end})가 보유 데이터 최신 회차({draws[-1].round})를 넘습니다")
     full_ind = indicator_matrix(draws)
+    full_ctx = make_ctx(draws) if any(STRATEGIES[n].needs_ctx for n in names) else None
     rounds: dict[str, list[RoundResult]] = {n: [] for n in names}
     total = end - start + 1
     for i, target in enumerate(range(start, end + 1), 1):
@@ -341,13 +357,21 @@ def run_backtest(draws: Sequence[Draw], *, strategies: Sequence[str] | None = No
         actual = draws[target - 1]
         assert actual.round == target
         ind = full_ind[:target - 1]
+        ctx = slice_ctx(full_ctx, target - 1)
         for n in names:
             _, rr = evaluate_round(STRATEGIES[n], history, actual, games=games, pool_size=pool_size,
-                                   pattern_filter=pattern_filter, ind_prefix=ind)
+                                   pattern_filter=pattern_filter, ind_prefix=ind, coverage=coverage, ctx=ctx)
             rounds[n].append(rr)
         if progress and (i % 100 == 0 or i == total):
             print(f"[backtest] {i}/{total} ({target}회)")
     summaries = {n: summarize(STRATEGIES[n], rounds[n], games) for n in names}
+    # 생성 조합의 예상 공동 당첨자 비율 (전 구간 데이터로 적합한 인기도 모델, 참고 지표)
+    from .popularity import fit_popularity, winners_density
+    model = fit_popularity(full_ind, winners_density(draws))
+    if model is not None:
+        for n in names:
+            rel = [model.relative(g) for r in rounds[n] for g in r.games]
+            summaries[n].payout_index = float(np.mean(rel)) if rel else None
     fpr = pattern_filter.pass_rate(draws[start - 1:end]) if pattern_filter else float("nan")
     return BacktestResult(start_round=start, end_round=end, games=games, pool_size=pool_size,
                           rounds=rounds, summaries=summaries, filter_pass_rate_all=fpr,

@@ -115,7 +115,9 @@ def build_pool(history: Sequence[Draw], *, strategy: Strategy | str = "ensemble"
     target = history[-1].round + 1
     if seed is None:
         seed = stable_seed("pool", strategy.name, wild_rule, target, core, wild, games)
-    scores = strategy.score(ind)
+    from .predictor import make_ctx
+    ctx = make_ctx(history) if strategy.needs_ctx else None
+    scores = strategy.score(ind, ctx)
     core_numbers = select_core(scores, core)
     wild_numbers, why = select_wild(ind, core_numbers, wild, wild_rule, seed)
     pool = sorted(core_numbers + wild_numbers)

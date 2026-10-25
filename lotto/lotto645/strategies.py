@@ -30,8 +30,12 @@ class Strategy:
     uniform: bool = False          # 점수가 의미 없고 균등 추출인지
     params: dict = field(default_factory=dict)
 
-    def score(self, ind: np.ndarray) -> np.ndarray:
-        """ind: (회차수, 45) 0/1 지표 행렬 (학습 구간). 길이 45 점수 반환."""
+    needs_ctx: bool = False        # score_fn이 (ind, ctx)를 받는지
+
+    def score(self, ind: np.ndarray, ctx: dict | None = None) -> np.ndarray:
+        """ind: (회차수, 45) 0/1 지표 행렬 (학습 구간). ctx: 보조 자료(당첨자 밀도 등). 길이 45 점수 반환."""
+        if self.needs_ctx:
+            return np.asarray(self.score_fn(ind, ctx), dtype=float)
         return np.asarray(self.score_fn(ind), dtype=float)
 
 
@@ -105,6 +109,7 @@ def make_score_ensemble(parts: list[Callable[[np.ndarray], np.ndarray]]) -> Call
 # ------------------------------------------------------------------ 레지스트리
 
 def build_strategies() -> dict[str, Strategy]:
+    from .popularity import score_unpopular
     recent = make_score_recent(window=20, half_life=8.0)
     strategies = [
         Strategy("frequency", "누적 빈도(핫넘버)",
@@ -125,6 +130,9 @@ def build_strategies() -> dict[str, Strategy]:
         Strategy("ensemble", "앙상블(빈도+최근+전이+동반)",
                  "여러 패턴 신호를 합치면 개별 신호보다 안정적으로 맞는다",
                  make_score_ensemble([score_frequency, recent, score_markov, score_pair])),
+        Strategy("unpopular", "비인기 번호(당첨금 극대화)",
+                 "적중 확률은 같지만 남들이 덜 고르는 번호로 당첨되면 나눠 가질 사람이 적다",
+                 score_unpopular, use_filter=False, needs_ctx=True),
         Strategy("balanced", "균등 추출+패턴 필터",
                  "번호 자체에는 정보가 없지만 합계/홀짝/고저 등 '전형적인 패턴'을 지키면 유리하다",
                  score_uniform, use_filter=True, uniform=True),
@@ -136,4 +144,4 @@ def build_strategies() -> dict[str, Strategy]:
 
 
 STRATEGIES = build_strategies()
-DEFAULT_ORDER = ["frequency", "cold", "recent", "markov", "pair", "ensemble", "balanced", "random"]
+DEFAULT_ORDER = ["frequency", "cold", "recent", "markov", "pair", "ensemble", "unpopular", "balanced", "random"]

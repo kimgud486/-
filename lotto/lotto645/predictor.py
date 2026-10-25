@@ -99,8 +99,12 @@ def _weights_from_scores(scores: np.ndarray, pool_idx: np.ndarray, temperature: 
 
 def generate_games(scores: np.ndarray, *, games: int, pool_size: int, seed: int,
                    pattern_filter: PatternFilter | None, temperature: float = 1.0,
-                   max_attempts: int = 2000) -> tuple[list[tuple[int, ...]], list[int], int, list[str]]:
+                   max_attempts: int = 2000, coverage: bool = False,
+                   reuse_penalty: float = 0.02) -> tuple[list[tuple[int, ...]], list[int], int, list[str]]:
     """점수 기반 가중 추출로 서로 다른 조합 `games`개 생성.
+
+    coverage=True 이면 앞 게임에 쓴 번호의 가중치를 reuse_penalty 배로 낮춰 게임 간 겹침을 최소화한다
+    (평균 적중은 같고, '전부 꽝' 회차가 줄어 분산만 작아진다).
 
     풀이 너무 좁아 필터를 통과하는 조합이 없으면 풀을 5개씩 넓히고, 그래도 안 되면
     필터 없이 생성한다(그 사실을 notes에 남긴다).
@@ -119,10 +123,11 @@ def generate_games(scores: np.ndarray, *, games: int, pool_size: int, seed: int,
         out: list[tuple[int, ...]] = []
         seen = set()
         rejected = 0
+        w = weights.copy()
         for _ in range(max_attempts):
             if len(out) >= games:
                 break
-            pick = rng.choice(pool_idx, size=PICK, replace=False, p=weights)
+            pick = rng.choice(pool_idx, size=PICK, replace=False, p=w)
             combo = tuple(sorted(int(i) + 1 for i in pick))
             if combo in seen:
                 continue
@@ -131,6 +136,10 @@ def generate_games(scores: np.ndarray, *, games: int, pool_size: int, seed: int,
                 continue
             seen.add(combo)
             out.append(combo)
+            if coverage:
+                used = np.isin(pool_idx, pick)
+                w = np.where(used, w * reuse_penalty, w)
+                w = w / w.sum()
         rejected_total += rejected
         if len(out) >= games or (uniform and pf is None):
             return out, pool, rejected_total, notes
@@ -145,22 +154,35 @@ def generate_games(scores: np.ndarray, *, games: int, pool_size: int, seed: int,
         return out, pool, rejected_total, notes
 
 
+def make_ctx(draws: Sequence[Draw]) -> dict:
+    """전략 보조 자료: 회차별 1등 당첨자 밀도 (인기도 모델용)."""
+    from .popularity import winners_density
+    return {"density": winners_density(draws)}
+
+
+def slice_ctx(ctx: dict | None, n: int) -> dict | None:
+    return None if ctx is None else {k: v[:n] for k, v in ctx.items()}
+
+
 def predict(draws: Sequence[Draw], strategy: Strategy | str, *, games: int = 5, pool_size: int = 15,
             seed: int | None = None, pattern_filter: PatternFilter | None = DEFAULT_FILTER,
-            temperature: float = 1.0) -> Prediction:
+            temperature: float = 1.0, coverage: bool = False, ctx: dict | None = None) -> Prediction:
     """draws(1~n회)로 n+1회를 예측한다."""
     if isinstance(strategy, str):
         strategy = STRATEGIES[strategy]
     if len(draws) == 0:
         raise ValueError("학습 데이터가 최소 1회차는 필요합니다")
     ind = indicator_matrix(draws)
-    scores = strategy.score(ind)
+    if ctx is None and strategy.needs_ctx:
+        ctx = make_ctx(draws)
+    scores = strategy.score(ind, ctx)
     target = draws[-1].round + 1
     if seed is None:
         seed = stable_seed(strategy.name, target, games, pool_size)
     pf = pattern_filter if strategy.use_filter else None
     combos, pool, rejected, notes = generate_games(
-        scores, games=games, pool_size=pool_size, seed=seed, pattern_filter=pf, temperature=temperature)
+        scores, games=games, pool_size=pool_size, seed=seed, pattern_filter=pf, temperature=temperature,
+        coverage=coverage)
     if len(combos) < games:
         notes.append(f"필터/풀 제약으로 {len(combos)}게임만 생성됨 (요청 {games})")
     return Prediction(

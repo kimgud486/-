@@ -136,6 +136,33 @@ def round_markdown(rr: RoundResult, history_rounds: int) -> str:
     return "\n".join(L) + "\n"
 
 
+def split_markdown(train: BacktestResult, valid: BacktestResult) -> str:
+    """학습/검증 구간 분할 결과: 학습 구간에서 좋아 보인 전략이 검증 구간에서도 유지되는가."""
+    k = len(train.summaries)
+    alpha = 0.05 / k
+    L = [f"## 학습/검증 분할 검정 (학습 {train.start_round}~{train.end_round}회, 검증 {valid.start_round}~{valid.end_round}회)\n"]
+    L.append(f"전략 {k}개를 동시에 검정하므로 본페로니 보정 유의수준은 p<{alpha:.4f}. "
+             "학습 구간에서 유의해도 검증 구간에서 같은 방향으로 재현되지 않으면 우연이다.\n")
+    rows = []
+    for name in train.summaries:
+        a, b = train.summaries[name], valid.summaries[name]
+        same_dir = (a.t_vs_theory > 0) == (b.t_vs_theory > 0)
+        sig_a, sig_b = a.p_value_vs_theory < 0.05, b.p_value_vs_theory < 0.05
+        if a.p_value_vs_theory < alpha and b.p_value_vs_theory < alpha and same_dir:
+            verdict = "학습·검증 모두 보정 유의, 같은 방향 → 실제 효과 가능성 (방향 확인 필요)"
+        elif sig_a and sig_b and same_dir:
+            verdict = "두 구간 모두 p<0.05이지만 보정 기준 미달 → 약한 신호, 추가 자료 필요"
+        elif sig_a or sig_b:
+            which = "학습" if sig_a and not sig_b else ("검증" if sig_b and not sig_a else "서로 반대 방향")
+            verdict = f"{which} 구간에서만 p<0.05 → 재현 안 됨, 우연으로 판단"
+        else:
+            verdict = "어느 구간에서도 무작위와 구별 안 됨"
+        rows.append([a.label, f"{a.mean_matches:.3f} (p={a.p_value_vs_theory:.3f})",
+                     f"{b.mean_matches:.3f} (p={b.p_value_vs_theory:.3f})", verdict])
+    L.append(_table(["전략", "학습 구간 게임당 적중", "검증 구간 게임당 적중", "판정"], rows))
+    return "\n".join(L) + "\n"
+
+
 def backtest_markdown(bt: BacktestResult, *, detail_rounds: Sequence[int] = ()) -> str:
     L = [f"# 워크포워드 백테스트: {bt.start_round}회 ~ {bt.end_round}회 "
          f"({bt.end_round - bt.start_round + 1}회차, 회차당 {bt.games}게임, 풀 {bt.pool_size}개)\n"]
@@ -154,9 +181,16 @@ def backtest_markdown(bt: BacktestResult, *, detail_rounds: Sequence[int] = ()) 
             (f"{_pct(s.pool_hit_rate)} / {_pct(s.expected_pool_hit_rate)}") if s.pool_hit_rate is not None else "-",
             _pct(s.filter_excluded_actual_rate) if s.filter_excluded_actual_rate is not None else "-",
             (f"{cmp['mean_diff_per_game']:+.3f} (p={cmp['p_value']:.3f})") if cmp else "기준선",
+            f"{_pct(s.zero_hit_round_rate)} / {_pct(s.zero_hit_theory_independent)}",
+            f"{s.payout_index:.2f}" if s.payout_index is not None else "-",
         ])
     L.append(_table(["전략", "회차", "게임당 평균 적중 (기대 0.800)", "t", "p", "3개↑ 비율 / 기대", "등수별 횟수",
-                     "실제번호 평균 순위 (무정보 23)", "상위6개 적중률 (기대 13.3%)", "풀 적중률 / 기대", "필터가 실제조합 배제", "vs random 게임당 차이"], rows))
+                     "실제번호 평균 순위 (무정보 23)", "상위6개 적중률 (기대 13.3%)", "풀 적중률 / 기대", "필터가 실제조합 배제", "vs random 게임당 차이", "전부 꽝 회차 / 독립 근사", "공동당첨자 지수 (1=평균)"], rows))
+    L.append("")
+    L.append("- '전부 꽝 회차'는 그 회차의 모든 게임이 0개 적중인 비율. 커버리지(게임 간 번호 겹침 최소화)를 켜면 이 값이 "
+             "독립 근사보다 작아지지만 평균 적중은 변하지 않는다.")
+    L.append("- '공동당첨자 지수'는 생성 조합이 1등일 때 예상되는 공동 당첨자 수의 무작위 대비 비율(인기도 모델). "
+             "1보다 작을수록 당첨 시 몫이 크다. 적중 확률과는 무관하다.")
     L.append("")
     L.append("### 적중 수 분포 (게임 단위, 관측 / 이론)")
     for name, s in bt.summaries.items():

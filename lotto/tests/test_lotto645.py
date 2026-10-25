@@ -206,6 +206,51 @@ class BacktestTests(unittest.TestCase):
             run_backtest(draws, start=2, end=11)
 
 
+class UpgradeTests(unittest.TestCase):
+    def test_coverage_reduces_overlap(self):
+        draws = synthetic_draws(60)
+        p_plain = predictor.predict(draws, "random", games=5)
+        p_cov = predictor.predict(draws, "random", games=5, coverage=True)
+        distinct_plain = len(set().union(*p_plain.games))
+        distinct_cov = len(set().union(*p_cov.games))
+        self.assertEqual(distinct_cov, 30)             # 5게임 × 6개 완전 분리
+        self.assertGreaterEqual(distinct_cov, distinct_plain)
+
+    def test_popularity_fit_and_unpopular_strategy(self):
+        from lotto645 import popularity
+        rng = np.random.default_rng(7)
+        draws = []
+        for i in range(1, 401):
+            nums = tuple(sorted(int(x) for x in rng.choice(np.arange(1, 46), 6, replace=False)))
+            bonus = int(rng.choice([n for n in range(1, 46) if n not in nums]))
+            # 번호 7이 들어가면 당첨자가 크게 늘어나는 가짜 세계
+            winners = 10 + (20 if 7 in nums else 0) + int(rng.integers(0, 3))
+            draws.append(data.Draw(i, "d", nums, bonus, first_prize=1, first_winners=winners, total_sales=10**11))
+        ind = analysis.indicator_matrix(draws)
+        dens = popularity.winners_density(draws)
+        self.assertTrue(np.isnan(dens[:99]).all())          # 100회 이전은 제외
+        model = popularity.fit_popularity(ind, dens)
+        self.assertIsNotNone(model)
+        self.assertEqual(int(np.argmax(model.beta)) + 1, 7)  # 7번이 가장 '인기'
+        sc = popularity.score_unpopular(ind, {"density": dens})
+        self.assertEqual(int(np.argmin(sc)) + 1, 7)          # 비인기 전략은 7번을 가장 낮게
+        p = predictor.predict(draws, "unpopular", games=3)
+        self.assertEqual(len(p.games), 3)
+        for g in p.games:
+            self.assertNotIn(7, g)
+        # ctx 없이도 동작(큰 번호 선호 근사)
+        sc2 = popularity.score_unpopular(ind, None)
+        self.assertEqual(int(np.argmax(sc2)) + 1, 45)
+
+    def test_backtest_zero_hit_and_payout_fields(self):
+        draws = synthetic_draws(80)
+        bt = run_backtest(draws, strategies=["random", "unpopular"], start=70, end=80, games=3, coverage=True)
+        s = bt.summaries["random"]
+        self.assertTrue(0 <= s.zero_hit_round_rate <= 1)
+        self.assertAlmostEqual(s.zero_hit_theory_independent, MATCH_PMF[0] ** 3)
+        self.assertEqual(len(bt.rounds["unpopular"]), 11)
+
+
 class PoolTests(unittest.TestCase):
     def test_build_pool_sizes_and_games_inside_pool(self):
         from lotto645 import pool

@@ -13,7 +13,7 @@ import json
 import os
 import sys
 
-from . import analysis, data, pool, report
+from . import analysis, data, pool, popularity, report
 from .backtest import evaluate_round, run_backtest
 from .predictor import DEFAULT_FILTER, predict
 from .strategies import DEFAULT_ORDER, STRATEGIES
@@ -65,7 +65,7 @@ def cmd_analyze(args):
 
 def cmd_predict(args):
     draws = _load(args)
-    preds = [predict(draws, n, games=args.games, pool_size=args.pool, seed=args.seed)
+    preds = [predict(draws, n, games=args.games, pool_size=args.pool, seed=args.seed, coverage=args.coverage)
              for n in _strategy_list(args.strategy)]
     md = report.prediction_markdown(preds, draws[-1])
     if args.out:
@@ -95,11 +95,24 @@ def cmd_backtest(args):
     names = _strategy_list(args.strategy)
     print(f"[backtest] {args.start}회~{end}회, 전략 {len(names)}개, 회차당 {args.games}게임, 풀 {args.pool}개")
     bt = run_backtest(draws, strategies=names, start=args.start, end=end, games=args.games,
-                      pool_size=args.pool, progress=True)
+                      pool_size=args.pool, progress=True, coverage=args.coverage)
     detail = [int(x) for x in args.detail.split(",") if x.strip()] if args.detail else []
     detail = [d for d in detail if args.start <= d <= end]
     paths = report.write_backtest_outputs(bt, args.out, detail_rounds=detail)
-    print(report.backtest_markdown(bt))
+    md = report.backtest_markdown(bt)
+    if args.split:
+        if not (args.start < args.split < end):
+            raise SystemExit(f"--split 은 {args.start}~{end} 사이여야 합니다")
+        print(f"[backtest] 분할 검정: 학습 {args.start}~{args.split}회 / 검증 {args.split + 1}~{end}회")
+        train = run_backtest(draws, strategies=names, start=args.start, end=args.split, games=args.games,
+                             pool_size=args.pool, coverage=args.coverage)
+        valid = run_backtest(draws, strategies=names, start=args.split + 1, end=end, games=args.games,
+                             pool_size=args.pool, coverage=args.coverage)
+        split_md = report.split_markdown(train, valid)
+        md += "\n" + split_md
+        with open(paths["summary_md"], "a", encoding="utf-8") as f:
+            f.write("\n" + split_md)
+    print(md)
     for k, p in paths.items():
         print(f"저장: {k} → {p}")
 
@@ -139,6 +152,16 @@ def cmd_pool_backtest(args):
         print(f"저장: {k} → {p}")
 
 
+def cmd_popularity(args):
+    draws = _load(args)
+    md = popularity.popularity_markdown(draws)
+    if args.out:
+        with open(args.out, "w", encoding="utf-8") as f:
+            f.write(md)
+        print(f"저장: {args.out}")
+    print(md)
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="lotto645", description="로또 6/45 분석·예측·백테스트")
     p.add_argument("--data", default=data.DEFAULT_CSV, help="CSV 데이터 경로")
@@ -159,6 +182,7 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--games", type=int, default=5)
     s.add_argument("--pool", type=int, default=15)
     s.add_argument("--seed", type=int, default=None)
+    s.add_argument("--coverage", action="store_true", help="게임 간 번호 겹침 최소화")
     s.add_argument("--out", default=None)
     s.set_defaults(fn=cmd_predict)
 
@@ -176,8 +200,14 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--games", type=int, default=5)
     s.add_argument("--pool", type=int, default=15)
     s.add_argument("--detail", default="2,3,100,500,1000,1247", help="상세 진단을 리포트에 넣을 회차(콤마)")
+    s.add_argument("--coverage", action="store_true", help="게임 간 번호 겹침 최소화")
+    s.add_argument("--split", type=int, default=None, help="이 회차까지 학습 구간, 이후 검증 구간으로 나눠 재현성 검정")
     s.add_argument("--out", default=REPORTS_DIR, help="리포트 저장 폴더")
     s.set_defaults(fn=cmd_backtest)
+
+    s = sub.add_parser("popularity", help="번호 인기도(1등 공동 당첨자) 분석 — 당첨금 극대화 근거")
+    s.add_argument("--out", default=None)
+    s.set_defaults(fn=cmd_popularity)
 
     def add_pool_args(sp):
         sp.add_argument("--strategy", default="ensemble", help="핵심 후보 선별 전략 (점수형: " + ",".join(
