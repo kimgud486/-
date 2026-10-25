@@ -1,0 +1,92 @@
+{
+  "strategy": "recent",
+  "wild_rule": "pair",
+  "core": 15,
+  "wild": 3,
+  "games": 1,
+  "start_round": 2,
+  "end_round": 1247,
+  "summary": {
+    "rounds": 1246,
+    "core": {
+      "size": 15,
+      "mean_hits": 2.010433386837881,
+      "expected": 2.0,
+      "hit_rate": 0.13402889245585875,
+      "expected_rate": 0.13333333333333333,
+      "p_value": 0.7796799488241895
+    },
+    "wild": {
+      "size": 3,
+      "mean_hits": 0.3756019261637239,
+      "expected": 0.4,
+      "hit_rate": 0.12520064205457465,
+      "expected_rate": 0.13333333333333333,
+      "p_value": 0.14884409367622894
+    },
+    "pool": {
+      "size": 18,
+      "mean_hits": 2.386035313001605,
+      "expected": 2.4,
+      "distribution": {
+        "0": 46,
+        "1": 245,
+        "2": 382,
+        "3": 365,
+        "4": 175,
+        "5": 29,
+        "6": 4
+      },
+      "theory_distribution": {
+        "0": 45.3,
+        "1": 222.3,
+        "2": 410.8,
+        "3": 365.1,
+        "4": 164.3,
+        "5": 35.4,
+        "6": 2.8
+      },
+      "rounds_all6_in_pool": 4,
+      "theory_all6": 2.84,
+      "rounds_5plus_in_pool": 33,
+      "theory_5plus": 38.2,
+      "p_value": 0.7384371314052927
+    },
+    "games": {
+      "per_round": 1,
+      "mean_matches": 0.8105939004815409,
+      "expected": 0.8,
+      "t": 0.45383094980340577,
+      "p_value": 0.6500296030521208,
+      "match_distribution": {
+        "0": 514,
+        "1": 498,
+        "2": 195,
+        "3": 34,
+        "4": 5
+      },
+      "prize_counts": {
+        "1": 0,
+        "2": 0,
+        "3": 0,
+        "4": 5,
+        "5": 34
+      },
+      "best_distribution": {
+        "0": 514,
+        "1": 498,
+        "2": 195,
+        "3": 34,
+        "4": 5
+      }
+    },
+    "missed_outside": {
+      "count": 4503,
+      "per_round": 3.613964686998395,
+      "expected_per_round": 3.6,
+      "mean_rank": 30.687541638907394,
+      "expected_mean_rank_if_uniform": 32.0,
+      "mean_gap": 8.929824561403509
+    }
+  }
+}

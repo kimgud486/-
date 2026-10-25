@@ -206,6 +206,61 @@ class BacktestTests(unittest.TestCase):
             run_backtest(draws, start=2, end=11)
 
 
+class PoolTests(unittest.TestCase):
+    def test_build_pool_sizes_and_games_inside_pool(self):
+        from lotto645 import pool
+        draws = synthetic_draws(80)
+        for rule in pool.WILD_RULES:
+            pr, scores = pool.build_pool(draws, strategy="frequency", core=15, wild=3, wild_rule=rule, games=3)
+            self.assertEqual(len(pr.core), 15)
+            self.assertEqual(len(pr.wild), 3)
+            self.assertEqual(len(pr.pool), 18)
+            self.assertFalse(set(pr.core) & set(pr.wild))
+            self.assertEqual(pr.target_round, 81)
+            self.assertEqual(len(pr.games), 3)
+            for g in pr.games:
+                self.assertTrue(set(g) <= set(pr.pool), rule)
+            # 핵심 후보는 점수 상위 15개여야 한다
+            self.assertEqual(sorted(pr.core), sorted(predictor.rank_numbers(scores)[:15]))
+
+    def test_score_pool_round(self):
+        from lotto645 import pool
+        draws = synthetic_draws(50)
+        ind = analysis.indicator_matrix(draws[:49])
+        pr, scores = pool.build_pool(draws[:49], strategy="ensemble", games=2, ind_prefix=ind)
+        pr = pool.score_pool_round(pr, scores, ind, draws[49])
+        actual = set(draws[49].numbers)
+        self.assertEqual(set(pr.core_hits), actual & set(pr.core))
+        self.assertEqual(set(pr.wild_hits), actual & set(pr.wild))
+        self.assertEqual(pr.pool_hit_count, len(actual & set(pr.pool)))
+        self.assertEqual(len(pr.missed_outside), 6 - pr.pool_hit_count)
+        for m in pr.missed_outside:
+            self.assertGreater(m["rank"], 15)   # 후보 밖 번호는 핵심 순위 밖
+        self.assertTrue(any("통합 후보" in d for d in pr.diagnosis))
+
+    def test_pool_backtest_and_theory(self):
+        from lotto645 import pool
+        pmf = pool.hypergeom_pmf(18)
+        self.assertAlmostEqual(sum(pmf.values()), 1.0)
+        self.assertAlmostEqual(sum(k * v for k, v in pmf.items()), 2.4)
+        draws = synthetic_draws(40)
+        bt = pool.run_pool_backtest(draws, strategy="frequency", start=2, end=40, games=1)
+        self.assertEqual(len(bt.rounds), 39)
+        self.assertEqual(bt.summary["pool"]["expected"], 2.4)
+        self.assertEqual(sum(bt.summary["pool"]["distribution"].values()), 39)
+        with tempfile.TemporaryDirectory() as td:
+            paths = pool.write_pool_outputs(bt, td, detail_rounds=[10])
+            for p in paths.values():
+                self.assertTrue(os.path.exists(p))
+            md = open(paths["summary_md"], encoding="utf-8").read()
+            self.assertIn("10회", md)
+
+    def test_pool_rejects_uniform_strategy(self):
+        from lotto645 import pool
+        with self.assertRaises(ValueError):
+            pool.build_pool(synthetic_draws(10), strategy="random")
+
+
 class ReportTests(unittest.TestCase):
     def test_markdown_outputs(self):
         from lotto645 import report

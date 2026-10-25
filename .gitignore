@@ -10,3 +10,4 @@ coverage/
 lotto/reports/backtest_rounds.csv
 __pycache__/
 *.pyc
+lotto/reports/pool_rounds_*.csv

@@ -1,0 +1,94 @@
+{
+  "strategy": "frequency",
+  "wild_rule": "cold",
+  "core": 15,
+  "wild": 3,
+  "games": 5,
+  "start_round": 2,
+  "end_round": 1247,
+  "summary": {
+    "rounds": 1246,
+    "core": {
+      "size": 15,
+      "mean_hits": 1.9598715890850722,
+      "expected": 2.0,
+      "hit_rate": 0.13065810593900481,
+      "expected_rate": 0.13333333333333333,
+      "p_value": 0.2868079334038599
+    },
+    "wild": {
+      "size": 3,
+      "mean_hits": 0.3972712680577849,
+      "expected": 0.4,
+      "hit_rate": 0.13242375601926162,
+      "expected_rate": 0.13333333333333333,
+      "p_value": 0.8852459292172149
+    },
+    "pool": {
+      "size": 18,
+      "mean_hits": 2.357142857142857,
+      "expected": 2.4,
+      "distribution": {
+        "0": 41,
+        "1": 246,
+        "2": 425,
+        "3": 334,
+        "4": 163,
+        "5": 35,
+        "6": 2
+      },
+      "theory_distribution": {
+        "0": 45.3,
+        "1": 222.3,
+        "2": 410.8,
+        "3": 365.1,
+        "4": 164.3,
+        "5": 35.4,
+        "6": 2.8
+      },
+      "rounds_all6_in_pool": 2,
+      "theory_all6": 2.84,
+      "rounds_5plus_in_pool": 37,
+      "theory_5plus": 38.2,
+      "p_value": 0.297837619462508
+    },
+    "games": {
+      "per_round": 5,
+      "mean_matches": 0.7852327447833066,
+      "expected": 0.8,
+      "t": -0.9375592030505164,
+      "p_value": 0.34865282184073626,
+      "match_distribution": {
+        "0": 2557,
+        "1": 2609,
+        "2": 923,
+        "3": 128,
+        "4": 12,
+        "5": 1
+      },
+      "prize_counts": {
+        "1": 0,
+        "2": 0,
+        "3": 1,
+        "4": 12,
+        "5": 128
+      },
+      "best_distribution": {
+        "0": 119,
+        "1": 591,
+        "2": 435,
+        "3": 89,
+        "4": 11,
+        "5": 1
+      }
+    },
+    "missed_outside": {
+      "count": 4539,
+      "per_round": 3.642857142857143,
+      "expected_per_round": 3.6,
+      "mean_rank": 30.255342586472793,
+      "expected_mean_rank_if_uniform": 32.0,
+      "mean_gap": 5.120070500110156
+    }
+  }
+}

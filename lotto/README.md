@@ -86,6 +86,35 @@ python -m unittest discover -s tests # 테스트
 - `backtest_summary.json`: 집계 수치
 - `backtest_rounds.csv`: 전 회차 × 전략별 예측 조합, 적중, 순위, 진단 문장
 
+## 후보군 방식 (`pool`, `pool-backtest`)
+
+"45개 중 분석으로 핵심 후보 15개 → 비후보군 30개에서 3개 추가 → 최종 후보 18개 → 예측 6개" 흐름을
+회차마다 수행하고, 핵심/추가/통합 후보 각각의 적중 수와 예측 6개의 적중, 그리고 **후보 밖에서 나온
+번호가 왜 밀렸는지**(모델 순위·누적 빈도·미출현·최근 출현)를 회차별로 저장합니다.
+
+```bash
+python -m lotto645 pool                                   # 다음 회차 후보 18개 + 예측 6개
+python -m lotto645 pool --round 1247                      # 1246회까지 분석 → 1247회 복기
+python -m lotto645 pool-backtest                          # 2~최신회 전 구간 (기본: ensemble 핵심, cold 추가, 1게임)
+python -m lotto645 pool-backtest --strategy frequency --wild-rule pair --core 15 --wild 3 --games 5
+```
+
+옵션: `--strategy` 핵심 후보 선별 전략(점수형 6개), `--core` 핵심 수, `--wild` 추가 수,
+`--wild-rule` 추가 후보 규칙(`cold` 가장 오래 안 나온 번호, `recent` 최근 가중 출현, `pair` 핵심 후보와 동반 출현,
+`random`), `--games` 예측 게임 수.
+
+결과(2~1247회, 1,246회차):
+
+| 설정 | 핵심 15개 적중 (기대 2.00) | 통합 18개 적중 (기대 2.40) | 예측 6개 적중/게임 (기대 0.80) |
+|---|---|---|---|
+| ensemble + cold | 1.94 | 2.34 | 0.774 |
+| frequency + cold | 1.96 | 2.36 | 0.785 |
+| recent + pair | 2.01 | 2.39 | 0.811 |
+
+후보 밖에서 나온 번호의 모델 순위는 후보 밖 구간(16~45위)에 고르게 퍼져 있어, 모델이 그 번호를 낮게 본
+이유가 다음 추첨과 무관했음을 보여 줍니다. 산출물은 `reports/pool_summary_<설정>.md|json`,
+`reports/pool_rounds_<설정>.csv`(회차별 후보·적중·틀린 번호·진단, git 제외).
+
 ## 코드 구조
 
 ```
@@ -96,6 +125,7 @@ lotto/
     strategies.py  점수 함수 8종
     predictor.py   패턴 필터, 조합 생성, 채점
     backtest.py    워크포워드, 가정 검증, 진단, 집계
+    pool.py        후보군 방식(핵심 15 + 추가 3 → 18 → 6) 예측·백테스트
     report.py      마크다운/JSON/CSV 출력
     cli.py         명령줄
   data/lotto645.csv

@@ -13,7 +13,7 @@ import json
 import os
 import sys
 
-from . import analysis, data, report
+from . import analysis, data, pool, report
 from .backtest import evaluate_round, run_backtest
 from .predictor import DEFAULT_FILTER, predict
 from .strategies import DEFAULT_ORDER, STRATEGIES
@@ -104,6 +104,41 @@ def cmd_backtest(args):
         print(f"저장: {k} → {p}")
 
 
+def cmd_pool(args):
+    """다음 회차(또는 --round 지정 회차 복기): 핵심 15 + 추가 3 → 18개 → 예측 6개."""
+    draws = _load(args)
+    if args.round:
+        if args.round < 2 or args.round > draws[-1].round:
+            raise SystemExit(f"회차는 2~{draws[-1].round} 사이여야 합니다")
+        history = draws[:args.round - 1]
+    else:
+        history = draws
+    ind = analysis.indicator_matrix(history)
+    pr, scores = pool.build_pool(history, strategy=args.strategy, core=args.core, wild=args.wild,
+                                 wild_rule=args.wild_rule, games=args.games, ind_prefix=ind)
+    if args.round:
+        pr = pool.score_pool_round(pr, scores, ind, draws[args.round - 1])
+        print(f"# {args.round}회 후보군 복기\n")
+    else:
+        print(f"# {pr.target_round}회 후보군 예측 (1~{history[-1].round}회 데이터)\n")
+        print("> 어떤 18개를 고르든 실제 6개가 그 안에 들어오는 기대치는 2.4개(18/45×6)이고, 백테스트에서도 그대로였습니다.\n")
+    print(pool.pool_round_markdown(pr))
+
+
+def cmd_pool_backtest(args):
+    draws = _load(args)
+    end = args.end or draws[-1].round
+    print(f"[pool] {args.start}회~{end}회, 전략 {args.strategy}, 핵심 {args.core} + 추가 {args.wild}({args.wild_rule}), "
+          f"회차당 {args.games}게임")
+    bt = pool.run_pool_backtest(draws, strategy=args.strategy, core=args.core, wild=args.wild, wild_rule=args.wild_rule,
+                                games=args.games, start=args.start, end=end, progress=True)
+    detail = [int(x) for x in args.detail.split(",") if x.strip()] if args.detail else []
+    paths = pool.write_pool_outputs(bt, args.out, detail_rounds=[d for d in detail if args.start <= d <= end])
+    print(pool.pool_summary_markdown(bt))
+    for k, p in paths.items():
+        print(f"저장: {k} → {p}")
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="lotto645", description="로또 6/45 분석·예측·백테스트")
     p.add_argument("--data", default=data.DEFAULT_CSV, help="CSV 데이터 경로")
@@ -143,6 +178,27 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--detail", default="2,3,100,500,1000,1247", help="상세 진단을 리포트에 넣을 회차(콤마)")
     s.add_argument("--out", default=REPORTS_DIR, help="리포트 저장 폴더")
     s.set_defaults(fn=cmd_backtest)
+
+    def add_pool_args(sp):
+        sp.add_argument("--strategy", default="ensemble", help="핵심 후보 선별 전략 (점수형: " + ",".join(
+            n for n in DEFAULT_ORDER if not STRATEGIES[n].uniform) + ")")
+        sp.add_argument("--core", type=int, default=15, help="핵심 후보 수")
+        sp.add_argument("--wild", type=int, default=3, help="비후보군에서 추가로 뽑는 수")
+        sp.add_argument("--wild-rule", default="cold", choices=pool.WILD_RULES, help="추가 후보 선별 규칙")
+        sp.add_argument("--games", type=int, default=1, help="최종 후보에서 만들 예측 게임 수")
+
+    s = sub.add_parser("pool", help="후보군 방식: 핵심 15 + 추가 3 → 18개 → 예측 6개 (다음 회차 또는 --round 복기)")
+    add_pool_args(s)
+    s.add_argument("--round", type=int, default=None, help="이 회차를 직전까지 데이터로 복기")
+    s.set_defaults(fn=cmd_pool)
+
+    s = sub.add_parser("pool-backtest", help="후보군 방식 전 구간 백테스트 (회차별 적중·틀린 데이터 저장)")
+    add_pool_args(s)
+    s.add_argument("--start", type=int, default=2)
+    s.add_argument("--end", type=int, default=None)
+    s.add_argument("--detail", default="2,3,100,500,1000,1247")
+    s.add_argument("--out", default=REPORTS_DIR)
+    s.set_defaults(fn=cmd_pool_backtest)
     return p
 
 

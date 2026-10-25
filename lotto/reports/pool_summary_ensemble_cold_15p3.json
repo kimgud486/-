@@ -1,0 +1,92 @@
+{
+  "strategy": "ensemble",
+  "wild_rule": "cold",
+  "core": 15,
+  "wild": 3,
+  "games": 1,
+  "start_round": 2,
+  "end_round": 1247,
+  "summary": {
+    "rounds": 1246,
+    "core": {
+      "size": 15,
+      "mean_hits": 1.9414125200642054,
+      "expected": 2.0,
+      "hit_rate": 0.1294275013376137,
+      "expected_rate": 0.13333333333333333,
+      "p_value": 0.11873585414997011
+    },
+    "wild": {
+      "size": 3,
+      "mean_hits": 0.39486356340288925,
+      "expected": 0.4,
+      "hit_rate": 0.13162118780096307,
+      "expected_rate": 0.13333333333333333,
+      "p_value": 0.7728509387669698
+    },
+    "pool": {
+      "size": 18,
+      "mean_hits": 2.336276083467095,
+      "expected": 2.4,
+      "distribution": {
+        "0": 55,
+        "1": 237,
+        "2": 411,
+        "3": 362,
+        "4": 143,
+        "5": 34,
+        "6": 4
+      },
+      "theory_distribution": {
+        "0": 45.3,
+        "1": 222.3,
+        "2": 410.8,
+        "3": 365.1,
+        "4": 164.3,
+        "5": 35.4,
+        "6": 2.8
+      },
+      "rounds_all6_in_pool": 4,
+      "theory_all6": 2.84,
+      "rounds_5plus_in_pool": 38,
+      "theory_5plus": 38.2,
+      "p_value": 0.12070070967872738
+    },
+    "games": {
+      "per_round": 1,
+      "mean_matches": 0.7744783306581059,
+      "expected": 0.8,
+      "t": -1.1487982203403322,
+      "p_value": 0.25085985288868906,
+      "match_distribution": {
+        "0": 525,
+        "1": 503,
+        "2": 196,
+        "3": 18,
+        "4": 4
+      },
+      "prize_counts": {
+        "1": 0,
+        "2": 0,
+        "3": 0,
+        "4": 4,
+        "5": 18
+      },
+      "best_distribution": {
+        "0": 525,
+        "1": 503,
+        "2": 196,
+        "3": 18,
+        "4": 4
+      }
+    },
+    "missed_outside": {
+      "count": 4565,
+      "per_round": 3.663723916532905,
+      "expected_per_round": 3.6,
+      "mean_rank": 29.882146768893758,
+      "expected_mean_rank_if_uniform": 32.0,
+      "mean_gap": 5.9537787513691125
+    }
+  }
+}
